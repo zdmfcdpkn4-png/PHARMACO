@@ -1,0 +1,28 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background-color: #f5f6f8;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Scrollbar discrète facon Monday */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-thumb {
+  background: #d0d4e4;
+  border-radius: 6px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #b6bbd0;
+}
