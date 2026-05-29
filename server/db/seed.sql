@@ -1,0 +1,51 @@
+-- =====================================================================
+--  PHARMACO — Données de démonstration
+--  Reproduit l'état de la capture d'écran : board "Suivi",
+--  groupes "To-do" et "Terminé".
+-- =====================================================================
+--  Exécution :  psql "$DATABASE_URL" -f server/db/seed.sql
+--  (À lancer APRÈS schema.sql)
+-- =====================================================================
+
+-- On repart d'un état propre pour le seed (utile en dev).
+TRUNCATE alerts, task_columns, tasks, groups, boards, workspaces, users
+    RESTART IDENTITY CASCADE;
+
+-- --- Utilisateurs --------------------------------------------------------
+INSERT INTO users (name, email, avatar_url, role) VALUES
+    ('Erwin Raingeard', 'erwin.raingeard@gmail.com', 'https://i.pravatar.cc/150?img=12', 'admin'),
+    ('Alice Martin',    'alice.martin@example.com',  'https://i.pravatar.cc/150?img=5',  'member'),
+    ('Bob Durand',      'bob.durand@example.com',    'https://i.pravatar.cc/150?img=33', 'member'),
+    ('Chloé Petit',     'chloe.petit@example.com',   'https://i.pravatar.cc/150?img=47', 'member');
+
+-- --- Workspace -----------------------------------------------------------
+INSERT INTO workspaces (name, description, created_by) VALUES
+    ('Espace de travail principal', 'Espace de travail de démonstration PHARMACO', 1);
+
+-- --- Board ---------------------------------------------------------------
+INSERT INTO boards (workspace_id, name, description) VALUES
+    (1, 'Suivi', 'Tableau de bord de suivi du projet');
+
+-- --- Groups --------------------------------------------------------------
+INSERT INTO groups (board_id, name, color, position) VALUES
+    (1, 'To-do',   '#579bfc', 0),   -- bleu
+    (1, 'Terminé', '#00c875', 1);   -- vert
+
+-- --- Tasks (groupe To-do = group_id 1) -----------------------------------
+INSERT INTO tasks (group_id, name, position) VALUES
+    (1, 'Tâche 1', 0),
+    (1, 'Tâche 2', 1),
+    (1, 'Tâche 3', 2);
+
+-- --- Task columns --------------------------------------------------------
+-- Tâche 1 : En cours, échéance mai 28, assignée à Erwin
+-- Tâche 2 : Fait,     échéance mai 29, assignée à Alice
+-- Tâche 3 : Bloqué,   échéance mai 30, non assignée
+INSERT INTO task_columns (task_id, admin_id, status, duedate) VALUES
+    (1, 1,    'En cours', DATE '2026-05-28'),
+    (2, 2,    'Fait',     DATE '2026-05-29'),
+    (3, NULL, 'Bloqué',   DATE '2026-05-30');
+
+-- --- Alertes (la tâche bloquée génère une alerte) ------------------------
+INSERT INTO alerts (user_id, message, type) VALUES
+    (1, 'La tâche « Tâche 3 » est passée au statut Bloqué.', 'blocked');

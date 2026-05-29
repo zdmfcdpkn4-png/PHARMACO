@@ -1,0 +1,23 @@
+{
+  "name": "pharmaco-server",
+  "version": "1.0.0",
+  "description": "Backend Express + PostgreSQL pour l'outil de gestion de projet PHARMACO",
+  "type": "module",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js",
+    "db:init": "node src/db/init.js",
+    "db:seed": "node src/db/init.js --seed"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "morgan": "^1.10.0",
+    "pg": "^8.12.0"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
