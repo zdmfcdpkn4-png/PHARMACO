@@ -28,3 +28,32 @@ export function formatShortDate(value) {
   if (Number.isNaN(d.getTime())) return null;
   return d.toLocaleDateString('fr-FR', { month: 'short', day: 'numeric' });
 }
+
+// Palette utilisée pour colorer les pastilles d'avatar (initiales).
+export const AVATAR_COLORS = [
+  '#0073ea',
+  '#00c875',
+  '#a25ddc',
+  '#ff642e',
+  '#e2445c',
+  '#037f4c',
+  '#9d50dd',
+  '#fdab3d',
+];
+
+// Extrait jusqu'à 2 initiales d'un nom ("Erwin Raingeard" -> "ER").
+export function getInitials(name = '') {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return '?';
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+}
+
+// Couleur déterministe à partir d'une chaîne (même nom -> même couleur).
+export function colorFromString(str = '') {
+  let hash = 0;
+  for (let i = 0; i < str.length; i += 1) {
+    hash = str.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
+}

@@ -12,11 +12,13 @@ TRUNCATE alerts, task_columns, tasks, groups, boards, workspaces, users
     RESTART IDENTITY CASCADE;
 
 -- --- Utilisateurs --------------------------------------------------------
+-- avatar_url laissé à NULL : le frontend génère des pastilles d'initiales
+-- (aucune dépendance vers un service d'avatars externe).
 INSERT INTO users (name, email, avatar_url, role) VALUES
-    ('Erwin Raingeard', 'erwin.raingeard@gmail.com', 'https://i.pravatar.cc/150?img=12', 'admin'),
-    ('Alice Martin',    'alice.martin@example.com',  'https://i.pravatar.cc/150?img=5',  'member'),
-    ('Bob Durand',      'bob.durand@example.com',    'https://i.pravatar.cc/150?img=33', 'member'),
-    ('Chloé Petit',     'chloe.petit@example.com',   'https://i.pravatar.cc/150?img=47', 'member');
+    ('Erwin Raingeard', 'erwin.raingeard@gmail.com', NULL, 'admin'),
+    ('Alice Martin',    'alice.martin@example.com',  NULL, 'member'),
+    ('Bob Durand',      'bob.durand@example.com',    NULL, 'member'),
+    ('Chloé Petit',     'chloe.petit@example.com',   NULL, 'member');
 
 -- --- Workspace -----------------------------------------------------------
 INSERT INTO workspaces (name, description, created_by) VALUES

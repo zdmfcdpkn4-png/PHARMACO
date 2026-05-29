@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { UserCircle2, Check, X } from 'lucide-react';
+import Avatar from './Avatar.jsx';
 
 // Avatar de l'admin assigné + menu déroulant pour changer/retirer.
 export default function AdminCell({ admin, users, onAssign }) {
@@ -23,12 +24,8 @@ export default function AdminCell({ admin, users, onAssign }) {
         title={admin ? admin.name : 'Assigner'}
         className="flex items-center justify-center rounded-full transition-transform hover:scale-105"
       >
-        {admin?.avatar_url ? (
-          <img
-            src={admin.avatar_url}
-            alt={admin.name}
-            className="h-8 w-8 rounded-full object-cover ring-2 ring-white"
-          />
+        {admin ? (
+          <Avatar name={admin.name} src={admin.avatar_url} size={32} />
         ) : (
           <UserCircle2 size={28} className="text-gray-300" strokeWidth={1.5} />
         )}
@@ -49,7 +46,7 @@ export default function AdminCell({ admin, users, onAssign }) {
               }}
               className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-gray-100"
             >
-              <img src={u.avatar_url} alt="" className="h-6 w-6 rounded-full object-cover" />
+              <Avatar name={u.name} src={u.avatar_url} size={24} ring={false} />
               <span className="flex-1 truncate text-gray-700">{u.name}</span>
               {admin?.id === u.id && <Check size={14} className="text-primary" />}
             </button>

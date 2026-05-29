@@ -4,6 +4,7 @@ import Sidebar from './components/Sidebar.jsx';
 import BoardHeader from './components/BoardHeader.jsx';
 import GroupTable from './components/GroupTable.jsx';
 import AlertsPanel from './components/AlertsPanel.jsx';
+import Avatar from './components/Avatar.jsx';
 import { api, IS_MOCK } from './api/index.js';
 import { GROUP_COLORS } from './lib/constants.js';
 
@@ -257,10 +258,11 @@ export default function App() {
               onClose={() => setAlertsOpen(false)}
               onMarkRead={handleMarkRead}
             />
-            <img
+            <Avatar
+              name={users.find((u) => u.id === CURRENT_USER_ID)?.name || ''}
               src={users.find((u) => u.id === CURRENT_USER_ID)?.avatar_url}
-              alt=""
-              className="h-8 w-8 rounded-full object-cover"
+              size={32}
+              ring={false}
             />
           </div>
         </div>

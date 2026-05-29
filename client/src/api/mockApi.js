@@ -5,11 +5,13 @@ import { GROUP_COLORS } from '../lib/constants.js';
 let nextId = 1000;
 const uid = () => ++nextId;
 
+// avatar_url laissé à null : les pastilles d'initiales sont générées
+// localement par le composant Avatar (aucune dépendance réseau).
 const users = [
-  { id: 1, name: 'Erwin Raingeard', email: 'erwin.raingeard@gmail.com', avatar_url: 'https://i.pravatar.cc/150?img=12', role: 'admin' },
-  { id: 2, name: 'Alice Martin', email: 'alice.martin@example.com', avatar_url: 'https://i.pravatar.cc/150?img=5', role: 'member' },
-  { id: 3, name: 'Bob Durand', email: 'bob.durand@example.com', avatar_url: 'https://i.pravatar.cc/150?img=33', role: 'member' },
-  { id: 4, name: 'Chloé Petit', email: 'chloe.petit@example.com', avatar_url: 'https://i.pravatar.cc/150?img=47', role: 'member' },
+  { id: 1, name: 'Erwin Raingeard', email: 'erwin.raingeard@gmail.com', avatar_url: null, role: 'admin' },
+  { id: 2, name: 'Alice Martin', email: 'alice.martin@example.com', avatar_url: null, role: 'member' },
+  { id: 3, name: 'Bob Durand', email: 'bob.durand@example.com', avatar_url: null, role: 'member' },
+  { id: 4, name: 'Chloé Petit', email: 'chloe.petit@example.com', avatar_url: null, role: 'member' },
 ];
 
 const findUser = (id) => users.find((u) => u.id === id) || null;
