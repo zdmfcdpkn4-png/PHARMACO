@@ -19,6 +19,11 @@ app.use(cors({ origin: process.env.CLIENT_ORIGIN || '*' }));
 app.use(express.json());
 app.use(morgan('dev'));
 
+// Racine : petit message pour confirmer que l'API tourne (évite un 404 nu)
+app.get('/', (_req, res) =>
+  res.json({ service: 'pharmaco-api', health: '/api/health' })
+);
+
 // Health check
 app.get('/api/health', (_req, res) => res.json({ status: 'ok', service: 'pharmaco-api' }));
 

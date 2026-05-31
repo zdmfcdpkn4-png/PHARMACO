@@ -1,0 +1,52 @@
+# Blueprint Render pour PHARMACO (frontend + backend).
+# Déploiement : Render Dashboard -> New -> Blueprint -> sélectionner ce repo.
+# Render lit ce fichier et crée/maj les deux services + la base.
+
+databases:
+  - name: pharmaco-db
+    databaseName: pharmaco
+    plan: free
+
+services:
+  # -------------------------------------------------------------------
+  # Backend : API Express
+  # -------------------------------------------------------------------
+  - type: web
+    name: pharmaco-api
+    runtime: node
+    plan: free
+    rootDir: server
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: pharmaco-db
+          property: connectionString
+      - key: PGSSL
+        value: "true"
+      - key: CLIENT_ORIGIN
+        # URL complète du frontend, ex : https://pharmaco-web.onrender.com
+        # (à renseigner dans le dashboard après le 1er déploiement ;
+        #  laisser vide autorise toutes les origines via CORS).
+        sync: false
+
+  # -------------------------------------------------------------------
+  # Frontend : build Vite servi par `npm start` (vite preview)
+  # -------------------------------------------------------------------
+  - type: web
+    name: pharmaco-web
+    runtime: node
+    plan: free
+    rootDir: client
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    envVars:
+      - key: VITE_USE_MOCK
+        value: "false"
+      - key: VITE_API_URL
+        # URL complète de l'API + /api, ex :
+        #   https://pharmaco-api.onrender.com/api
+        # Injectée AU BUILD : après l'avoir définie, relancer un déploiement.
+        sync: false
