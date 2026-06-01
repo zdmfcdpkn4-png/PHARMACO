@@ -100,12 +100,14 @@ CREATE TABLE IF NOT EXISTS tasks (
     name      VARCHAR(255) NOT NULL,
     position  INTEGER      NOT NULL DEFAULT 0,
     priority  task_priority NOT NULL DEFAULT 'P3 - Normal',
+    start_date DATE,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS idx_tasks_group ON tasks(group_id);
 
--- Pour les bases déjà créées : ajoute la colonne si absente.
+-- Pour les bases déjà créées : ajoute les colonnes si absentes.
 ALTER TABLE tasks ADD COLUMN IF NOT EXISTS priority task_priority NOT NULL DEFAULT 'P3 - Normal';
+ALTER TABLE tasks ADD COLUMN IF NOT EXISTS start_date DATE;
 
 -- ---------------------------------------------------------------------
 --  Table : task_columns (les valeurs des colonnes d'une tâche)

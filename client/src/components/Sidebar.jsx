@@ -7,6 +7,7 @@ import {
   Table2,
   BarChart3,
   PieChart,
+  GanttChartSquare,
   Plus,
   ChevronLeft,
 } from 'lucide-react';
@@ -108,6 +109,22 @@ export default function Sidebar({
               }`}
             >
               <Table2 size={16} /> {boardName}
+            </button>
+          </li>
+          <li>
+            <button
+              type="button"
+              onClick={() => {
+                onSelectRail?.('Espaces');
+                onSelectView?.('gantt');
+              }}
+              className={`flex w-full items-center gap-2 rounded-md px-2 py-2 text-left text-sm ${
+                view === 'gantt'
+                  ? 'bg-blue-50 font-medium text-primary'
+                  : 'text-gray-600 hover:bg-gray-100'
+              }`}
+            >
+              <GanttChartSquare size={16} /> Gantt / Chronogramme
             </button>
           </li>
           <li>

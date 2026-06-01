@@ -38,6 +38,40 @@ export function formatShortDate(value) {
   return d.toLocaleDateString('fr-FR', { month: 'short', day: 'numeric' });
 }
 
+// ---- Helpers de dates pour le Gantt ----
+// Convertit une date (Date|string) en clé YYYY-MM-DD locale.
+export function toYmd(value) {
+  const d = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(d.getTime())) return null;
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+// Parse une clé YYYY-MM-DD en Date locale (minuit).
+export function parseYmd(s) {
+  if (!s) return null;
+  const [y, m, d] = s.slice(0, 10).split('-').map(Number);
+  return new Date(y, m - 1, d);
+}
+
+// Nombre de jours (entiers) entre deux dates YYYY-MM-DD (b - a).
+export function daysBetween(a, b) {
+  const da = parseYmd(a);
+  const db = parseYmd(b);
+  if (!da || !db) return 0;
+  return Math.round((db - da) / 86400000);
+}
+
+// Ajoute n jours à une clé YYYY-MM-DD et renvoie une clé.
+export function addDays(s, n) {
+  const d = parseYmd(s);
+  if (!d) return null;
+  d.setDate(d.getDate() + n);
+  return toYmd(d);
+}
+
 // Palette utilisée pour colorer les pastilles d'avatar (initiales).
 export const AVATAR_COLORS = [
   '#0073ea',

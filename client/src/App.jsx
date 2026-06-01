@@ -9,6 +9,7 @@ import AlertsPanel from './components/AlertsPanel.jsx';
 import Avatar from './components/Avatar.jsx';
 import TeamWorkloadView from './components/TeamWorkloadView.jsx';
 import ReportingView from './components/ReportingView.jsx';
+import GanttChartView from './components/GanttChartView.jsx';
 import TaskDrawer from './components/TaskDrawer.jsx';
 import Login from './components/Login.jsx';
 import { api, IS_MOCK } from './api/index.js';
@@ -228,6 +229,24 @@ function Board({ currentUser, onLogout }) {
       setError(e.message);
     }
   };
+
+  // Création complète (Gantt) : name + dates. Renvoie la tâche créée.
+  const handleCreateTaskFull = async ({ group_id, name, start_date, duedate }) => {
+    const created = await api.createTask({ group_id, name, start_date, duedate, ...actor });
+    setBoard((b) => {
+      const next = structuredClone(b);
+      const g = next.groups.find((x) => x.id === group_id);
+      if (g) g.tasks.push(created);
+      return next;
+    });
+    return created;
+  };
+
+  // Mise à jour des dates depuis le Gantt (déplacement / redimensionnement).
+  const handleUpdateTaskDates = (taskId, patch) =>
+    optimistic((b) => patchTaskLocal(b, taskId, patch), () =>
+      api.updateTask(taskId, { ...patch, ...actor })
+    );
 
   // -------- Handlers groupes --------
   const handleAddGroup = async () => {
@@ -678,7 +697,23 @@ function Board({ currentUser, onLogout }) {
           </div>
         </div>
 
-        {view === 'reporting' ? (
+        {view === 'gantt' ? (
+          <>
+            <div className="border-b border-gray-200 bg-white px-6 pt-4">
+              <h2 className="mb-3 flex items-center gap-2 text-2xl font-bold text-gray-800">
+                Gantt / Chronogramme
+              </h2>
+            </div>
+            {error && (
+              <div className="bg-red-50 px-6 py-2 text-sm text-status-blocked">{error}</div>
+            )}
+            <GanttChartView
+              board={board}
+              onUpdateTask={handleUpdateTaskDates}
+              onCreateTask={handleCreateTaskFull}
+            />
+          </>
+        ) : view === 'reporting' ? (
           <>
             <div className="border-b border-gray-200 bg-white px-6 pt-4">
               <h2 className="mb-3 flex items-center gap-2 text-2xl font-bold text-gray-800">

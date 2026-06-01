@@ -54,13 +54,13 @@ const board = {
       color: '#579bfc',
       position: 0,
       tasks: [
-        { id: 11, group_id: 1, name: 'Tâche 1', position: 0, status: 'En cours', priority: 'P1 - Urgent', duedate: weekday(0), created_at: daysAgo(10), admin: adminShape(1) },
-        { id: 12, group_id: 1, name: 'Tâche 2', position: 1, status: 'Fait', priority: 'P3 - Normal', duedate: weekday(1), created_at: daysAgo(9), admin: adminShape(2) },
-        { id: 13, group_id: 1, name: 'Tâche 3', position: 2, status: 'Bloqué', priority: 'P2 - Élevé', duedate: weekday(2), created_at: daysAgo(7), admin: null },
+        { id: 11, group_id: 1, name: 'Tâche 1', position: 0, status: 'En cours', priority: 'P1 - Urgent', start_date: weekday(0), duedate: weekday(2), created_at: daysAgo(10), admin: adminShape(1) },
+        { id: 12, group_id: 1, name: 'Tâche 2', position: 1, status: 'Fait', priority: 'P3 - Normal', start_date: weekday(1), duedate: weekday(3), created_at: daysAgo(9), admin: adminShape(2) },
+        { id: 13, group_id: 1, name: 'Tâche 3', position: 2, status: 'Bloqué', priority: 'P2 - Élevé', start_date: weekday(2), duedate: weekday(4), created_at: daysAgo(7), admin: null },
         // Erwin chargé sur mardi (pour illustrer la saturation > 3)
-        { id: 14, group_id: 1, name: 'Audit qualité', position: 3, status: 'En cours', priority: 'P2 - Élevé', duedate: weekday(1), created_at: daysAgo(5), admin: adminShape(1) },
-        { id: 15, group_id: 1, name: 'Revue lots', position: 4, status: 'À faire', priority: 'P3 - Normal', duedate: weekday(1), created_at: daysAgo(3), admin: adminShape(1) },
-        { id: 16, group_id: 1, name: 'Contrôle péremption', position: 5, status: 'En cours', priority: 'P3 - Normal', duedate: weekday(1), created_at: daysAgo(1), admin: adminShape(1) },
+        { id: 14, group_id: 1, name: 'Audit qualité', position: 3, status: 'En cours', priority: 'P2 - Élevé', start_date: weekday(1), duedate: weekday(1), created_at: daysAgo(5), admin: adminShape(1) },
+        { id: 15, group_id: 1, name: 'Revue lots', position: 4, status: 'À faire', priority: 'P3 - Normal', start_date: weekday(3), duedate: weekday(5), created_at: daysAgo(3), admin: adminShape(1) },
+        { id: 16, group_id: 1, name: 'Contrôle péremption', position: 5, status: 'En cours', priority: 'P3 - Normal', start_date: weekday(0), duedate: weekday(1), created_at: daysAgo(1), admin: adminShape(1) },
       ],
     },
     {
@@ -223,7 +223,7 @@ export const mockApi = {
     return { ok: true, updated: items.length };
   },
 
-  async createTask({ group_id, name, admin_id, status, duedate, priority, actor_id }) {
+  async createTask({ group_id, name, admin_id, status, duedate, priority, start_date, actor_id }) {
     await delay();
     const g = findGroup(group_id);
     if (!g) throw new Error('Groupe introuvable');
@@ -234,6 +234,7 @@ export const mockApi = {
       position: g.tasks.length,
       status: status || 'À faire',
       priority: priority || 'P3 - Normal',
+      start_date: start_date || null,
       duedate: duedate || null,
       created_at: new Date().toISOString(),
       admin: admin_id ? adminShape(admin_id) : null,
@@ -254,6 +255,7 @@ export const mockApi = {
     if (patch.status !== undefined) task.status = patch.status;
     if (patch.priority !== undefined) task.priority = patch.priority;
     if (patch.duedate !== undefined) task.duedate = patch.duedate;
+    if (patch.start_date !== undefined) task.start_date = patch.start_date;
     if (patch.admin_id !== undefined) task.admin = patch.admin_id ? adminShape(patch.admin_id) : null;
 
     if (patch.status === 'Bloqué' && prev.status !== 'Bloqué' && task.admin) {

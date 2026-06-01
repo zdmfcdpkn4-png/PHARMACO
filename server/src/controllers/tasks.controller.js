@@ -5,7 +5,7 @@ import { asyncHandler } from '../middleware/error.js';
 const fetchTaskShaped = async (taskId, client = { query }) => {
   const { rows } = await client.query(
     `SELECT
-        t.id, t.group_id, t.name, t.position, t.priority, t.created_at,
+        t.id, t.group_id, t.name, t.position, t.priority, t.start_date, t.created_at,
         tc.admin_id, tc.status, tc.duedate,
         u.id AS admin_user_id, u.name AS admin_name, u.avatar_url AS admin_avatar_url
      FROM tasks t
@@ -22,6 +22,7 @@ const fetchTaskShaped = async (taskId, client = { query }) => {
     name: row.name,
     position: row.position,
     priority: row.priority || 'P3 - Normal',
+    start_date: row.start_date,
     created_at: row.created_at,
     status: row.status || 'À faire',
     duedate: row.duedate,
@@ -60,7 +61,7 @@ const createBlockedAlert = async (client, taskId) => {
  * Body : { group_id, name, admin_id?, status?, duedate?, priority? }
  */
 export const createTask = asyncHandler(async (req, res) => {
-  const { group_id, name, admin_id, status, duedate, priority, actor_id } = req.body;
+  const { group_id, name, admin_id, status, duedate, priority, start_date, actor_id } = req.body;
   if (!group_id || !name) {
     return res.status(400).json({ error: 'group_id et name sont requis' });
   }
@@ -73,9 +74,9 @@ export const createTask = asyncHandler(async (req, res) => {
     const position = posRes.rows[0].next;
 
     const taskRes = await client.query(
-      `INSERT INTO tasks (group_id, name, position, priority)
-       VALUES ($1, $2, $3, COALESCE($4::task_priority, 'P3 - Normal')) RETURNING id`,
-      [group_id, name, position, priority || null]
+      `INSERT INTO tasks (group_id, name, position, priority, start_date)
+       VALUES ($1, $2, $3, COALESCE($4::task_priority, 'P3 - Normal'), $5) RETURNING id`,
+      [group_id, name, position, priority || null, start_date || null]
     );
     const taskId = taskRes.rows[0].id;
 
@@ -109,7 +110,8 @@ export const createTask = asyncHandler(async (req, res) => {
  */
 export const updateTask = asyncHandler(async (req, res) => {
   const taskId = req.params.id;
-  const { name, position, group_id, admin_id, status, duedate, priority, actor_id } = req.body;
+  const { name, position, group_id, admin_id, status, duedate, priority, start_date, actor_id } =
+    req.body;
 
   const task = await withTransaction(async (client) => {
     // État précédent complet (pour journaliser les changements)
@@ -123,20 +125,31 @@ export const updateTask = asyncHandler(async (req, res) => {
 
     // Mise à jour des champs propres à la tâche (dont la priorité, AVANT
     // le calcul d'alerte pour qu'un passage P1+Bloqué déclenche le critique).
+    // $6 indique si l'on doit toucher start_date (pour pouvoir le mettre à NULL).
     if (
       name !== undefined ||
       position !== undefined ||
       group_id !== undefined ||
-      priority !== undefined
+      priority !== undefined ||
+      start_date !== undefined
     ) {
       await client.query(
         `UPDATE tasks
          SET name = COALESCE($1, name),
              position = COALESCE($2, position),
              group_id = COALESCE($3, group_id),
-             priority = COALESCE($4::task_priority, priority)
-         WHERE id = $5`,
-        [name ?? null, position ?? null, group_id ?? null, priority ?? null, taskId]
+             priority = COALESCE($4::task_priority, priority),
+             start_date = CASE WHEN $6 THEN $5 ELSE start_date END
+         WHERE id = $7`,
+        [
+          name ?? null,
+          position ?? null,
+          group_id ?? null,
+          priority ?? null,
+          start_date ?? null,
+          start_date !== undefined,
+          taskId,
+        ]
       );
     }
 
