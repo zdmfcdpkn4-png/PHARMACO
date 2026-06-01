@@ -71,7 +71,7 @@ export const createTask = asyncHandler(async (req, res) => {
 
     await client.query(
       `INSERT INTO task_columns (task_id, admin_id, status, duedate)
-       VALUES ($1, $2, COALESCE($3, 'À faire'), $4)`,
+       VALUES ($1, $2, COALESCE($3::task_status, 'À faire'), $4)`,
       [taskId, admin_id || null, status || null, duedate || null]
     );
 
@@ -126,10 +126,10 @@ export const updateTask = asyncHandler(async (req, res) => {
     if (admin_id !== undefined || status !== undefined || duedate !== undefined) {
       await client.query(
         `INSERT INTO task_columns (task_id, admin_id, status, duedate)
-         VALUES ($1, $2, COALESCE($3, 'À faire'), $4)
+         VALUES ($1, $2, COALESCE($3::task_status, 'À faire'), $4)
          ON CONFLICT (task_id) DO UPDATE SET
            admin_id = CASE WHEN $5 THEN EXCLUDED.admin_id ELSE task_columns.admin_id END,
-           status   = COALESCE($3, task_columns.status),
+           status   = COALESCE($3::task_status, task_columns.status),
            duedate  = CASE WHEN $6 THEN EXCLUDED.duedate ELSE task_columns.duedate END`,
         [
           taskId,

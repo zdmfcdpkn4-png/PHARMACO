@@ -24,7 +24,7 @@ export const createUser = asyncHandler(async (req, res) => {
   }
   const { rows } = await query(
     `INSERT INTO users (name, email, avatar_url, role)
-     VALUES ($1, $2, $3, COALESCE($4, 'member'))
+     VALUES ($1, $2, $3, COALESCE($4::user_role, 'member'))
      RETURNING id, name, email, avatar_url, role, created_at`,
     [name, email, avatar_url || null, role || null]
   );

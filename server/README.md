@@ -89,5 +89,13 @@ Statuts disponibles (`task_status`) : `À faire`, `En cours`, `Fait`, `Bloqué`.
 - `PATCH  /api/alerts/:id/read`             — marquer comme lue
 - `POST   /api/alerts/read-all`             — tout marquer comme lu (body: { user_id })
 
+### Auth
+- `POST   /api/auth/login`         — connexion (body: { email, password }) → { token, user }
+- `POST   /api/auth/set-password`  — définir/réinitialiser un mot de passe (body: { email, password })
+
+> Compte de démonstration (après `db:seed`) :
+> **erwin.raingeard@gmail.com** / **pharmaco123**
+> (tous les comptes de démo partagent ce mot de passe).
+
 ### Health
 - `GET    /api/health`

@@ -3,6 +3,7 @@ import cors from 'cors';
 import morgan from 'morgan';
 import dotenv from 'dotenv';
 
+import authRouter from './routes/auth.js';
 import boardsRouter from './routes/boards.js';
 import groupsRouter from './routes/groups.js';
 import tasksRouter from './routes/tasks.js';
@@ -28,6 +29,7 @@ app.get('/', (_req, res) =>
 app.get('/api/health', (_req, res) => res.json({ status: 'ok', service: 'pharmaco-api' }));
 
 // Routes
+app.use('/api/auth', authRouter);
 app.use('/api/workspaces', workspacesRouter);
 app.use('/api/boards', boardsRouter);
 app.use('/api/groups', groupsRouter);

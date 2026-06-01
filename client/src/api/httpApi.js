@@ -21,6 +21,9 @@ async function request(path, { method = 'GET', body } = {}) {
 }
 
 export const httpApi = {
+  login: (email, password) =>
+    request('/auth/login', { method: 'POST', body: { email, password } }),
+
   getUsers: () => request('/users'),
   getBoard: (id = 1) => request(`/boards/${id}`),
 

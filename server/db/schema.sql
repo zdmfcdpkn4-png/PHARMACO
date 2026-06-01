@@ -32,13 +32,17 @@ END$$;
 --  Table : users
 -- ---------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS users (
-    id          SERIAL PRIMARY KEY,
-    name        VARCHAR(120)  NOT NULL,
-    email       VARCHAR(255)  NOT NULL UNIQUE,
-    avatar_url  TEXT,
-    role        user_role     NOT NULL DEFAULT 'member',
-    created_at  TIMESTAMPTZ   NOT NULL DEFAULT now()
+    id            SERIAL PRIMARY KEY,
+    name          VARCHAR(120)  NOT NULL,
+    email         VARCHAR(255)  NOT NULL UNIQUE,
+    avatar_url    TEXT,
+    role          user_role     NOT NULL DEFAULT 'member',
+    password_hash TEXT,
+    created_at    TIMESTAMPTZ   NOT NULL DEFAULT now()
 );
+
+-- Pour les bases déjà créées : ajoute la colonne si absente.
+ALTER TABLE users ADD COLUMN IF NOT EXISTS password_hash TEXT;
 
 -- ---------------------------------------------------------------------
 --  Table : workspaces

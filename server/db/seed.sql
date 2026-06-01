@@ -12,13 +12,14 @@ TRUNCATE alerts, task_columns, tasks, groups, boards, workspaces, users
     RESTART IDENTITY CASCADE;
 
 -- --- Utilisateurs --------------------------------------------------------
--- avatar_url laissé à NULL : le frontend génère des pastilles d'initiales
--- (aucune dépendance vers un service d'avatars externe).
-INSERT INTO users (name, email, avatar_url, role) VALUES
-    ('Erwin Raingeard', 'erwin.raingeard@gmail.com', NULL, 'admin'),
-    ('Alice Martin',    'alice.martin@example.com',  NULL, 'member'),
-    ('Bob Durand',      'bob.durand@example.com',    NULL, 'member'),
-    ('Chloé Petit',     'chloe.petit@example.com',   NULL, 'member');
+-- avatar_url laissé à NULL : le frontend génère des pastilles d'initiales.
+-- password_hash : hash scrypt du mot de passe par défaut « pharmaco123 »
+-- (format scrypt$<salt>$<hash>). À changer en production.
+INSERT INTO users (name, email, avatar_url, role, password_hash) VALUES
+    ('Erwin Raingeard', 'erwin.raingeard@gmail.com', NULL, 'admin',  'scrypt$f4100b77cf486dd553ac76da34d49ee0$6c382664f6ed0d2afb5a4f2f18f66bc6fc85a225d089900d2e0c4121df01dfc5144957887263393059a5e82d796f7665c572d4079607259ea16687d5a6a05524'),
+    ('Alice Martin',    'alice.martin@example.com',  NULL, 'member', 'scrypt$f4100b77cf486dd553ac76da34d49ee0$6c382664f6ed0d2afb5a4f2f18f66bc6fc85a225d089900d2e0c4121df01dfc5144957887263393059a5e82d796f7665c572d4079607259ea16687d5a6a05524'),
+    ('Bob Durand',      'bob.durand@example.com',    NULL, 'member', 'scrypt$f4100b77cf486dd553ac76da34d49ee0$6c382664f6ed0d2afb5a4f2f18f66bc6fc85a225d089900d2e0c4121df01dfc5144957887263393059a5e82d796f7665c572d4079607259ea16687d5a6a05524'),
+    ('Chloé Petit',     'chloe.petit@example.com',   NULL, 'member', 'scrypt$f4100b77cf486dd553ac76da34d49ee0$6c382664f6ed0d2afb5a4f2f18f66bc6fc85a225d089900d2e0c4121df01dfc5144957887263393059a5e82d796f7665c572d4079607259ea16687d5a6a05524');
 
 -- --- Workspace -----------------------------------------------------------
 INSERT INTO workspaces (name, description, created_by) VALUES

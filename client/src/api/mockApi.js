@@ -67,6 +67,16 @@ const findTask = (tid) => {
 };
 
 export const mockApi = {
+  async login(email, password) {
+    await delay();
+    const user = users.find((u) => u.email.toLowerCase() === String(email).toLowerCase());
+    // En mode démo, le mot de passe par défaut est « pharmaco123 ».
+    if (!user || password !== 'pharmaco123') {
+      throw new Error('Identifiants invalides');
+    }
+    return { token: `mock-${user.id}`, user: clone(user) };
+  },
+
   async getUsers() {
     await delay();
     return clone(users);

@@ -1,17 +1,48 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Bell, Plus } from 'lucide-react';
+import { Bell, Plus, LogOut } from 'lucide-react';
 import Sidebar from './components/Sidebar.jsx';
 import RailPanel from './components/RailPanel.jsx';
 import BoardHeader from './components/BoardHeader.jsx';
 import GroupTable from './components/GroupTable.jsx';
 import AlertsPanel from './components/AlertsPanel.jsx';
 import Avatar from './components/Avatar.jsx';
+import Login from './components/Login.jsx';
 import { api, IS_MOCK } from './api/index.js';
 import { GROUP_COLORS } from './lib/constants.js';
 
-const CURRENT_USER_ID = 1; // utilisateur connecté (démo)
+const AUTH_KEY = 'pharmaco_auth';
 
+// Composant racine : gère l'authentification puis rend le tableau.
 export default function App() {
+  const [auth, setAuth] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem(AUTH_KEY)) || null;
+    } catch {
+      return null;
+    }
+  });
+
+  const handleAuth = (res) => {
+    setAuth(res);
+    try {
+      localStorage.setItem(AUTH_KEY, JSON.stringify(res));
+    } catch {
+      /* ignore */
+    }
+  };
+
+  const handleLogout = () => {
+    setAuth(null);
+    localStorage.removeItem(AUTH_KEY);
+  };
+
+  if (!auth?.user) return <Login onAuth={handleAuth} />;
+
+  return <Board currentUser={auth.user} onLogout={handleLogout} />;
+}
+
+function Board({ currentUser, onLogout }) {
+  const CURRENT_USER_ID = currentUser.id;
   const [board, setBoard] = useState(null);
   const [users, setUsers] = useState([]);
   const [alerts, setAlerts] = useState([]);
@@ -38,6 +69,7 @@ export default function App() {
     } catch {
       /* non bloquant */
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -299,11 +331,19 @@ export default function App() {
               onMarkRead={handleMarkRead}
             />
             <Avatar
-              name={users.find((u) => u.id === CURRENT_USER_ID)?.name || ''}
-              src={users.find((u) => u.id === CURRENT_USER_ID)?.avatar_url}
+              name={currentUser.name || ''}
+              src={currentUser.avatar_url}
               size={32}
               ring={false}
             />
+            <button
+              type="button"
+              onClick={onLogout}
+              title="Se déconnecter"
+              className="rounded-full p-2 text-gray-500 hover:bg-gray-100 hover:text-status-blocked"
+            >
+              <LogOut size={18} />
+            </button>
           </div>
         </div>
 
