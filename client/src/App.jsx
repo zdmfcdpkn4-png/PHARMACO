@@ -11,7 +11,12 @@ import TeamWorkloadView from './components/TeamWorkloadView.jsx';
 import ReportingView from './components/ReportingView.jsx';
 import GanttChartView from './components/GanttChartView.jsx';
 import TaskDrawer from './components/TaskDrawer.jsx';
+import MobileNav from './components/MobileNav.jsx';
+import MobileHeader from './components/MobileHeader.jsx';
+import MobileBoard from './components/MobileBoard.jsx';
+import BottomSheet from './components/BottomSheet.jsx';
 import Login from './components/Login.jsx';
+import useIsMobile from './lib/useIsMobile.js';
 import { api, IS_MOCK } from './api/index.js';
 import { GROUP_COLORS, STATUS_META, PRIORITY_META } from './lib/constants.js';
 
@@ -48,11 +53,13 @@ export default function App() {
 
 function Board({ currentUser, onLogout }) {
   const CURRENT_USER_ID = currentUser.id;
+  const isMobile = useIsMobile();
   const [board, setBoard] = useState(null);
   const [users, setUsers] = useState([]);
   const [alerts, setAlerts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [profileOpen, setProfileOpen] = useState(false);
 
   // Filtres / recherche
   const [search, setSearch] = useState('');
@@ -670,6 +677,127 @@ function Board({ currentUser, onLogout }) {
     return (
       <div className="flex h-screen items-center justify-center bg-canvas text-status-blocked">
         {error}
+      </div>
+    );
+  }
+
+  // ---------- Layout MOBILE (< 768px) ----------
+  if (isMobile) {
+    return (
+      <div className="flex h-screen flex-col overflow-hidden bg-canvas">
+        {view === 'board' ? (
+          <>
+            <MobileHeader
+              title={board.name}
+              onAddTask={() => board.groups[0] && handleAddTask(board.groups[0].id, 'Nouvelle tâche')}
+              search={search}
+              onSearch={setSearch}
+              personFilter={personFilter}
+              onPersonFilter={setPersonFilter}
+              statusFilter={statusFilter}
+              onStatusFilter={setStatusFilter}
+              users={users}
+            />
+            {error && (
+              <div className="bg-red-50 px-4 py-2 text-sm text-status-blocked">{error}</div>
+            )}
+            <MobileBoard
+              board={board}
+              users={users}
+              filterFn={filterFn}
+              commentCounts={commentCounts}
+              onOpenComments={(t) => setDrawerTask(t)}
+              onChangeStatus={handleChangeStatus}
+              onAssign={handleAssign}
+              onAddTask={(gid) => handleAddTask(gid, 'Nouvelle tâche')}
+            />
+          </>
+        ) : (
+          <div className="flex flex-1 flex-col overflow-hidden">
+            <div className="sticky top-0 z-30 border-b border-gray-200 bg-white px-4 py-3">
+              <h1 className="text-lg font-bold text-gray-800">
+                {view === 'gantt'
+                  ? 'Gantt / Chronogramme'
+                  : view === 'reporting'
+                  ? 'Reporting'
+                  : 'Charge de travail'}
+              </h1>
+            </div>
+            <div className="flex-1 overflow-auto pb-20">
+              {view === 'gantt' && (
+                <GanttChartView
+                  board={board}
+                  onUpdateTask={handleUpdateTaskDates}
+                  onCreateTask={handleCreateTaskFull}
+                  onAddDependency={handleAddDependency}
+                  onDeleteDependency={handleDeleteDependency}
+                />
+              )}
+              {view === 'reporting' && <ReportingView board={board} users={users} />}
+              {view === 'workload' && <TeamWorkloadView board={board} users={users} />}
+            </div>
+          </div>
+        )}
+
+        {/* Navigation basse */}
+        <MobileNav
+          view={view}
+          onSelectView={setView}
+          onOpenAlerts={() => setAlertsOpen(true)}
+          onOpenProfile={() => setProfileOpen(true)}
+          unreadCount={unreadCount}
+        />
+
+        {/* Alertes en bottom sheet */}
+        <BottomSheet open={alertsOpen} title="Notifications" onClose={() => setAlertsOpen(false)}>
+          <div className="divide-y divide-gray-100">
+            {alerts.length === 0 && (
+              <p className="py-6 text-center text-sm text-gray-400">Aucune alerte</p>
+            )}
+            {alerts.map((a) => (
+              <button
+                key={a.id}
+                onClick={() => handleMarkRead(a.id)}
+                className={`flex w-full items-start gap-2 px-2 py-3 text-left text-sm ${
+                  a.is_read ? 'opacity-50' : ''
+                } ${a.type === 'critical' && !a.is_read ? 'bg-red-50/60' : ''}`}
+              >
+                <span className="flex-1 text-gray-700">{a.message}</span>
+                {!a.is_read && <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-primary" />}
+              </button>
+            ))}
+          </div>
+        </BottomSheet>
+
+        {/* Profil en bottom sheet */}
+        <BottomSheet open={profileOpen} title="Profil" onClose={() => setProfileOpen(false)}>
+          <div className="flex flex-col items-center gap-2 py-4">
+            <Avatar name={currentUser.name} src={currentUser.avatar_url} size={56} ring={false} />
+            <div className="text-base font-semibold text-gray-800">{currentUser.name}</div>
+            <div className="text-sm text-gray-500">{currentUser.email}</div>
+            <button
+              onClick={onLogout}
+              className="mt-3 flex items-center gap-2 rounded-lg border border-gray-200 px-4 py-2 text-sm text-status-blocked"
+            >
+              <LogOut size={16} /> Se déconnecter
+            </button>
+          </div>
+        </BottomSheet>
+
+        {/* Drawer commentaires (réutilisé tel quel) */}
+        {drawerTask && (
+          <TaskDrawer
+            task={board.groups.flatMap((g) => g.tasks).find((t) => t.id === drawerTask.id) || drawerTask}
+            currentUser={currentUser}
+            users={users}
+            onClose={() => {
+              setDrawerTask(null);
+              loadCommentCounts();
+              loadAlerts();
+            }}
+            onCommentsCountChange={() => loadCommentCounts()}
+          />
+        )}
       </div>
     );
   }
