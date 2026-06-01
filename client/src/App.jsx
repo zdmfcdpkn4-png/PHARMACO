@@ -14,6 +14,7 @@ import KanbanView from './components/KanbanView.jsx';
 import CalendarView from './components/CalendarView.jsx';
 import BoardTabs from './components/BoardTabs.jsx';
 import TaskDrawer from './components/TaskDrawer.jsx';
+import TaskDetailPanel from './components/TaskDetailPanel.jsx';
 import MobileNav from './components/MobileNav.jsx';
 import MobileHeader from './components/MobileHeader.jsx';
 import MobileBoard from './components/MobileBoard.jsx';
@@ -79,6 +80,7 @@ function Board({ currentUser, onLogout }) {
 
   // Drawer de tâche (discussion / historique) + compteurs de commentaires
   const [drawerTask, setDrawerTask] = useState(null);
+  const [detailTask, setDetailTask] = useState(null); // panneau Item Detail
   const [commentCounts, setCommentCounts] = useState({});
 
   // Onglet de vue du tableau : 'table' | 'kanban' | 'calendar'
@@ -189,6 +191,29 @@ function Board({ currentUser, onLogout }) {
   const handleChangePriority = (taskId, priority) => {
     optimistic((b) => patchTaskLocal(b, taskId, { priority }), () =>
       api.updateTask(taskId, { priority, ...actor })
+    );
+  };
+
+  // Déplace une tâche vers un autre groupe (depuis le panneau détaillé).
+  const handleChangeGroup = (taskId, groupId) => {
+    optimistic(
+      (b) => {
+        let moved = null;
+        for (const g of b.groups) {
+          const idx = g.tasks.findIndex((t) => t.id === taskId);
+          if (idx >= 0) {
+            [moved] = g.tasks.splice(idx, 1);
+            break;
+          }
+        }
+        if (moved) {
+          moved.group_id = groupId;
+          const dest = b.groups.find((g) => g.id === groupId);
+          if (dest) dest.tasks.push(moved);
+        }
+        return b;
+      },
+      () => api.updateTask(taskId, { group_id: groupId, ...actor })
     );
   };
 
@@ -1154,6 +1179,7 @@ function Board({ currentUser, onLogout }) {
                               onDeleteTask={handleDeleteTask}
                               commentCounts={commentCounts}
                               onOpenDrawer={(t) => setDrawerTask(t)}
+                              onOpenDetail={(t) => setDetailTask(t)}
                               canEdit={isOwner}
                               canDeleteTask={canDeleteTask}
                               categories={board.categories || []}
@@ -1233,6 +1259,32 @@ function Board({ currentUser, onLogout }) {
         />
         </div>
       )}
+
+      {/* Panneau de configuration détaillée (Item Detail) */}
+      {detailTask && (() => {
+        const live =
+          board.groups.flatMap((g) => g.tasks).find((t) => t.id === detailTask.id) || detailTask;
+        return (
+          <div className="contents no-print">
+            <TaskDetailPanel
+              task={live}
+              groups={board.groups}
+              users={users}
+              categories={board.categories || []}
+              categoryValue={categoryValue}
+              canEdit={isOwner}
+              onClose={() => setDetailTask(null)}
+              onRename={(name) => handleRenameTask(live.id, name)}
+              onChangeGroup={(gid) => handleChangeGroup(live.id, gid)}
+              onChangeStatus={(s) => handleChangeStatus(live.id, s)}
+              onChangePriority={(p) => handleChangePriority(live.id, p)}
+              onAssign={(adminId) => handleAssign(live.id, adminId)}
+              onChangeDate={(d) => handleChangeDate(live.id, d)}
+              onSetCategoryValue={handleSetCategoryValue}
+            />
+          </div>
+        );
+      })()}
     </div>
   );
 }

@@ -25,6 +25,7 @@ export default function GroupTable({
   onChangeDate,
   onDeleteTask,
   onOpenDrawer,
+  onOpenDetail,
   commentCounts = {},
   canEdit = true,
   canDeleteTask,
@@ -201,6 +202,7 @@ export default function GroupTable({
                           onDelete={() => onDeleteTask(task.id)}
                           canDelete={canDeleteTask ? canDeleteTask(task) : true}
                           onOpenDrawer={(tabKey) => onOpenDrawer?.(task, tabKey)}
+                          onOpenDetail={() => onOpenDetail?.(task)}
                           categories={categories}
                           categoryValue={categoryValue}
                           onSetCategoryValue={onSetCategoryValue}

@@ -28,6 +28,7 @@ export default function TaskRow({
   onDelete,
   canDelete = true,
   onOpenDrawer,
+  onOpenDetail,
   categories = [],
   categoryValue,
   onSetCategoryValue,
@@ -115,8 +116,8 @@ export default function TaskRow({
             </button>
             <button
               type="button"
-              onClick={() => onOpenDrawer?.()}
-              title="Ouvrir la discussion"
+              onClick={() => onOpenDetail?.()}
+              title="Ouvrir le détail de la tâche"
               className="min-w-0 flex-1 truncate rounded px-2 py-1 text-left text-gray-800 hover:bg-gray-100"
             >
               {task.name}
