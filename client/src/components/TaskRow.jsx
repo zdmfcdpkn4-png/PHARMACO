@@ -3,6 +3,7 @@ import { Trash2, GripVertical, Pencil, MessageSquare, ChevronRight, ChevronDown 
 import StatusBadge from './StatusBadge.jsx';
 import PriorityBadge from './PriorityBadge.jsx';
 import AdminCell from './AdminCell.jsx';
+import CustomCell from './CustomCell.jsx';
 import { formatShortDate } from '../lib/constants.js';
 
 // Une ligne de tâche : poignée drag, checkbox, nom, priorité, admin, statut, échéance.
@@ -27,6 +28,9 @@ export default function TaskRow({
   onDelete,
   canDelete = true,
   onOpenDrawer,
+  categories = [],
+  categoryValue,
+  onSetCategoryValue,
 }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(task.name);
@@ -180,6 +184,21 @@ export default function TaskRow({
           />
         </label>
       </div>
+
+      {/* Colonnes personnalisées */}
+      {categories.map((c) => (
+        <div
+          key={c.id}
+          className="flex w-36 shrink-0 items-center justify-center border-l border-gray-100"
+        >
+          <CustomCell
+            category={c}
+            value={categoryValue ? categoryValue(c.id, task.id) : ''}
+            users={users}
+            onChange={(val) => onSetCategoryValue?.(c.id, task.id, val)}
+          />
+        </div>
+      ))}
 
       {/* Action supprimer (au survol) — visible si autorisé */}
       <div className="no-print flex w-10 shrink-0 items-center justify-center border-l border-gray-100">

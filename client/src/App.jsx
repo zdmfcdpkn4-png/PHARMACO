@@ -331,6 +331,45 @@ function Board({ currentUser, onLogout }) {
     }
   };
 
+  // -------- Catégories / colonnes personnalisées --------
+  const handleCreateCategory = async (name, type) => {
+    const created = await api.createCategory(board.id, { name, type });
+    setBoard((b) => ({ ...b, categories: [...(b.categories || []), created] }));
+  };
+
+  const handleDeleteCategory = async (catId) => {
+    setBoard((b) => ({
+      ...b,
+      categories: (b.categories || []).filter((c) => c.id !== catId),
+      categoryValues: (b.categoryValues || []).filter((v) => v.category_id !== catId),
+    }));
+    try {
+      await api.deleteCategory(catId);
+    } catch {
+      /* ignore */
+    }
+  };
+
+  const handleSetCategoryValue = (categoryId, taskId, value) => {
+    setBoard((b) => {
+      const next = structuredClone(b);
+      next.categoryValues = next.categoryValues || [];
+      const existing = next.categoryValues.find(
+        (v) => v.category_id === categoryId && v.task_id === taskId
+      );
+      if (existing) existing.value = value;
+      else next.categoryValues.push({ category_id: categoryId, task_id: taskId, value });
+      return next;
+    });
+    api.setCategoryValue({ category_id: categoryId, task_id: taskId, value }).catch(() => {});
+  };
+
+  // Accès rapide à la valeur d'une catégorie pour une tâche.
+  const categoryValue = (categoryId, taskId) =>
+    (board?.categoryValues || []).find(
+      (v) => v.category_id === categoryId && v.task_id === taskId
+    )?.value ?? '';
+
   // Création rapide d'une tâche à une date donnée (Calendrier).
   const handleCreateTaskOnDate = async (dateKey) => {
     const group = board?.groups?.[0];
@@ -1117,6 +1156,11 @@ function Board({ currentUser, onLogout }) {
                               onOpenDrawer={(t) => setDrawerTask(t)}
                               canEdit={isOwner}
                               canDeleteTask={canDeleteTask}
+                              categories={board.categories || []}
+                              categoryValue={categoryValue}
+                              onCreateCategory={handleCreateCategory}
+                              onDeleteCategory={handleDeleteCategory}
+                              onSetCategoryValue={handleSetCategoryValue}
                               onCreateSubtask={handleCreateSubtask}
                               onUpdateSubtask={handleUpdateSubtask}
                               onDeleteSubtask={handleDeleteSubtask}

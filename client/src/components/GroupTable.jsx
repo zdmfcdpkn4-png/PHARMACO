@@ -4,6 +4,7 @@ import { Droppable, Draggable } from '@hello-pangea/dnd';
 import TaskRow from './TaskRow.jsx';
 import SubtaskList from './SubtaskList.jsx';
 import GroupSummary from './GroupSummary.jsx';
+import AddColumnButton from './AddColumnButton.jsx';
 
 // Section pliable contenant l'en-tête de colonnes, les tâches et le résumé.
 export default function GroupTable({
@@ -27,6 +28,11 @@ export default function GroupTable({
   commentCounts = {},
   canEdit = true,
   canDeleteTask,
+  categories = [],
+  categoryValue,
+  onCreateCategory,
+  onDeleteCategory,
+  onSetCategoryValue,
   onCreateSubtask,
   onUpdateSubtask,
   onDeleteSubtask,
@@ -130,7 +136,29 @@ export default function GroupTable({
             <div className="w-32 shrink-0 border-l border-gray-100 py-2.5 text-center">Admin</div>
             <div className="w-40 shrink-0 border-l border-gray-100 py-2.5 text-center">Statut</div>
             <div className="w-36 shrink-0 border-l border-gray-100 py-2.5 text-center">Échéance</div>
+            {categories.map((c) => (
+              <div
+                key={c.id}
+                className="group/col relative w-36 shrink-0 border-l border-gray-100 py-2.5 text-center"
+              >
+                {c.name}
+                {canEdit && (
+                  <button
+                    onClick={() => onDeleteCategory?.(c.id)}
+                    title="Supprimer la colonne"
+                    className="absolute right-1 top-2 text-gray-300 opacity-0 transition hover:text-status-blocked group-hover/col:opacity-100"
+                  >
+                    ✕
+                  </button>
+                )}
+              </div>
+            ))}
             <div className="w-10 shrink-0 border-l border-gray-100" />
+            {canEdit && onCreateCategory && (
+              <div className="flex items-center border-l border-gray-100">
+                <AddColumnButton onCreate={onCreateCategory} />
+              </div>
+            )}
           </div>
 
           {/* Lignes de tâches (zone de dépôt) */}
@@ -173,6 +201,9 @@ export default function GroupTable({
                           onDelete={() => onDeleteTask(task.id)}
                           canDelete={canDeleteTask ? canDeleteTask(task) : true}
                           onOpenDrawer={(tabKey) => onOpenDrawer?.(task, tabKey)}
+                          categories={categories}
+                          categoryValue={categoryValue}
+                          onSetCategoryValue={onSetCategoryValue}
                         />
                         {expanded[task.id] && (
                           <SubtaskList
@@ -230,7 +261,7 @@ export default function GroupTable({
           </div>
 
           {/* Résumé / statistiques */}
-          <GroupSummary tasks={group.tasks} />
+          <GroupSummary tasks={group.tasks} extraColumns={categories.length} />
         </div>
       )}
     </section>

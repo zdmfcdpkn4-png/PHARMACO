@@ -1,7 +1,7 @@
 import { STATUS_META, formatShortDate } from '../lib/constants.js';
 
 // Barre de progression au prorata des statuts + plage de dates globale.
-export default function GroupSummary({ tasks }) {
+export default function GroupSummary({ tasks, extraColumns = 0 }) {
   const total = tasks.length;
 
   // Répartition par statut
@@ -63,6 +63,11 @@ export default function GroupSummary({ tasks }) {
           </span>
         )}
       </div>
+
+      {/* Colonnes personnalisées (vides) */}
+      {Array.from({ length: extraColumns }).map((_, i) => (
+        <div key={i} className="w-36 shrink-0 border-l border-transparent" />
+      ))}
 
       <div className="w-10 shrink-0 border-l border-gray-100" />
     </div>
