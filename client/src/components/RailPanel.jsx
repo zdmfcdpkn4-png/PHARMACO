@@ -12,6 +12,7 @@ import {
   Check,
 } from 'lucide-react';
 import Avatar from './Avatar.jsx';
+import TagConfig from './TagConfig.jsx';
 
 const ROLE_LABELS = { member: 'Membre', admin: 'Admin', viewer: 'Observateur' };
 
@@ -323,11 +324,15 @@ export default function RailPanel({
   onUpdateUser,
   onDeleteUser,
   onSetPassword,
+  tags = [],
+  canManage = true,
+  onCreateTag,
+  onDeleteTag,
 }) {
   const config = {
     Agents: {
       icon: Bot,
-      title: 'Agents & membres',
+      title: 'Agents & étiquettes',
       body: (
         <>
           <ul className="space-y-1">
@@ -345,6 +350,21 @@ export default function RailPanel({
             )}
           </ul>
           {onAddUser && <AddMemberForm onAddUser={onAddUser} />}
+
+          {/* Configuration des étiquettes */}
+          {onCreateTag && (
+            <div className="mt-5 border-t border-gray-100 pt-4">
+              <div className="mb-3 text-sm font-semibold text-gray-700">
+                Configuration des étiquettes
+              </div>
+              <TagConfig
+                tags={tags}
+                canManage={canManage}
+                onCreate={onCreateTag}
+                onDelete={onDeleteTag}
+              />
+            </div>
+          )}
         </>
       ),
     },

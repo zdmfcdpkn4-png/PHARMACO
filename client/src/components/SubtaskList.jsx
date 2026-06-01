@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Plus, Trash2 } from 'lucide-react';
 import StatusBadge from './StatusBadge.jsx';
 import AdminCell from './AdminCell.jsx';
+import TagCell from './TagCell.jsx';
 import { formatShortDate } from '../lib/constants.js';
 
 // Sous-table imbriquée des sous-items d'une tâche (indentée, fond grisé).
@@ -11,6 +12,7 @@ export default function SubtaskList({
   users,
   groupColor,
   canEdit = true,
+  tags = [],
   onCreate,
   onUpdate,
   onDelete,
@@ -36,6 +38,7 @@ export default function SubtaskList({
             users={users}
             groupColor={groupColor}
             canEdit={canEdit}
+            tags={tags}
             onUpdate={onUpdate}
             onDelete={onDelete}
           />
@@ -78,7 +81,7 @@ export default function SubtaskList({
 }
 
 // Une ligne de sous-item : nom éditable, admin, statut, échéance.
-function SubRow({ sub, users, groupColor, canEdit, onUpdate, onDelete }) {
+function SubRow({ sub, users, groupColor, canEdit, tags = [], onUpdate, onDelete }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(sub.name);
 
@@ -155,6 +158,24 @@ function SubRow({ sub, users, groupColor, canEdit, onUpdate, onDelete }) {
             />
           )}
         </label>
+      </div>
+
+      {/* Étape / Type (propres au sous-item) */}
+      <div className="flex w-40 shrink-0 items-center justify-center border-l border-gray-100">
+        <TagCell
+          value={sub.etape_tag_id}
+          tags={tags.filter((t) => t.tag_type === 'etape')}
+          canEdit={canEdit}
+          onChange={(id) => onUpdate(sub.id, { etape_tag_id: id })}
+        />
+      </div>
+      <div className="flex w-40 shrink-0 items-center justify-center border-l border-gray-100">
+        <TagCell
+          value={sub.intervention_tag_id}
+          tags={tags.filter((t) => t.tag_type === 'intervention')}
+          canEdit={canEdit}
+          onChange={(id) => onUpdate(sub.id, { intervention_tag_id: id })}
+        />
       </div>
 
       {/* Supprimer */}

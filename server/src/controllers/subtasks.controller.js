@@ -9,6 +9,8 @@ const shapeSub = (row) => ({
   position: row.position,
   status: row.status || 'À faire',
   duedate: row.duedate,
+  etape_tag_id: row.etape_tag_id,
+  intervention_tag_id: row.intervention_tag_id,
   admin: row.admin_user_id
     ? { id: row.admin_user_id, name: row.admin_name, avatar_url: row.admin_avatar_url }
     : null,
@@ -16,6 +18,7 @@ const shapeSub = (row) => ({
 
 const SUB_SELECT = `
   SELECT s.id, s.parent_task_id, s.name, s.position,
+         s.etape_tag_id, s.intervention_tag_id,
          c.admin_id, c.status, c.duedate,
          u.id AS admin_user_id, u.name AS admin_name, u.avatar_url AS admin_avatar_url
   FROM sub_tasks s
@@ -63,7 +66,7 @@ export const createSubtask = asyncHandler(async (req, res) => {
 // tâche passent à 'Fait', la tâche parente passe automatiquement à 'Fait'.
 export const updateSubtask = asyncHandler(async (req, res) => {
   const subId = req.params.id;
-  const { name, admin_id, status, duedate } = req.body;
+  const { name, admin_id, status, duedate, etape_tag_id, intervention_tag_id } = req.body;
 
   const result = await withTransaction(async (client) => {
     const cur = await client.query('SELECT parent_task_id FROM sub_tasks WHERE id = $1', [subId]);
@@ -74,11 +77,22 @@ export const updateSubtask = asyncHandler(async (req, res) => {
     }
     const parentId = cur.rows[0].parent_task_id;
 
-    if (name !== undefined) {
-      await client.query('UPDATE sub_tasks SET name = COALESCE($1, name) WHERE id = $2', [
-        name ?? null,
-        subId,
-      ]);
+    if (name !== undefined || etape_tag_id !== undefined || intervention_tag_id !== undefined) {
+      await client.query(
+        `UPDATE sub_tasks SET
+           name = COALESCE($1, name),
+           etape_tag_id = CASE WHEN $3 THEN $4 ELSE etape_tag_id END,
+           intervention_tag_id = CASE WHEN $5 THEN $6 ELSE intervention_tag_id END
+         WHERE id = $2`,
+        [
+          name ?? null,
+          subId,
+          etape_tag_id !== undefined,
+          etape_tag_id ?? null,
+          intervention_tag_id !== undefined,
+          intervention_tag_id ?? null,
+        ]
+      );
     }
     if (admin_id !== undefined || status !== undefined || duedate !== undefined) {
       await client.query(

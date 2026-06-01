@@ -4,6 +4,7 @@ import StatusBadge from './StatusBadge.jsx';
 import PriorityBadge from './PriorityBadge.jsx';
 import AdminCell from './AdminCell.jsx';
 import CustomCell from './CustomCell.jsx';
+import TagCell from './TagCell.jsx';
 import { formatShortDate } from '../lib/constants.js';
 
 // Une ligne de tâche : poignée drag, checkbox, nom, priorité, admin, statut, échéance.
@@ -32,6 +33,8 @@ export default function TaskRow({
   categories = [],
   categoryValue,
   onSetCategoryValue,
+  tags = [],
+  onChangeTag,
 }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(task.name);
@@ -184,6 +187,22 @@ export default function TaskRow({
             className="absolute inset-0 cursor-pointer opacity-0"
           />
         </label>
+      </div>
+
+      {/* Étiquettes : Étape / Type */}
+      <div className="flex w-40 shrink-0 items-center justify-center border-l border-gray-100">
+        <TagCell
+          value={task.etape_tag_id}
+          tags={tags.filter((t) => t.tag_type === 'etape')}
+          onChange={(id) => onChangeTag?.('etape_tag_id', id)}
+        />
+      </div>
+      <div className="flex w-40 shrink-0 items-center justify-center border-l border-gray-100">
+        <TagCell
+          value={task.intervention_tag_id}
+          tags={tags.filter((t) => t.tag_type === 'intervention')}
+          onChange={(id) => onChangeTag?.('intervention_tag_id', id)}
+        />
       </div>
 
       {/* Colonnes personnalisées */}

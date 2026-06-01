@@ -64,6 +64,10 @@ export default function GroupSummary({ tasks, extraColumns = 0 }) {
         )}
       </div>
 
+      {/* Colonnes Étape + Type (vides) */}
+      <div className="w-40 shrink-0 border-l border-transparent" />
+      <div className="w-40 shrink-0 border-l border-transparent" />
+
       {/* Colonnes personnalisées (vides) */}
       {Array.from({ length: extraColumns }).map((_, i) => (
         <div key={i} className="w-36 shrink-0 border-l border-transparent" />

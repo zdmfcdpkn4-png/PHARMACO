@@ -5,6 +5,7 @@ import TaskRow from './TaskRow.jsx';
 import SubtaskList from './SubtaskList.jsx';
 import GroupSummary from './GroupSummary.jsx';
 import AddColumnButton from './AddColumnButton.jsx';
+import TagCell from './TagCell.jsx';
 
 // Section pliable contenant l'en-tête de colonnes, les tâches et le résumé.
 export default function GroupTable({
@@ -35,6 +36,8 @@ export default function GroupTable({
   onCreateCategory,
   onDeleteCategory,
   onSetCategoryValue,
+  tags = [],
+  onChangeTaskTag,
   onCreateSubtask,
   onUpdateSubtask,
   onDeleteSubtask,
@@ -138,6 +141,8 @@ export default function GroupTable({
             <div className="w-32 shrink-0 border-l border-gray-100 py-2.5 text-center">Admin</div>
             <div className="w-40 shrink-0 border-l border-gray-100 py-2.5 text-center">Statut</div>
             <div className="w-36 shrink-0 border-l border-gray-100 py-2.5 text-center">Échéance</div>
+            <div className="w-40 shrink-0 border-l border-gray-100 py-2.5 text-center">Étape</div>
+            <div className="w-40 shrink-0 border-l border-gray-100 py-2.5 text-center">Type</div>
             {categories.map((c) => (
               <div
                 key={c.id}
@@ -207,6 +212,8 @@ export default function GroupTable({
                           categories={categories}
                           categoryValue={categoryValue}
                           onSetCategoryValue={onSetCategoryValue}
+                          tags={tags}
+                          onChangeTag={(field, tagId) => onChangeTaskTag?.(task.id, field, tagId)}
                         />
                         {expanded[task.id] && (
                           <SubtaskList
@@ -218,6 +225,7 @@ export default function GroupTable({
                             onCreate={onCreateSubtask}
                             onUpdate={onUpdateSubtask}
                             onDelete={onDeleteSubtask}
+                            tags={tags}
                           />
                         )}
                       </div>

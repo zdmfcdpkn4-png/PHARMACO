@@ -6,6 +6,7 @@ const fetchTaskShaped = async (taskId, client = { query }) => {
   const { rows } = await client.query(
     `SELECT
         t.id, t.group_id, t.name, t.position, t.priority, t.start_date, t.created_at,
+        t.etape_tag_id, t.intervention_tag_id,
         tc.admin_id, tc.status, tc.duedate,
         u.id AS admin_user_id, u.name AS admin_name, u.avatar_url AS admin_avatar_url
      FROM tasks t
@@ -23,6 +24,8 @@ const fetchTaskShaped = async (taskId, client = { query }) => {
     position: row.position,
     priority: row.priority || 'P3 - Normal',
     start_date: row.start_date,
+    etape_tag_id: row.etape_tag_id,
+    intervention_tag_id: row.intervention_tag_id,
     created_at: row.created_at,
     status: row.status || 'À faire',
     duedate: row.duedate,
@@ -164,8 +167,10 @@ export const createTask = asyncHandler(async (req, res) => {
  */
 export const updateTask = asyncHandler(async (req, res) => {
   const taskId = req.params.id;
-  const { name, position, group_id, admin_id, status, duedate, priority, start_date, actor_id } =
-    req.body;
+  const {
+    name, position, group_id, admin_id, status, duedate, priority, start_date,
+    etape_tag_id, intervention_tag_id, actor_id,
+  } = req.body;
 
   const task = await withTransaction(async (client) => {
     // État précédent complet (pour journaliser les changements)
@@ -185,7 +190,9 @@ export const updateTask = asyncHandler(async (req, res) => {
       position !== undefined ||
       group_id !== undefined ||
       priority !== undefined ||
-      start_date !== undefined
+      start_date !== undefined ||
+      etape_tag_id !== undefined ||
+      intervention_tag_id !== undefined
     ) {
       await client.query(
         `UPDATE tasks
@@ -193,7 +200,9 @@ export const updateTask = asyncHandler(async (req, res) => {
              position = COALESCE($2, position),
              group_id = COALESCE($3, group_id),
              priority = COALESCE($4::task_priority, priority),
-             start_date = CASE WHEN $6 THEN $5 ELSE start_date END
+             start_date = CASE WHEN $6 THEN $5 ELSE start_date END,
+             etape_tag_id = CASE WHEN $8 THEN $9 ELSE etape_tag_id END,
+             intervention_tag_id = CASE WHEN $10 THEN $11 ELSE intervention_tag_id END
          WHERE id = $7`,
         [
           name ?? null,
@@ -203,6 +212,10 @@ export const updateTask = asyncHandler(async (req, res) => {
           start_date ?? null,
           start_date !== undefined,
           taskId,
+          etape_tag_id !== undefined,
+          etape_tag_id ?? null,
+          intervention_tag_id !== undefined,
+          intervention_tag_id ?? null,
         ]
       );
     }

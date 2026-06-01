@@ -49,6 +49,14 @@ const board = {
   created_by: 1, // Erwin est propriétaire
   categories: [],
   categoryValues: [],
+  tags: [
+    { id: 701, board_id: 1, name: 'Étape 1 : Cadrage', color: '#579bfc', tag_type: 'etape' },
+    { id: 702, board_id: 1, name: 'Étape 2 : Production', color: '#a25ddc', tag_type: 'etape' },
+    { id: 703, board_id: 1, name: 'Étape 3 : Contrôle', color: '#00c875', tag_type: 'etape' },
+    { id: 704, board_id: 1, name: 'Ajustement technique', color: '#e8722e', tag_type: 'intervention' },
+    { id: 705, board_id: 1, name: 'Rapport / Synthèse', color: '#0073ea', tag_type: 'intervention' },
+    { id: 706, board_id: 1, name: 'Logistique', color: '#fdab3d', tag_type: 'intervention' },
+  ],
   groups: [
     {
       id: 1,
@@ -57,9 +65,9 @@ const board = {
       color: '#579bfc',
       position: 0,
       tasks: [
-        { id: 11, group_id: 1, name: 'Tâche 1', position: 0, status: 'En cours', priority: 'P1 - Urgent', start_date: weekday(0), duedate: weekday(2), created_at: daysAgo(10), admin: adminShape(1), subtasks: [
-          { id: 510, parent_task_id: 11, name: 'Préparer le dossier', position: 0, status: 'Fait', duedate: weekday(0), admin: adminShape(1) },
-          { id: 511, parent_task_id: 11, name: 'Valider avec Alice', position: 1, status: 'En cours', duedate: weekday(1), admin: adminShape(2) },
+        { id: 11, group_id: 1, name: 'Tâche 1', position: 0, status: 'En cours', priority: 'P1 - Urgent', start_date: weekday(0), duedate: weekday(2), created_at: daysAgo(10), admin: adminShape(1), etape_tag_id: 701, intervention_tag_id: null, subtasks: [
+          { id: 510, parent_task_id: 11, name: 'Préparer le dossier', position: 0, status: 'Fait', duedate: weekday(0), admin: adminShape(1), etape_tag_id: 701, intervention_tag_id: 705 },
+          { id: 511, parent_task_id: 11, name: 'Valider avec Alice', position: 1, status: 'En cours', duedate: weekday(1), admin: adminShape(2), etape_tag_id: null, intervention_tag_id: 706 },
         ] },
         { id: 12, group_id: 1, name: 'Tâche 2', position: 1, status: 'Fait', priority: 'P3 - Normal', start_date: weekday(1), duedate: weekday(3), created_at: daysAgo(9), admin: adminShape(2) },
         { id: 13, group_id: 1, name: 'Tâche 3', position: 2, status: 'Bloqué', priority: 'P2 - Élevé', start_date: weekday(2), duedate: weekday(4), created_at: daysAgo(7), admin: null },
@@ -257,6 +265,8 @@ export const mockApi = {
     if (patch.name !== undefined) sub.name = patch.name;
     if (patch.status !== undefined) sub.status = patch.status;
     if (patch.duedate !== undefined) sub.duedate = patch.duedate;
+    if (patch.etape_tag_id !== undefined) sub.etape_tag_id = patch.etape_tag_id;
+    if (patch.intervention_tag_id !== undefined) sub.intervention_tag_id = patch.intervention_tag_id;
     if (patch.admin_id !== undefined) sub.admin = patch.admin_id ? adminShape(patch.admin_id) : null;
 
     // Auto-complétion : tous les sous-items "Fait" -> parent "Fait"
@@ -305,6 +315,28 @@ export const mockApi = {
     if (existing) existing.value = value;
     else board.categoryValues.push({ category_id, task_id, value });
     return { ok: true };
+  },
+
+  async createTag(boardId, { name, color, tag_type }) {
+    await delay(50);
+    const tag = { id: uid(), board_id: boardId, name: name.trim(), color: color || '#579bfc', tag_type };
+    board.tags.push(tag);
+    return clone(tag);
+  },
+
+  async deleteTag(id) {
+    await delay(40);
+    board.tags = board.tags.filter((t) => t.id !== id);
+    // Détache l'étiquette des tâches/sous-items
+    for (const g of board.groups)
+      for (const t of g.tasks) {
+        if (t.etape_tag_id === id) t.etape_tag_id = null;
+        if (t.intervention_tag_id === id) t.intervention_tag_id = null;
+        for (const s of t.subtasks || []) {
+          if (s.etape_tag_id === id) s.etape_tag_id = null;
+          if (s.intervention_tag_id === id) s.intervention_tag_id = null;
+        }
+      }
   },
 
   async getDependencies() {
@@ -412,6 +444,8 @@ export const mockApi = {
     if (patch.priority !== undefined) task.priority = patch.priority;
     if (patch.duedate !== undefined) task.duedate = patch.duedate;
     if (patch.start_date !== undefined) task.start_date = patch.start_date;
+    if (patch.etape_tag_id !== undefined) task.etape_tag_id = patch.etape_tag_id;
+    if (patch.intervention_tag_id !== undefined) task.intervention_tag_id = patch.intervention_tag_id;
     if (patch.admin_id !== undefined) task.admin = patch.admin_id ? adminShape(patch.admin_id) : null;
 
     if (patch.status === 'Bloqué' && prev.status !== 'Bloqué' && task.admin) {

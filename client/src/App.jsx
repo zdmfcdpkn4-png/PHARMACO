@@ -69,6 +69,8 @@ function Board({ currentUser, onLogout }) {
   const [search, setSearch] = useState('');
   const [personFilter, setPersonFilter] = useState(null);
   const [statusFilter, setStatusFilter] = useState(null);
+  const [etapeFilter, setEtapeFilter] = useState(null);
+  const [interventionFilter, setInterventionFilter] = useState(null);
   const [selectedIds, setSelectedIds] = useState(new Set());
   const [alertsOpen, setAlertsOpen] = useState(false);
 
@@ -198,6 +200,26 @@ function Board({ currentUser, onLogout }) {
       api.updateTask(taskId, { priority, ...actor })
     );
   };
+
+  // Configuration des étiquettes (dictionnaires du board).
+  const handleCreateTag = async (name, color, tag_type) => {
+    const created = await api.createTag(board.id, { name, color, tag_type });
+    setBoard((b) => ({ ...b, tags: [...(b.tags || []), created] }));
+  };
+  const handleDeleteTag = async (tagId) => {
+    setBoard((b) => ({ ...b, tags: (b.tags || []).filter((t) => t.id !== tagId) }));
+    try {
+      await api.deleteTag(tagId);
+    } catch {
+      /* ignore */
+    }
+  };
+
+  // Étiquette (Étape / Type) d'une tâche.
+  const handleChangeTaskTag = (taskId, field, tagId) =>
+    optimistic((b) => patchTaskLocal(b, taskId, { [field]: tagId }), () =>
+      api.updateTask(taskId, { [field]: tagId, ...actor })
+    );
 
   // Déplace une tâche vers un autre groupe (depuis le panneau détaillé).
   const handleChangeGroup = (taskId, groupId) => {
@@ -646,14 +668,23 @@ function Board({ currentUser, onLogout }) {
   // -------- Filtrage --------
   const filterFn = useMemo(() => {
     const q = search.trim().toLowerCase();
+    // Une tâche correspond au filtre d'étiquette si elle-même OU l'un de ses
+    // sous-items porte l'étiquette ciblée.
+    const matchesTag = (task, field, val) => {
+      if (!val) return true;
+      if (task[field] === val) return true;
+      return (task.subtasks || []).some((s) => s[field] === val);
+    };
     return (task) => {
       if (q && !task.name.toLowerCase().includes(q)) return false;
       if (personFilter && task.admin?.id !== personFilter) return false;
       if (statusFilter && task.status !== statusFilter) return false;
       if (!showDone && task.status === 'Fait') return false;
+      if (!matchesTag(task, 'etape_tag_id', etapeFilter)) return false;
+      if (!matchesTag(task, 'intervention_tag_id', interventionFilter)) return false;
       return true;
     };
-  }, [search, personFilter, statusFilter, showDone]);
+  }, [search, personFilter, statusFilter, showDone, etapeFilter, interventionFilter]);
 
   // -------- Tri (cycle : null -> priorité -> nom -> statut -> échéance) --------
   const STATUS_ORDER = { Bloqué: 0, 'En cours': 1, 'À faire': 2, Fait: 3 };
@@ -1044,6 +1075,10 @@ function Board({ currentUser, onLogout }) {
             onUpdateUser={handleUpdateUser}
             onDeleteUser={handleDeleteUser}
             onSetPassword={handleSetPassword}
+            tags={board.tags || []}
+            canManage={canManageBoard}
+            onCreateTag={handleCreateTag}
+            onDeleteTag={handleDeleteTag}
             onClose={() => setActiveRail('Espaces')}
           />
         </div>
@@ -1154,6 +1189,11 @@ function Board({ currentUser, onLogout }) {
               onExportCsv={handleExportCsv}
               onExportPdf={handleExportPdf}
               onPrint={handlePrint}
+              tags={board.tags || []}
+              etapeFilter={etapeFilter}
+              onEtapeFilter={setEtapeFilter}
+              interventionFilter={interventionFilter}
+              onInterventionFilter={setInterventionFilter}
             />
 
             {/* Onglets de vue : Tableau / Kanban / Calendrier */}
@@ -1218,6 +1258,8 @@ function Board({ currentUser, onLogout }) {
                               onCreateCategory={handleCreateCategory}
                               onDeleteCategory={handleDeleteCategory}
                               onSetCategoryValue={handleSetCategoryValue}
+                              tags={board.tags || []}
+                              onChangeTaskTag={handleChangeTaskTag}
                               onCreateSubtask={handleCreateSubtask}
                               onUpdateSubtask={handleUpdateSubtask}
                               onDeleteSubtask={handleDeleteSubtask}

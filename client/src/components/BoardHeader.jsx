@@ -12,6 +12,7 @@ import {
   FileSpreadsheet,
   FileText,
   Printer,
+  Tag,
 } from 'lucide-react';
 import { STATUSES } from '../lib/constants.js';
 
@@ -34,7 +35,14 @@ export default function BoardHeader({
   onExportCsv,
   onExportPdf,
   onPrint,
+  tags = [],
+  etapeFilter,
+  onEtapeFilter,
+  interventionFilter,
+  onInterventionFilter,
 }) {
+  const etapeTags = tags.filter((t) => t.tag_type === 'etape');
+  const interventionTags = tags.filter((t) => t.tag_type === 'intervention');
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(title);
   const [exportOpen, setExportOpen] = useState(false);
@@ -141,6 +149,54 @@ export default function BoardHeader({
             ))}
           </select>
         </label>
+
+        {/* Filtre Étape */}
+        {etapeTags.length > 0 && (
+          <label
+            className={`flex cursor-pointer items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm transition ${
+              etapeFilter ? 'bg-blue-50 text-primary' : 'text-gray-600 hover:bg-gray-100'
+            }`}
+          >
+            <Tag size={16} />
+            <select
+              value={etapeFilter || ''}
+              onChange={(e) => onEtapeFilter(e.target.value ? Number(e.target.value) : null)}
+              className="cursor-pointer bg-transparent outline-none"
+            >
+              <option value="">Étape</option>
+              {etapeTags.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.name}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
+
+        {/* Filtre Type d'intervention */}
+        {interventionTags.length > 0 && (
+          <label
+            className={`flex cursor-pointer items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm transition ${
+              interventionFilter ? 'bg-blue-50 text-primary' : 'text-gray-600 hover:bg-gray-100'
+            }`}
+          >
+            <Tag size={16} />
+            <select
+              value={interventionFilter || ''}
+              onChange={(e) =>
+                onInterventionFilter(e.target.value ? Number(e.target.value) : null)
+              }
+              className="cursor-pointer bg-transparent outline-none"
+            >
+              <option value="">Type</option>
+              {interventionTags.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.name}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
 
         {/* Trier */}
         <button

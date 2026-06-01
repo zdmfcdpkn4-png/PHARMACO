@@ -42,6 +42,8 @@ export const getBoardFull = asyncHandler(async (req, res) => {
         t.position,
         t.priority,
         t.start_date,
+        t.etape_tag_id,
+        t.intervention_tag_id,
         t.created_at,
         tc.admin_id,
         tc.status,
@@ -68,6 +70,8 @@ export const getBoardFull = asyncHandler(async (req, res) => {
       position: row.position,
       priority: row.priority || 'P3 - Normal',
       start_date: row.start_date,
+      etape_tag_id: row.etape_tag_id,
+      intervention_tag_id: row.intervention_tag_id,
       created_at: row.created_at,
       status: row.status || 'À faire',
       duedate: row.duedate,
@@ -87,6 +91,7 @@ export const getBoardFull = asyncHandler(async (req, res) => {
   // Sous-items de toutes les tâches du board
   const subsRes = await query(
     `SELECT s.id, s.parent_task_id, s.name, s.position,
+            s.etape_tag_id, s.intervention_tag_id,
             c.status, c.duedate,
             u.id AS admin_user_id, u.name AS admin_name, u.avatar_url AS admin_avatar_url
      FROM sub_tasks s
@@ -107,6 +112,8 @@ export const getBoardFull = asyncHandler(async (req, res) => {
       position: r.position,
       status: r.status || 'À faire',
       duedate: r.duedate,
+      etape_tag_id: r.etape_tag_id,
+      intervention_tag_id: r.intervention_tag_id,
       admin: r.admin_user_id
         ? { id: r.admin_user_id, name: r.admin_name, avatar_url: r.admin_avatar_url }
         : null,
@@ -146,12 +153,19 @@ export const getBoardFull = asyncHandler(async (req, res) => {
     [boardId]
   );
 
+  // Étiquettes du board
+  const tagsRes = await query(
+    'SELECT id, board_id, name, color, tag_type FROM project_tags WHERE board_id = $1 ORDER BY tag_type, id',
+    [boardId]
+  );
+
   res.json({
     ...boardRes.rows[0],
     groups,
     dependencies: depsRes.rows,
     categories: catsRes.rows,
     categoryValues: valsRes.rows,
+    tags: tagsRes.rows,
   });
 });
 

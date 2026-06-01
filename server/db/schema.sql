@@ -37,6 +37,10 @@ BEGIN
     IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'task_priority') THEN
         CREATE TYPE task_priority AS ENUM ('P1 - Urgent', 'P2 - Élevé', 'P3 - Normal');
     END IF;
+
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'tag_type') THEN
+        CREATE TYPE tag_type AS ENUM ('etape', 'intervention');
+    END IF;
 END$$;
 
 -- ---------------------------------------------------------------------
@@ -174,6 +178,25 @@ CREATE TABLE IF NOT EXISTS custom_values (
     value       TEXT,
     PRIMARY KEY (category_id, task_id)
 );
+
+-- ---------------------------------------------------------------------
+--  Table : project_tags (étiquettes : Étape / Type d'intervention)
+-- ---------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS project_tags (
+    id        SERIAL PRIMARY KEY,
+    board_id  INTEGER     NOT NULL REFERENCES boards(id) ON DELETE CASCADE,
+    name      VARCHAR(120) NOT NULL,
+    color     VARCHAR(20)  NOT NULL DEFAULT '#579bfc',
+    tag_type  tag_type     NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_project_tags_board ON project_tags(board_id);
+
+-- Clés étrangères d'étiquetage sur tâches et sous-items
+ALTER TABLE tasks      ADD COLUMN IF NOT EXISTS etape_tag_id        INTEGER REFERENCES project_tags(id) ON DELETE SET NULL;
+ALTER TABLE tasks      ADD COLUMN IF NOT EXISTS intervention_tag_id INTEGER REFERENCES project_tags(id) ON DELETE SET NULL;
+ALTER TABLE sub_tasks  ADD COLUMN IF NOT EXISTS etape_tag_id        INTEGER REFERENCES project_tags(id) ON DELETE SET NULL;
+ALTER TABLE sub_tasks  ADD COLUMN IF NOT EXISTS intervention_tag_id INTEGER REFERENCES project_tags(id) ON DELETE SET NULL;
 
 -- ---------------------------------------------------------------------
 --  Table : alerts (notifications)
