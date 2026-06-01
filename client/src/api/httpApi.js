@@ -25,6 +25,7 @@ export const httpApi = {
     request('/auth/login', { method: 'POST', body: { email, password } }),
 
   getUsers: () => request('/users'),
+  createUser: (data) => request('/users', { method: 'POST', body: data }),
   getBoard: (id = 1) => request(`/boards/${id}`),
 
   createGroup: (data) => request('/groups', { method: 'POST', body: data }),

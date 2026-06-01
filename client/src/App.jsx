@@ -220,6 +220,13 @@ function Board({ currentUser, onLogout }) {
     );
   };
 
+  // -------- Membres / agents --------
+  const handleAddUser = async ({ name, email, role }) => {
+    const created = await api.createUser({ name, email, role });
+    setUsers((prev) => [...prev, created].sort((a, b) => a.name.localeCompare(b.name)));
+    return created;
+  };
+
   // -------- Sélection --------
   const toggleSelect = (taskId) =>
     setSelectedIds((prev) => {
@@ -301,6 +308,7 @@ function Board({ currentUser, onLogout }) {
         <RailPanel
           rail={activeRail}
           users={users}
+          onAddUser={handleAddUser}
           onClose={() => setActiveRail('Espaces')}
         />
       )}

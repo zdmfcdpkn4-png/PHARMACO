@@ -77,6 +77,23 @@ export const mockApi = {
     return { token: `mock-${user.id}`, user: clone(user) };
   },
 
+  async createUser({ name, email, role }) {
+    await delay();
+    if (!name || !email) throw new Error('name et email sont requis');
+    if (users.some((u) => u.email.toLowerCase() === email.toLowerCase())) {
+      throw new Error('Un membre avec cet e-mail existe déjà');
+    }
+    const user = {
+      id: uid(),
+      name,
+      email,
+      avatar_url: null,
+      role: role || 'member',
+    };
+    users.push(user);
+    return clone(user);
+  },
+
   async getUsers() {
     await delay();
     return clone(users);
