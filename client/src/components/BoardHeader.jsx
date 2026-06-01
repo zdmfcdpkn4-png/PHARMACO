@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   Plus,
   Search,
@@ -8,6 +8,9 @@ import {
   EyeOff,
   Eye,
   ChevronDown,
+  Download,
+  FileSpreadsheet,
+  Printer,
 } from 'lucide-react';
 import { STATUSES } from '../lib/constants.js';
 
@@ -27,12 +30,25 @@ export default function BoardHeader({
   onToggleSort,
   showDone,
   onToggleShowDone,
+  onExportCsv,
+  onPrint,
 }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(title);
+  const [exportOpen, setExportOpen] = useState(false);
+  const exportRef = useRef(null);
+
+  useEffect(() => {
+    if (!exportOpen) return;
+    const onClick = (e) => {
+      if (exportRef.current && !exportRef.current.contains(e.target)) setExportOpen(false);
+    };
+    document.addEventListener('mousedown', onClick);
+    return () => document.removeEventListener('mousedown', onClick);
+  }, [exportOpen]);
 
   return (
-    <div className="border-b border-gray-200 bg-white px-6 pt-4">
+    <div className="no-print border-b border-gray-200 bg-white px-6 pt-4">
       {/* Titre */}
       {editing ? (
         <input
@@ -60,7 +76,7 @@ export default function BoardHeader({
       )}
 
       {/* Barre d'outils */}
-      <div className="flex flex-wrap items-center gap-1 pb-3">
+      <div className="no-print flex flex-wrap items-center gap-1 pb-3">
         <button
           type="button"
           onClick={onAddTaskClick}
@@ -149,6 +165,45 @@ export default function BoardHeader({
           {showDone ? <EyeOff size={16} /> : <Eye size={16} />}
           {showDone ? 'Masquer' : 'Masqué'}
         </button>
+
+        {/* Exporter (menu déroulant) */}
+        <div className="relative" ref={exportRef}>
+          <button
+            type="button"
+            onClick={() => setExportOpen((v) => !v)}
+            className={`flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm transition ${
+              exportOpen ? 'bg-blue-50 text-primary' : 'text-gray-600 hover:bg-gray-100'
+            }`}
+          >
+            <Download size={16} /> Exporter
+            <ChevronDown size={14} className="text-gray-400" />
+          </button>
+
+          {exportOpen && (
+            <div className="absolute right-0 top-full z-30 mt-1 w-52 overflow-hidden rounded-lg border border-gray-200 bg-white p-1 shadow-xl">
+              <button
+                type="button"
+                onClick={() => {
+                  setExportOpen(false);
+                  onExportCsv?.();
+                }}
+                className="flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-left text-sm text-gray-700 hover:bg-gray-100"
+              >
+                <FileSpreadsheet size={16} className="text-status-done" /> Exporter en CSV
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setExportOpen(false);
+                  onPrint?.();
+                }}
+                className="flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-left text-sm text-gray-700 hover:bg-gray-100"
+              >
+                <Printer size={16} className="text-primary" /> Imprimer / PDF
+              </button>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

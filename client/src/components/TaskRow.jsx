@@ -54,7 +54,7 @@ export default function TaskRow({
       <div className="w-1 shrink-0" style={{ backgroundColor: groupColor }} />
 
       {/* Poignée de drag */}
-      <div className="flex w-6 shrink-0 items-center justify-center">
+      <div className="no-print flex w-6 shrink-0 items-center justify-center">
         {dragEnabled ? (
           <span
             {...(dragProvided?.dragHandleProps || {})}
@@ -69,7 +69,7 @@ export default function TaskRow({
       </div>
 
       {/* Checkbox */}
-      <div className="flex w-10 shrink-0 items-center justify-center">
+      <div className="no-print flex w-10 shrink-0 items-center justify-center">
         <input
           type="checkbox"
           checked={selected}
@@ -111,7 +111,7 @@ export default function TaskRow({
               type="button"
               onClick={() => onOpenDrawer?.('discussion')}
               title={commentCount > 0 ? `${commentCount} message(s) non lu(s)` : 'Commenter'}
-              className={`relative flex items-center gap-0.5 rounded px-1 py-0.5 text-xs transition ${
+              className={`no-print relative flex items-center gap-0.5 rounded px-1 py-0.5 text-xs transition ${
                 commentCount > 0
                   ? 'text-primary'
                   : 'text-gray-300 opacity-0 group-hover:opacity-100 hover:text-gray-500'
@@ -126,7 +126,7 @@ export default function TaskRow({
               type="button"
               onClick={() => setEditing(true)}
               title="Renommer"
-              className="rounded p-1 text-gray-300 opacity-0 transition hover:text-primary group-hover:opacity-100"
+              className="no-print rounded p-1 text-gray-300 opacity-0 transition hover:text-primary group-hover:opacity-100"
             >
               <Pencil size={13} />
             </button>
@@ -165,7 +165,7 @@ export default function TaskRow({
       </div>
 
       {/* Action supprimer (au survol) */}
-      <div className="flex w-10 shrink-0 items-center justify-center border-l border-gray-100">
+      <div className="no-print flex w-10 shrink-0 items-center justify-center border-l border-gray-100">
         <button
           type="button"
           onClick={onDelete}

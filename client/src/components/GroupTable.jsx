@@ -51,7 +51,7 @@ export default function GroupTable({
       ref={groupDragProvided?.innerRef}
       {...(groupDragProvided?.draggableProps || {})}
       style={groupDragProvided?.draggableProps?.style}
-      className={`mb-8 ${groupDragging ? 'rounded-lg bg-white shadow-2xl ring-1 ring-primary/20' : ''}`}
+      className={`print-group mb-8 ${groupDragging ? 'rounded-lg bg-white shadow-2xl ring-1 ring-primary/20' : ''}`}
     >
       {/* Titre du groupe */}
       <div className="group/title mb-1 flex items-center gap-1">
@@ -60,7 +60,7 @@ export default function GroupTable({
           <span
             {...(groupDragProvided?.dragHandleProps || {})}
             title="Glisser pour réordonner le groupe"
-            className="cursor-grab text-gray-300 opacity-0 transition hover:text-gray-500 group-hover/title:opacity-100 active:cursor-grabbing"
+            className="no-print cursor-grab text-gray-300 opacity-0 transition hover:text-gray-500 group-hover/title:opacity-100 active:cursor-grabbing"
           >
             <GripVertical size={16} />
           </span>
@@ -68,7 +68,7 @@ export default function GroupTable({
         <button
           type="button"
           onClick={() => setCollapsed((v) => !v)}
-          className="rounded p-0.5 hover:bg-gray-200"
+          className="no-print rounded p-0.5 hover:bg-gray-200"
           style={{ color: group.color }}
         >
           {collapsed ? <ChevronRight size={20} /> : <ChevronDown size={20} />}
@@ -105,7 +105,7 @@ export default function GroupTable({
           type="button"
           onClick={() => onDeleteGroup()}
           title="Supprimer le groupe"
-          className="ml-2 text-gray-300 hover:text-status-blocked"
+          className="no-print ml-2 text-gray-300 hover:text-status-blocked"
         >
           <Trash2 size={15} />
         </button>
@@ -169,7 +169,7 @@ export default function GroupTable({
           </Droppable>
 
           {/* Ajouter une tâche */}
-          <div className="flex items-stretch border-b border-gray-100 bg-white">
+          <div className="no-print flex items-stretch border-b border-gray-100 bg-white">
             <div className="w-1 shrink-0" style={{ backgroundColor: group.color }} />
             <div className="w-6 shrink-0" />
             <div className="w-10 shrink-0" />

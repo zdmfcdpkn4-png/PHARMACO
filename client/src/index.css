@@ -32,6 +32,51 @@ body {
   }
 }
 
+/* =====================================================================
+   Impression / PDF — rendu papier propre du tableau
+   Masque sidebar, barre supérieure, chat/drawer, boutons d'action ;
+   ne garde que le titre + les tableaux de tâches.
+   ===================================================================== */
+@media print {
+  @page {
+    size: A4 landscape;
+    margin: 12mm;
+  }
+
+  /* Tout ce qui est marqué no-print disparaît */
+  .no-print {
+    display: none !important;
+  }
+
+  body {
+    background: #fff !important;
+  }
+
+  /* Réinitialise les conteneurs en hauteur/scroll pour tout imprimer */
+  html,
+  body,
+  #root {
+    height: auto !important;
+    overflow: visible !important;
+  }
+
+  .print-area {
+    overflow: visible !important;
+  }
+
+  /* Évite de couper un groupe au milieu d'une page */
+  .print-group {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  /* Force le rendu des couleurs des badges */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+}
+
 /* Scrollbar discrète facon Monday */
 ::-webkit-scrollbar {
   width: 10px;

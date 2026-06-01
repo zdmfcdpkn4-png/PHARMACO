@@ -445,6 +445,52 @@ function Board({ currentUser, onLogout }) {
   const dragEnabled =
     !sortBy && !search.trim() && !personFilter && !statusFilter && showDone;
 
+  // -------- Export --------
+  // Construit les lignes visibles (filtres + tri actifs appliqués), groupe par groupe.
+  const buildVisibleRows = () => {
+    const rows = [];
+    for (const g of board?.groups || []) {
+      let tasks = g.tasks.filter(filterFn);
+      if (sortFn) tasks = [...tasks].sort(sortFn);
+      for (const t of tasks) {
+        rows.push({
+          groupe: g.name,
+          tache: t.name,
+          admin: t.admin?.name || '',
+          statut: t.status,
+          priorite: t.priority || 'P3 - Normal',
+          echeance: t.duedate ? t.duedate.slice(0, 10) : '',
+        });
+      }
+    }
+    return rows;
+  };
+
+  const handleExportCsv = () => {
+    const rows = buildVisibleRows();
+    const header = ['Groupe', 'Tâche', 'Admin', 'Statut', 'Priorité', 'Échéance'];
+    const escape = (v) => {
+      const s = String(v ?? '');
+      return /[",;\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+    };
+    const lines = [header, ...rows.map((r) => [r.groupe, r.tache, r.admin, r.statut, r.priorite, r.echeance])];
+    const csv = lines.map((l) => l.map(escape).join(';')).join('\n');
+    // BOM pour Excel + accents
+    const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${(board?.name || 'tableau').replace(/\s+/g, '-')}-${new Date()
+      .toISOString()
+      .slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handlePrint = () => {
+    window.print();
+  };
+
   const unreadCount = alerts.filter((a) => !a.is_read).length;
 
   const handleMarkRead = async (id) => {
@@ -484,30 +530,34 @@ function Board({ currentUser, onLogout }) {
 
   return (
     <div className="flex h-screen overflow-hidden bg-canvas">
-      <Sidebar
-        boardName={board.name}
-        activeRail={activeRail}
-        onSelectRail={(rail) => setActiveRail(rail)}
-        onNewBoard={handleAddGroup}
-        view={view}
-        onSelectView={setView}
-      />
+      <div className="contents no-print">
+        <Sidebar
+          boardName={board.name}
+          activeRail={activeRail}
+          onSelectRail={(rail) => setActiveRail(rail)}
+          onNewBoard={handleAddGroup}
+          view={view}
+          onSelectView={setView}
+        />
+      </div>
 
       {activeRail !== 'Espaces' && (
-        <RailPanel
-          rail={activeRail}
-          users={users}
-          onAddUser={handleAddUser}
-          onUpdateUser={handleUpdateUser}
-          onDeleteUser={handleDeleteUser}
-          onSetPassword={handleSetPassword}
-          onClose={() => setActiveRail('Espaces')}
-        />
+        <div className="contents no-print">
+          <RailPanel
+            rail={activeRail}
+            users={users}
+            onAddUser={handleAddUser}
+            onUpdateUser={handleUpdateUser}
+            onDeleteUser={handleDeleteUser}
+            onSetPassword={handleSetPassword}
+            onClose={() => setActiveRail('Espaces')}
+          />
+        </div>
       )}
 
       <div className="flex min-w-0 flex-1 flex-col">
         {/* Barre supérieure */}
-        <div className="relative flex items-center justify-between border-b border-gray-200 bg-white px-6 py-2">
+        <div className="no-print relative flex items-center justify-between border-b border-gray-200 bg-white px-6 py-2">
           <div className="text-sm text-gray-400">
             {IS_MOCK ? 'Mode démo (données en mémoire)' : 'Connecté à l\'API'}
           </div>
@@ -589,15 +639,26 @@ function Board({ currentUser, onLogout }) {
               onToggleSort={cycleSort}
               showDone={showDone}
               onToggleShowDone={() => setShowDone((v) => !v)}
+              onExportCsv={handleExportCsv}
+              onPrint={handlePrint}
             />
 
             {/* Bandeau d'erreur transitoire */}
             {error && (
-              <div className="bg-red-50 px-6 py-2 text-sm text-status-blocked">{error}</div>
+              <div className="no-print bg-red-50 px-6 py-2 text-sm text-status-blocked">{error}</div>
             )}
 
+            {/* Titre visible uniquement à l'impression */}
+            <div className="hidden px-6 pt-2 print:block">
+              <h1 className="text-xl font-bold text-gray-800">{board.name}</h1>
+              <p className="text-xs text-gray-500">
+                Synthèse imprimée le {new Date().toLocaleDateString('fr-FR')}
+                {(search || personFilter || statusFilter || !showDone) && ' · filtres actifs'}
+              </p>
+            </div>
+
             {/* Contenu scrollable */}
-            <main className="flex-1 overflow-auto px-6 py-5">
+            <main className="print-area flex-1 overflow-auto px-6 py-5">
               <DragDropContext onDragEnd={handleDragEnd}>
                 <Droppable droppableId="board" type="GROUP">
                   {(provided) => (
@@ -644,7 +705,7 @@ function Board({ currentUser, onLogout }) {
               <button
                 type="button"
                 onClick={handleAddGroup}
-                className="mt-2 flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm text-gray-600 shadow-sm hover:border-primary hover:text-primary"
+                className="no-print mt-2 flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm text-gray-600 shadow-sm hover:border-primary hover:text-primary"
               >
                 <Plus size={16} /> Ajouter un nouveau groupe
               </button>
@@ -655,6 +716,7 @@ function Board({ currentUser, onLogout }) {
 
       {/* Drawer contextuel d'une tâche (discussion + historique) */}
       {drawerTask && (
+        <div className="contents no-print">
         <TaskDrawer
           task={
             // garde la version à jour de la tâche depuis le board
@@ -669,6 +731,7 @@ function Board({ currentUser, onLogout }) {
           }}
           onCommentsCountChange={() => loadCommentCounts()}
         />
+        </div>
       )}
     </div>
   );
