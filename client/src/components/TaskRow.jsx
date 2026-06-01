@@ -25,6 +25,7 @@ export default function TaskRow({
   onAssign,
   onChangeDate,
   onDelete,
+  canDelete = true,
   onOpenDrawer,
 }) {
   const [editing, setEditing] = useState(false);
@@ -180,16 +181,18 @@ export default function TaskRow({
         </label>
       </div>
 
-      {/* Action supprimer (au survol) */}
+      {/* Action supprimer (au survol) — visible si autorisé */}
       <div className="no-print flex w-10 shrink-0 items-center justify-center border-l border-gray-100">
-        <button
-          type="button"
-          onClick={onDelete}
-          title="Supprimer la tâche"
-          className="text-gray-300 opacity-0 transition hover:text-status-blocked group-hover:opacity-100"
-        >
-          <Trash2 size={16} />
-        </button>
+        {canDelete && (
+          <button
+            type="button"
+            onClick={onDelete}
+            title="Supprimer la tâche"
+            className="text-gray-300 opacity-0 transition hover:text-status-blocked group-hover:opacity-100"
+          >
+            <Trash2 size={16} />
+          </button>
+        )}
       </div>
     </div>
   );

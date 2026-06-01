@@ -26,6 +26,7 @@ export default function GroupTable({
   onOpenDrawer,
   commentCounts = {},
   canEdit = true,
+  canDeleteTask,
   onCreateSubtask,
   onUpdateSubtask,
   onDeleteSubtask,
@@ -170,6 +171,7 @@ export default function GroupTable({
                           onAssign={(adminId) => onAssign(task.id, adminId)}
                           onChangeDate={(date) => onChangeDate(task.id, date)}
                           onDelete={() => onDeleteTask(task.id)}
+                          canDelete={canDeleteTask ? canDeleteTask(task) : true}
                           onOpenDrawer={(tabKey) => onOpenDrawer?.(task, tabKey)}
                         />
                         {expanded[task.id] && (

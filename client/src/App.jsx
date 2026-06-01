@@ -86,6 +86,12 @@ function Board({ currentUser, onLogout }) {
 
   // Droits : seul le propriétaire du tableau peut modifier.
   const isOwner = !board || board.created_by == null || board.created_by === CURRENT_USER_ID;
+  const isAdmin = currentUser.role === 'admin';
+
+  // Suppression d'une tâche autorisée si : propriétaire du tableau, admin,
+  // admin assigné à la tâche, ou tâche vide (non assignée).
+  const canDeleteTask = (task) =>
+    isOwner || isAdmin || !task.admin || task.admin.id === CURRENT_USER_ID;
 
   // -------- Chargement initial --------
   const loadAlerts = useCallback(async () => {
@@ -201,7 +207,14 @@ function Board({ currentUser, onLogout }) {
       api.updateTask(taskId, { duedate: date, ...actor })
     );
 
-  const handleDeleteTask = (taskId) =>
+  const handleDeleteTask = (taskId) => {
+    const task = board?.groups.flatMap((g) => g.tasks).find((t) => t.id === taskId);
+    if (task && !canDeleteTask(task)) {
+      setError('Vous n’êtes pas autorisé à supprimer cette tâche.');
+      setTimeout(() => setError(null), 3000);
+      return;
+    }
+    if (!confirm(`Supprimer la tâche « ${task?.name || ''} » ?`)) return;
     optimistic(
       (b) => {
         for (const g of b.groups) g.tasks = g.tasks.filter((t) => t.id !== taskId);
@@ -209,6 +222,7 @@ function Board({ currentUser, onLogout }) {
       },
       () => api.deleteTask(taskId)
     );
+  };
 
   const handleAddTask = async (groupId, name) => {
     // Création optimiste avec id temporaire, remplacé par la réponse serveur.
@@ -1102,6 +1116,7 @@ function Board({ currentUser, onLogout }) {
                               commentCounts={commentCounts}
                               onOpenDrawer={(t) => setDrawerTask(t)}
                               canEdit={isOwner}
+                              canDeleteTask={canDeleteTask}
                               onCreateSubtask={handleCreateSubtask}
                               onUpdateSubtask={handleUpdateSubtask}
                               onDeleteSubtask={handleDeleteSubtask}
