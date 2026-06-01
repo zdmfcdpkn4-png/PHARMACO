@@ -7,6 +7,7 @@ import BoardHeader from './components/BoardHeader.jsx';
 import GroupTable from './components/GroupTable.jsx';
 import AlertsPanel from './components/AlertsPanel.jsx';
 import Avatar from './components/Avatar.jsx';
+import TeamWorkloadView from './components/TeamWorkloadView.jsx';
 import Login from './components/Login.jsx';
 import { api, IS_MOCK } from './api/index.js';
 import { GROUP_COLORS } from './lib/constants.js';
@@ -58,6 +59,7 @@ function Board({ currentUser, onLogout }) {
   const [alertsOpen, setAlertsOpen] = useState(false);
 
   // Navigation latérale + outils de tri / affichage
+  const [view, setView] = useState('board'); // 'board' | 'workload'
   const [activeRail, setActiveRail] = useState('Espaces');
   const [sortBy, setSortBy] = useState(null); // null | 'nom' | 'statut' | 'échéance'
   const [showDone, setShowDone] = useState(true); // afficher les tâches "Fait"
@@ -407,6 +409,8 @@ function Board({ currentUser, onLogout }) {
         activeRail={activeRail}
         onSelectRail={(rail) => setActiveRail(rail)}
         onNewBoard={handleAddGroup}
+        view={view}
+        onSelectView={setView}
       />
 
       {activeRail !== 'Espaces' && (
@@ -463,61 +467,77 @@ function Board({ currentUser, onLogout }) {
           </div>
         </div>
 
-        <BoardHeader
-          title={board.name}
-          onRenameBoard={(name) => setBoard((b) => ({ ...b, name }))}
-          search={search}
-          onSearch={setSearch}
-          personFilter={personFilter}
-          onPersonFilter={setPersonFilter}
-          statusFilter={statusFilter}
-          onStatusFilter={setStatusFilter}
-          users={users}
-          onAddTaskClick={() => board.groups[0] && handleAddTask(board.groups[0].id, 'Nouvelle tâche')}
-          sortBy={sortBy}
-          onToggleSort={cycleSort}
-          showDone={showDone}
-          onToggleShowDone={() => setShowDone((v) => !v)}
-        />
+        {view === 'workload' ? (
+          <>
+            <div className="border-b border-gray-200 bg-white px-6 pt-4">
+              <h2 className="mb-3 flex items-center gap-2 text-2xl font-bold text-gray-800">
+                Charge de travail de l'équipe
+              </h2>
+            </div>
+            {error && (
+              <div className="bg-red-50 px-6 py-2 text-sm text-status-blocked">{error}</div>
+            )}
+            <TeamWorkloadView board={board} users={users} />
+          </>
+        ) : (
+          <>
+            <BoardHeader
+              title={board.name}
+              onRenameBoard={(name) => setBoard((b) => ({ ...b, name }))}
+              search={search}
+              onSearch={setSearch}
+              personFilter={personFilter}
+              onPersonFilter={setPersonFilter}
+              statusFilter={statusFilter}
+              onStatusFilter={setStatusFilter}
+              users={users}
+              onAddTaskClick={() => board.groups[0] && handleAddTask(board.groups[0].id, 'Nouvelle tâche')}
+              sortBy={sortBy}
+              onToggleSort={cycleSort}
+              showDone={showDone}
+              onToggleShowDone={() => setShowDone((v) => !v)}
+            />
 
-        {/* Bandeau d'erreur transitoire */}
-        {error && (
-          <div className="bg-red-50 px-6 py-2 text-sm text-status-blocked">{error}</div>
+            {/* Bandeau d'erreur transitoire */}
+            {error && (
+              <div className="bg-red-50 px-6 py-2 text-sm text-status-blocked">{error}</div>
+            )}
+
+            {/* Contenu scrollable */}
+            <main className="flex-1 overflow-auto px-6 py-5">
+              <DragDropContext onDragEnd={handleDragEnd}>
+                {board.groups.map((group) => (
+                  <GroupTable
+                    key={group.id}
+                    group={group}
+                    users={users}
+                    selectedIds={selectedIds}
+                    filterFn={filterFn}
+                    sortFn={sortFn}
+                    dragEnabled={dragEnabled}
+                    onToggleSelect={toggleSelect}
+                    onAddTask={(name) => handleAddTask(group.id, name)}
+                    onRenameTask={handleRenameTask}
+                    onChangeStatus={handleChangeStatus}
+                    onAssign={handleAssign}
+                    onChangeDate={handleChangeDate}
+                    onDeleteTask={handleDeleteTask}
+                    onRenameGroup={(name) => handleRenameGroup(group.id, name)}
+                    onDeleteGroup={() => handleDeleteGroup(group.id)}
+                  />
+                ))}
+              </DragDropContext>
+
+              <button
+                type="button"
+                onClick={handleAddGroup}
+                className="mt-2 flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm text-gray-600 shadow-sm hover:border-primary hover:text-primary"
+              >
+                <Plus size={16} /> Ajouter un nouveau groupe
+              </button>
+            </main>
+          </>
         )}
-
-        {/* Contenu scrollable */}
-        <main className="flex-1 overflow-auto px-6 py-5">
-          <DragDropContext onDragEnd={handleDragEnd}>
-            {board.groups.map((group) => (
-              <GroupTable
-                key={group.id}
-                group={group}
-                users={users}
-                selectedIds={selectedIds}
-                filterFn={filterFn}
-                sortFn={sortFn}
-                dragEnabled={dragEnabled}
-                onToggleSelect={toggleSelect}
-                onAddTask={(name) => handleAddTask(group.id, name)}
-                onRenameTask={handleRenameTask}
-                onChangeStatus={handleChangeStatus}
-                onAssign={handleAssign}
-                onChangeDate={handleChangeDate}
-                onDeleteTask={handleDeleteTask}
-                onRenameGroup={(name) => handleRenameGroup(group.id, name)}
-                onDeleteGroup={() => handleDeleteGroup(group.id)}
-              />
-            ))}
-          </DragDropContext>
-
-          <button
-            type="button"
-            onClick={handleAddGroup}
-            className="mt-2 flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm text-gray-600 shadow-sm hover:border-primary hover:text-primary"
-          >
-            <Plus size={16} /> Ajouter un nouveau groupe
-          </button>
-        </main>
       </div>
     </div>
   );

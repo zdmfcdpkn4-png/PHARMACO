@@ -5,6 +5,15 @@ import { GROUP_COLORS } from '../lib/constants.js';
 let nextId = 1000;
 const uid = () => ++nextId;
 
+// Date (YYYY-MM-DD) du jour de la semaine en cours : 0 = lundi … 6 = dimanche.
+const weekday = (dow) => {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  const cur = (d.getDay() + 6) % 7; // 0 = lundi
+  d.setDate(d.getDate() - cur + dow);
+  return d.toISOString().slice(0, 10);
+};
+
 // avatar_url laissé à null : les pastilles d'initiales sont générées
 // localement par le composant Avatar (aucune dépendance réseau).
 const users = [
@@ -38,9 +47,13 @@ const board = {
       color: '#579bfc',
       position: 0,
       tasks: [
-        { id: 11, group_id: 1, name: 'Tâche 1', position: 0, status: 'En cours', duedate: '2026-05-28', admin: adminShape(1) },
-        { id: 12, group_id: 1, name: 'Tâche 2', position: 1, status: 'Fait', duedate: '2026-05-29', admin: adminShape(2) },
-        { id: 13, group_id: 1, name: 'Tâche 3', position: 2, status: 'Bloqué', duedate: '2026-05-30', admin: null },
+        { id: 11, group_id: 1, name: 'Tâche 1', position: 0, status: 'En cours', duedate: weekday(0), admin: adminShape(1) },
+        { id: 12, group_id: 1, name: 'Tâche 2', position: 1, status: 'Fait', duedate: weekday(1), admin: adminShape(2) },
+        { id: 13, group_id: 1, name: 'Tâche 3', position: 2, status: 'Bloqué', duedate: weekday(2), admin: null },
+        // Erwin chargé sur mardi (pour illustrer la saturation > 3)
+        { id: 14, group_id: 1, name: 'Audit qualité', position: 3, status: 'En cours', duedate: weekday(1), admin: adminShape(1) },
+        { id: 15, group_id: 1, name: 'Revue lots', position: 4, status: 'À faire', duedate: weekday(1), admin: adminShape(1) },
+        { id: 16, group_id: 1, name: 'Contrôle péremption', position: 5, status: 'En cours', duedate: weekday(1), admin: adminShape(1) },
       ],
     },
     {

@@ -18,6 +18,8 @@ export default function Sidebar({
   activeRail = 'Espaces',
   onSelectRail,
   onNewBoard,
+  view = 'board',
+  onSelectView,
 }) {
   const Rail = ({ icon: Icon, label }) => {
     const active = activeRail === label;
@@ -94,8 +96,15 @@ export default function Sidebar({
           <li>
             <button
               type="button"
-              onClick={() => onSelectRail?.('Espaces')}
-              className="flex w-full items-center gap-2 rounded-md bg-blue-50 px-2 py-2 text-left text-sm font-medium text-primary"
+              onClick={() => {
+                onSelectRail?.('Espaces');
+                onSelectView?.('board');
+              }}
+              className={`flex w-full items-center gap-2 rounded-md px-2 py-2 text-left text-sm ${
+                view === 'board'
+                  ? 'bg-blue-50 font-medium text-primary'
+                  : 'text-gray-600 hover:bg-gray-100'
+              }`}
             >
               <Table2 size={16} /> {boardName}
             </button>
@@ -103,10 +112,17 @@ export default function Sidebar({
           <li>
             <button
               type="button"
-              onClick={() => onSelectRail?.('Agents')}
-              className="flex w-full items-center gap-2 rounded-md px-2 py-2 text-left text-sm text-gray-600 hover:bg-gray-100"
+              onClick={() => {
+                onSelectRail?.('Espaces');
+                onSelectView?.('workload');
+              }}
+              className={`flex w-full items-center gap-2 rounded-md px-2 py-2 text-left text-sm ${
+                view === 'workload'
+                  ? 'bg-blue-50 font-medium text-primary'
+                  : 'text-gray-600 hover:bg-gray-100'
+              }`}
             >
-              <BarChart3 size={16} /> Tableau de bord et reporting
+              <BarChart3 size={16} /> Charge de travail de l'équipe
             </button>
           </li>
         </ul>
