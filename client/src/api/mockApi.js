@@ -177,6 +177,16 @@ export const mockApi = {
     if (idx >= 0) board.groups.splice(idx, 1);
   },
 
+  async reorderGroups(items) {
+    await delay(80);
+    const posById = new Map(items.map((it) => [it.id, it.position]));
+    for (const g of board.groups) {
+      if (posById.has(g.id)) g.position = posById.get(g.id);
+    }
+    board.groups.sort((a, b) => a.position - b.position);
+    return { ok: true, updated: items.length };
+  },
+
   async createTask({ group_id, name, admin_id, status, duedate }) {
     await delay();
     const g = findGroup(group_id);

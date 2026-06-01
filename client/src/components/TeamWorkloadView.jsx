@@ -1,5 +1,13 @@
 import { useMemo, useState } from 'react';
-import { AlertTriangle, CheckCircle2, Filter, EyeOff, Eye } from 'lucide-react';
+import {
+  AlertTriangle,
+  CheckCircle2,
+  Filter,
+  EyeOff,
+  Eye,
+  ChevronLeft,
+  ChevronRight,
+} from 'lucide-react';
 import Avatar from './Avatar.jsx';
 import { STATUS_META } from '../lib/constants.js';
 
@@ -24,9 +32,14 @@ function ymd(date) {
 export default function TeamWorkloadView({ board, users }) {
   const [agentFilter, setAgentFilter] = useState(null);
   const [hideDone, setHideDone] = useState(true);
+  const [weekOffset, setWeekOffset] = useState(0); // 0 = semaine en cours
 
-  // Bornes de la semaine en cours
-  const weekStart = useMemo(() => startOfWeek(), []);
+  // Bornes de la semaine affichée (décalée de weekOffset semaines)
+  const weekStart = useMemo(() => {
+    const base = startOfWeek();
+    base.setDate(base.getDate() + weekOffset * 7);
+    return base;
+  }, [weekOffset]);
   const weekDays = useMemo(
     () =>
       Array.from({ length: 7 }, (_, i) => {
@@ -105,9 +118,38 @@ export default function TeamWorkloadView({ board, users }) {
           {hideDone ? 'Tâches « Fait » masquées' : 'Tâches « Fait » affichées'}
         </button>
 
-        <span className="ml-auto text-xs text-gray-400">
-          Semaine du {weekDays[0].toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })}
-        </span>
+        {/* Navigation de semaine */}
+        <div className="ml-auto flex items-center gap-1">
+          <button
+            type="button"
+            onClick={() => setWeekOffset((v) => v - 1)}
+            title="Semaine précédente"
+            className="rounded-md p-1.5 text-gray-500 hover:bg-gray-100"
+          >
+            <ChevronLeft size={16} />
+          </button>
+          <button
+            type="button"
+            onClick={() => setWeekOffset(0)}
+            className={`rounded-md px-2.5 py-1.5 text-xs font-medium ${
+              weekOffset === 0
+                ? 'bg-primary-light text-primary'
+                : 'text-gray-600 hover:bg-gray-100'
+            }`}
+          >
+            {weekOffset === 0
+              ? "Semaine en cours"
+              : `Semaine du ${weekDays[0].toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}`}
+          </button>
+          <button
+            type="button"
+            onClick={() => setWeekOffset((v) => v + 1)}
+            title="Semaine suivante"
+            className="rounded-md p-1.5 text-gray-500 hover:bg-gray-100"
+          >
+            <ChevronRight size={16} />
+          </button>
+        </div>
       </div>
 
       {/* Frise */}

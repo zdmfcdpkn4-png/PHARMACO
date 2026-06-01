@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Bell, Plus, LogOut } from 'lucide-react';
-import { DragDropContext } from '@hello-pangea/dnd';
+import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import Sidebar from './components/Sidebar.jsx';
 import RailPanel from './components/RailPanel.jsx';
 import BoardHeader from './components/BoardHeader.jsx';
@@ -272,9 +272,41 @@ function Board({ currentUser, onLogout }) {
     await api.updateUser(id, { password });
   };
 
-  // -------- Glisser-déposer des tâches --------
+  // -------- Glisser-déposer des groupes --------
+  const handleGroupDragEnd = (result) => {
+    const { source, destination } = result;
+    if (!destination || source.index === destination.index) return;
+
+    let payload = null;
+    const snapshot = board;
+    setBoard((prev) => {
+      const next = structuredClone(prev);
+      const [moved] = next.groups.splice(source.index, 1);
+      next.groups.splice(destination.index, 0, moved);
+      next.groups.forEach((g, i) => {
+        g.position = i;
+      });
+      payload = next.groups.map((g) => ({ id: g.id, position: g.position }));
+      return next;
+    });
+    if (payload) {
+      api.reorderGroups(payload).catch((e) => {
+        setBoard(snapshot);
+        setError(e.message || 'Échec du déplacement du groupe');
+        setTimeout(() => setError(null), 3000);
+      });
+    }
+  };
+
+  // -------- Glisser-déposer (tâches + groupes) --------
   // Réorganise une liste et renvoie les items déplacés avec leur position.
   const handleDragEnd = (result) => {
+    // Réorganisation de groupes (type "GROUP")
+    if (result.type === 'GROUP') {
+      handleGroupDragEnd(result);
+      return;
+    }
+
     const { source, destination, draggableId } = result;
     if (!destination) return; // déposé hors zone
     const sameSpot =
@@ -506,26 +538,43 @@ function Board({ currentUser, onLogout }) {
             {/* Contenu scrollable */}
             <main className="flex-1 overflow-auto px-6 py-5">
               <DragDropContext onDragEnd={handleDragEnd}>
-                {board.groups.map((group) => (
-                  <GroupTable
-                    key={group.id}
-                    group={group}
-                    users={users}
-                    selectedIds={selectedIds}
-                    filterFn={filterFn}
-                    sortFn={sortFn}
-                    dragEnabled={dragEnabled}
-                    onToggleSelect={toggleSelect}
-                    onAddTask={(name) => handleAddTask(group.id, name)}
-                    onRenameTask={handleRenameTask}
-                    onChangeStatus={handleChangeStatus}
-                    onAssign={handleAssign}
-                    onChangeDate={handleChangeDate}
-                    onDeleteTask={handleDeleteTask}
-                    onRenameGroup={(name) => handleRenameGroup(group.id, name)}
-                    onDeleteGroup={() => handleDeleteGroup(group.id)}
-                  />
-                ))}
+                <Droppable droppableId="board" type="GROUP">
+                  {(provided) => (
+                    <div ref={provided.innerRef} {...provided.droppableProps}>
+                      {board.groups.map((group, gIndex) => (
+                        <Draggable
+                          key={group.id}
+                          draggableId={`group-${group.id}`}
+                          index={gIndex}
+                          isDragDisabled={!dragEnabled}
+                        >
+                          {(gProvided, gSnapshot) => (
+                            <GroupTable
+                              group={group}
+                              users={users}
+                              selectedIds={selectedIds}
+                              filterFn={filterFn}
+                              sortFn={sortFn}
+                              dragEnabled={dragEnabled}
+                              groupDragProvided={gProvided}
+                              groupDragSnapshot={gSnapshot}
+                              onToggleSelect={toggleSelect}
+                              onAddTask={(name) => handleAddTask(group.id, name)}
+                              onRenameTask={handleRenameTask}
+                              onChangeStatus={handleChangeStatus}
+                              onAssign={handleAssign}
+                              onChangeDate={handleChangeDate}
+                              onDeleteTask={handleDeleteTask}
+                              onRenameGroup={(name) => handleRenameGroup(group.id, name)}
+                              onDeleteGroup={() => handleDeleteGroup(group.id)}
+                            />
+                          )}
+                        </Draggable>
+                      ))}
+                      {provided.placeholder}
+                    </div>
+                  )}
+                </Droppable>
               </DragDropContext>
 
               <button

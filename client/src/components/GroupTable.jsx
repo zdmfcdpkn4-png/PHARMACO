@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ChevronDown, ChevronRight, Plus, Trash2 } from 'lucide-react';
+import { ChevronDown, ChevronRight, Plus, Trash2, GripVertical } from 'lucide-react';
 import { Droppable, Draggable } from '@hello-pangea/dnd';
 import TaskRow from './TaskRow.jsx';
 import GroupSummary from './GroupSummary.jsx';
@@ -12,6 +12,8 @@ export default function GroupTable({
   filterFn,
   sortFn,
   dragEnabled,
+  groupDragProvided = null,
+  groupDragSnapshot = null,
   onToggleSelect,
   onAddTask,
   onRenameTask,
@@ -39,10 +41,27 @@ export default function GroupTable({
     setAdding(false);
   };
 
+  const groupDragging = groupDragSnapshot?.isDragging;
+
   return (
-    <section className="mb-8">
+    <section
+      ref={groupDragProvided?.innerRef}
+      {...(groupDragProvided?.draggableProps || {})}
+      style={groupDragProvided?.draggableProps?.style}
+      className={`mb-8 ${groupDragging ? 'rounded-lg bg-white shadow-2xl ring-1 ring-primary/20' : ''}`}
+    >
       {/* Titre du groupe */}
-      <div className="mb-1 flex items-center gap-1">
+      <div className="group/title mb-1 flex items-center gap-1">
+        {/* Poignée de déplacement du groupe */}
+        {dragEnabled && (
+          <span
+            {...(groupDragProvided?.dragHandleProps || {})}
+            title="Glisser pour réordonner le groupe"
+            className="cursor-grab text-gray-300 opacity-0 transition hover:text-gray-500 group-hover/title:opacity-100 active:cursor-grabbing"
+          >
+            <GripVertical size={16} />
+          </span>
+        )}
         <button
           type="button"
           onClick={() => setCollapsed((v) => !v)}

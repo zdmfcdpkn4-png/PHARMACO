@@ -33,6 +33,7 @@ export const httpApi = {
   createGroup: (data) => request('/groups', { method: 'POST', body: data }),
   updateGroup: (id, patch) => request(`/groups/${id}`, { method: 'PATCH', body: patch }),
   deleteGroup: (id) => request(`/groups/${id}`, { method: 'DELETE' }),
+  reorderGroups: (items) => request('/groups/reorder', { method: 'PUT', body: { items } }),
 
   createTask: (data) => request('/tasks', { method: 'POST', body: data }),
   updateTask: (id, patch) => request(`/tasks/${id}`, { method: 'PATCH', body: patch }),

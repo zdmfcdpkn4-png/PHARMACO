@@ -1,7 +1,41 @@
-import { query } from '../db/pool.js';
+import { query, withTransaction } from '../db/pool.js';
 import { asyncHandler } from '../middleware/error.js';
 
 const PALETTE = ['#579bfc', '#00c875', '#fdab3d', '#e2445c', '#a25ddc', '#037f4c'];
+
+/**
+ * Réordonne les groupes d'un board en une seule transaction.
+ * Body : { items: [{ id, position }, ...] }
+ */
+export const reorderGroups = asyncHandler(async (req, res) => {
+  const { items } = req.body;
+  if (!Array.isArray(items) || items.length === 0) {
+    return res.status(400).json({ error: 'items (tableau non vide) est requis' });
+  }
+  const ids = [];
+  const positions = [];
+  for (const it of items) {
+    if (it == null || it.id == null || it.position == null) {
+      return res.status(400).json({ error: 'chaque item doit avoir id et position' });
+    }
+    ids.push(Number(it.id));
+    positions.push(Number(it.position));
+  }
+
+  await withTransaction(async (client) => {
+    await client.query(
+      `UPDATE groups AS g
+         SET position = v.position
+       FROM (
+         SELECT * FROM unnest($1::int[], $2::int[]) AS u(id, position)
+       ) AS v
+       WHERE g.id = v.id`,
+      [ids, positions]
+    );
+  });
+
+  res.json({ ok: true, updated: ids.length });
+});
 
 export const createGroup = asyncHandler(async (req, res) => {
   const { board_id, name, color } = req.body;
