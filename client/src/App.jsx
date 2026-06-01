@@ -9,6 +9,7 @@ import AlertsPanel from './components/AlertsPanel.jsx';
 import Avatar from './components/Avatar.jsx';
 import TeamWorkloadView from './components/TeamWorkloadView.jsx';
 import ReportingView from './components/ReportingView.jsx';
+import TaskDrawer from './components/TaskDrawer.jsx';
 import Login from './components/Login.jsx';
 import { api, IS_MOCK } from './api/index.js';
 import { GROUP_COLORS } from './lib/constants.js';
@@ -65,6 +66,10 @@ function Board({ currentUser, onLogout }) {
   const [sortBy, setSortBy] = useState(null); // null | 'nom' | 'statut' | 'échéance'
   const [showDone, setShowDone] = useState(true); // afficher les tâches "Fait"
 
+  // Drawer de tâche (discussion / historique) + compteurs de commentaires
+  const [drawerTask, setDrawerTask] = useState(null);
+  const [commentCounts, setCommentCounts] = useState({});
+
   // -------- Chargement initial --------
   const loadAlerts = useCallback(async () => {
     try {
@@ -76,6 +81,22 @@ function Board({ currentUser, onLogout }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Charge le nombre de commentaires par tâche (pour la bulle).
+  const loadCommentCounts = useCallback(async (boardData) => {
+    try {
+      const tasks = (boardData?.groups || []).flatMap((g) => g.tasks);
+      const entries = await Promise.all(
+        tasks.map(async (t) => {
+          const c = await api.getComments(t.id);
+          return [t.id, c.length];
+        })
+      );
+      setCommentCounts(Object.fromEntries(entries));
+    } catch {
+      /* non bloquant */
+    }
+  }, []);
+
   useEffect(() => {
     (async () => {
       try {
@@ -83,13 +104,14 @@ function Board({ currentUser, onLogout }) {
         setBoard(b);
         setUsers(u);
         await loadAlerts();
+        loadCommentCounts(b);
       } catch (e) {
         setError(e.message || 'Erreur de chargement');
       } finally {
         setLoading(false);
       }
     })();
-  }, [loadAlerts]);
+  }, [loadAlerts, loadCommentCounts]);
 
   // -------- Helpers de mise à jour optimiste --------
   // Applique une transformation locale immédiate, lance l'appel API,
@@ -122,9 +144,12 @@ function Board({ currentUser, onLogout }) {
   };
 
   // -------- Handlers tâches --------
+  // actor_id : attribue les entrées du journal d'activité à l'utilisateur courant.
+  const actor = { actor_id: CURRENT_USER_ID };
+
   const handleRenameTask = (taskId, name) =>
     optimistic((b) => patchTaskLocal(b, taskId, { name }), () =>
-      api.updateTask(taskId, { name })
+      api.updateTask(taskId, { name, ...actor })
     );
 
   // Renvoie la priorité courante d'une tâche (pour décider du refresh d'alertes)
@@ -138,14 +163,14 @@ function Board({ currentUser, onLogout }) {
 
   const handleChangeStatus = (taskId, status) => {
     optimistic((b) => patchTaskLocal(b, taskId, { status }), async () => {
-      await api.updateTask(taskId, { status });
+      await api.updateTask(taskId, { status, ...actor });
       if (status === 'Bloqué') loadAlerts(); // alerte (critique si P1) créée côté serveur
     });
   };
 
   const handleChangePriority = (taskId, priority) => {
     optimistic((b) => patchTaskLocal(b, taskId, { priority }), () =>
-      api.updateTask(taskId, { priority })
+      api.updateTask(taskId, { priority, ...actor })
     );
   };
 
@@ -155,13 +180,13 @@ function Board({ currentUser, onLogout }) {
       ? { id: admin.id, name: admin.name, avatar_url: admin.avatar_url }
       : null;
     optimistic((b) => patchTaskLocal(b, taskId, { admin: adminShape }), () =>
-      api.updateTask(taskId, { admin_id: adminId })
+      api.updateTask(taskId, { admin_id: adminId, ...actor })
     );
   };
 
   const handleChangeDate = (taskId, date) =>
     optimistic((b) => patchTaskLocal(b, taskId, { duedate: date }), () =>
-      api.updateTask(taskId, { duedate: date })
+      api.updateTask(taskId, { duedate: date, ...actor })
     );
 
   const handleDeleteTask = (taskId) =>
@@ -190,7 +215,7 @@ function Board({ currentUser, onLogout }) {
       return next;
     });
     try {
-      const created = await api.createTask({ group_id: groupId, name });
+      const created = await api.createTask({ group_id: groupId, name, ...actor });
       setBoard((b) => {
         const next = structuredClone(b);
         const g = next.groups.find((x) => x.id === groupId);
@@ -607,6 +632,8 @@ function Board({ currentUser, onLogout }) {
                               onAssign={handleAssign}
                               onChangeDate={handleChangeDate}
                               onDeleteTask={handleDeleteTask}
+                              commentCounts={commentCounts}
+                              onOpenDrawer={(t) => setDrawerTask(t)}
                               onRenameGroup={(name) => handleRenameGroup(group.id, name)}
                               onDeleteGroup={() => handleDeleteGroup(group.id)}
                             />
@@ -630,6 +657,21 @@ function Board({ currentUser, onLogout }) {
           </>
         )}
       </div>
+
+      {/* Drawer contextuel d'une tâche (discussion + historique) */}
+      {drawerTask && (
+        <TaskDrawer
+          task={
+            // garde la version à jour de la tâche depuis le board
+            board.groups.flatMap((g) => g.tasks).find((t) => t.id === drawerTask.id) || drawerTask
+          }
+          currentUser={currentUser}
+          onClose={() => setDrawerTask(null)}
+          onCommentsCountChange={(taskId, count) =>
+            setCommentCounts((prev) => ({ ...prev, [taskId]: count }))
+          }
+        />
+      )}
     </div>
   );
 }

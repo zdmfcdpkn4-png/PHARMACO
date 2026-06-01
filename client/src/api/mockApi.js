@@ -74,6 +74,31 @@ const board = {
   ],
 };
 
+// Discussion & journal d'activité en mémoire
+let comments = [
+  { id: 700, task_id: 13, content: 'En attente du réapprovisionnement fournisseur.', user: adminShape(1), created_at: daysAgo(2) },
+  { id: 701, task_id: 13, content: 'Relance envoyée ce matin.', user: adminShape(2), created_at: daysAgo(1) },
+];
+let activity = [
+  { id: 800, task_id: 13, action_type: 'status', old_value: 'En cours', new_value: 'Bloqué', user: adminShape(1), created_at: daysAgo(2) },
+  { id: 801, task_id: 13, action_type: 'created', old_value: null, new_value: 'Tâche 3', user: adminShape(1), created_at: daysAgo(7) },
+];
+
+const logActivity = (taskId, action, oldV, newV, actorId) => {
+  activity = [
+    {
+      id: uid(),
+      task_id: taskId,
+      action_type: action,
+      old_value: oldV == null ? null : String(oldV),
+      new_value: newV == null ? null : String(newV),
+      user: actorId ? adminShape(actorId) : null,
+      created_at: new Date().toISOString(),
+    },
+    ...activity,
+  ];
+};
+
 const delay = (ms = 120) => new Promise((r) => setTimeout(r, ms));
 const clone = (o) => JSON.parse(JSON.stringify(o));
 
@@ -194,7 +219,7 @@ export const mockApi = {
     return { ok: true, updated: items.length };
   },
 
-  async createTask({ group_id, name, admin_id, status, duedate, priority }) {
+  async createTask({ group_id, name, admin_id, status, duedate, priority, actor_id }) {
     await delay();
     const g = findGroup(group_id);
     if (!g) throw new Error('Groupe introuvable');
@@ -206,10 +231,12 @@ export const mockApi = {
       status: status || 'À faire',
       priority: priority || 'P3 - Normal',
       duedate: duedate || null,
+      created_at: new Date().toISOString(),
       admin: admin_id ? adminShape(admin_id) : null,
     };
     g.tasks.push(task);
     if (task.status === 'Bloqué' && admin_id) this._pushBlockedAlert(task, admin_id);
+    logActivity(task.id, 'created', null, name, actor_id);
     return clone(task);
   },
 
@@ -217,7 +244,7 @@ export const mockApi = {
     await delay();
     const { task } = findTask(id);
     if (!task) throw new Error('Tâche introuvable');
-    const prevStatus = task.status;
+    const prev = { status: task.status, priority: task.priority, name: task.name, duedate: task.duedate, admin: task.admin };
 
     if (patch.name !== undefined) task.name = patch.name;
     if (patch.status !== undefined) task.status = patch.status;
@@ -225,9 +252,22 @@ export const mockApi = {
     if (patch.duedate !== undefined) task.duedate = patch.duedate;
     if (patch.admin_id !== undefined) task.admin = patch.admin_id ? adminShape(patch.admin_id) : null;
 
-    if (patch.status === 'Bloqué' && prevStatus !== 'Bloqué' && task.admin) {
+    if (patch.status === 'Bloqué' && prev.status !== 'Bloqué' && task.admin) {
       this._pushBlockedAlert(task, task.admin.id);
     }
+
+    // Journalisation des changements
+    const actor = patch.actor_id;
+    if (patch.status !== undefined && prev.status !== task.status)
+      logActivity(id, 'status', prev.status, task.status, actor);
+    if (patch.priority !== undefined && prev.priority !== task.priority)
+      logActivity(id, 'priority', prev.priority, task.priority, actor);
+    if (patch.name !== undefined && prev.name !== task.name)
+      logActivity(id, 'name', prev.name, task.name, actor);
+    if (patch.duedate !== undefined && (prev.duedate || null) !== (task.duedate || null))
+      logActivity(id, 'duedate', prev.duedate || '—', task.duedate || '—', actor);
+    if (patch.admin_id !== undefined && (prev.admin?.id || null) !== (task.admin?.id || null))
+      logActivity(id, 'admin', prev.admin?.name || 'Personne', task.admin?.name || 'Personne', actor);
     return clone(task);
   },
 
@@ -235,6 +275,37 @@ export const mockApi = {
     await delay();
     const { task, group } = findTask(id);
     if (group && task) group.tasks = group.tasks.filter((t) => t.id !== id);
+  },
+
+  async getComments(taskId) {
+    await delay(60);
+    return clone(
+      comments
+        .filter((c) => c.task_id === taskId)
+        .sort((a, b) => new Date(a.created_at) - new Date(b.created_at))
+    );
+  },
+
+  async addComment(taskId, { user_id, content }) {
+    await delay(60);
+    const c = {
+      id: uid(),
+      task_id: taskId,
+      content: content.trim(),
+      user: user_id ? adminShape(user_id) : null,
+      created_at: new Date().toISOString(),
+    };
+    comments.push(c);
+    return clone(c);
+  },
+
+  async getActivity(taskId) {
+    await delay(60);
+    return clone(
+      activity
+        .filter((a) => a.task_id === taskId)
+        .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+    );
   },
 
   async reorderTasks(items) {

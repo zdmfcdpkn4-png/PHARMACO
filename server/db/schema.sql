@@ -136,6 +136,32 @@ CREATE TABLE IF NOT EXISTS alerts (
 CREATE INDEX IF NOT EXISTS idx_alerts_user_unread ON alerts(user_id, is_read);
 
 -- ---------------------------------------------------------------------
+--  Table : task_comments (discussion contextuelle d'une tâche)
+-- ---------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS task_comments (
+    id         SERIAL PRIMARY KEY,
+    task_id    INTEGER     NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
+    user_id    INTEGER     REFERENCES users(id) ON DELETE SET NULL,
+    content    TEXT        NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_task_comments_task ON task_comments(task_id);
+
+-- ---------------------------------------------------------------------
+--  Table : activity_log (journal d'activité d'une tâche)
+-- ---------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS activity_log (
+    id          SERIAL PRIMARY KEY,
+    task_id     INTEGER     NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
+    user_id     INTEGER     REFERENCES users(id) ON DELETE SET NULL,
+    action_type VARCHAR(40) NOT NULL,         -- ex: 'status', 'priority', 'admin', 'duedate', 'name', 'created'
+    old_value   TEXT,
+    new_value   TEXT,
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_activity_log_task ON activity_log(task_id);
+
+-- ---------------------------------------------------------------------
 --  Trigger : maintenir task_columns.updated_at
 -- ---------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION set_updated_at()

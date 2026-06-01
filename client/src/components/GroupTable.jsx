@@ -22,6 +22,8 @@ export default function GroupTable({
   onAssign,
   onChangeDate,
   onDeleteTask,
+  onOpenDrawer,
+  commentCounts = {},
   onRenameGroup,
   onDeleteGroup,
 }) {
@@ -148,6 +150,7 @@ export default function GroupTable({
                         dragEnabled={dragEnabled}
                         dragProvided={dragProvided}
                         dragSnapshot={dragSnapshot}
+                        commentCount={commentCounts[task.id] || 0}
                         onToggleSelect={() => onToggleSelect(task.id)}
                         onRename={(name) => onRenameTask(task.id, name)}
                         onChangeStatus={(status) => onChangeStatus(task.id, status)}
@@ -155,6 +158,7 @@ export default function GroupTable({
                         onAssign={(adminId) => onAssign(task.id, adminId)}
                         onChangeDate={(date) => onChangeDate(task.id, date)}
                         onDelete={() => onDeleteTask(task.id)}
+                        onOpenDrawer={(tabKey) => onOpenDrawer?.(task, tabKey)}
                       />
                     )}
                   </Draggable>

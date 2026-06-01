@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Trash2, GripVertical } from 'lucide-react';
+import { Trash2, GripVertical, Pencil, MessageSquare } from 'lucide-react';
 import StatusBadge from './StatusBadge.jsx';
 import PriorityBadge from './PriorityBadge.jsx';
 import AdminCell from './AdminCell.jsx';
@@ -14,6 +14,7 @@ export default function TaskRow({
   dragEnabled = false,
   dragProvided = null,
   dragSnapshot = null,
+  commentCount = 0,
   onToggleSelect,
   onRename,
   onChangeStatus,
@@ -21,6 +22,7 @@ export default function TaskRow({
   onAssign,
   onChangeDate,
   onDelete,
+  onOpenDrawer,
 }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(task.name);
@@ -94,13 +96,41 @@ export default function TaskRow({
             className="w-full rounded border border-primary px-2 py-1 text-gray-800 outline-none"
           />
         ) : (
-          <button
-            type="button"
-            onClick={() => setEditing(true)}
-            className="w-full truncate rounded px-2 py-1 text-left text-gray-800 hover:bg-gray-100"
-          >
-            {task.name}
-          </button>
+          <div className="flex w-full min-w-0 items-center gap-1">
+            <button
+              type="button"
+              onClick={() => onOpenDrawer?.()}
+              title="Ouvrir la discussion"
+              className="min-w-0 flex-1 truncate rounded px-2 py-1 text-left text-gray-800 hover:bg-gray-100"
+            >
+              {task.name}
+            </button>
+
+            {/* Bulle de commentaires */}
+            <button
+              type="button"
+              onClick={() => onOpenDrawer?.('discussion')}
+              title={commentCount > 0 ? `${commentCount} commentaire(s)` : 'Commenter'}
+              className={`relative flex items-center gap-0.5 rounded px-1 py-0.5 text-xs transition ${
+                commentCount > 0
+                  ? 'text-primary'
+                  : 'text-gray-300 opacity-0 group-hover:opacity-100 hover:text-gray-500'
+              }`}
+            >
+              <MessageSquare size={15} />
+              {commentCount > 0 && <span className="font-semibold">{commentCount}</span>}
+            </button>
+
+            {/* Édition rapide */}
+            <button
+              type="button"
+              onClick={() => setEditing(true)}
+              title="Renommer"
+              className="rounded p-1 text-gray-300 opacity-0 transition hover:text-primary group-hover:opacity-100"
+            >
+              <Pencil size={13} />
+            </button>
+          </div>
         )}
       </div>
 

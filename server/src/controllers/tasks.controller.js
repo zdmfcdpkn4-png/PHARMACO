@@ -60,7 +60,7 @@ const createBlockedAlert = async (client, taskId) => {
  * Body : { group_id, name, admin_id?, status?, duedate?, priority? }
  */
 export const createTask = asyncHandler(async (req, res) => {
-  const { group_id, name, admin_id, status, duedate, priority } = req.body;
+  const { group_id, name, admin_id, status, duedate, priority, actor_id } = req.body;
   if (!group_id || !name) {
     return res.status(400).json({ error: 'group_id et name sont requis' });
   }
@@ -89,6 +89,12 @@ export const createTask = asyncHandler(async (req, res) => {
       await createBlockedAlert(client, taskId);
     }
 
+    await client.query(
+      `INSERT INTO activity_log (task_id, user_id, action_type, old_value, new_value)
+       VALUES ($1, $2, 'created', NULL, $3)`,
+      [taskId, actor_id || null, name]
+    );
+
     return fetchTaskShaped(taskId, client);
   });
 
@@ -103,21 +109,17 @@ export const createTask = asyncHandler(async (req, res) => {
  */
 export const updateTask = asyncHandler(async (req, res) => {
   const taskId = req.params.id;
-  const { name, position, group_id, admin_id, status, duedate, priority } = req.body;
+  const { name, position, group_id, admin_id, status, duedate, priority, actor_id } = req.body;
 
   const task = await withTransaction(async (client) => {
-    const existing = await client.query(
-      `SELECT t.id, tc.status AS prev_status
-       FROM tasks t LEFT JOIN task_columns tc ON tc.task_id = t.id
-       WHERE t.id = $1`,
-      [taskId]
-    );
-    if (!existing.rows.length) {
+    // État précédent complet (pour journaliser les changements)
+    const before = await fetchTaskShaped(taskId, client);
+    if (!before) {
       const err = new Error('Tâche introuvable');
       err.status = 404;
       throw err;
     }
-    const prevStatus = existing.rows[0].prev_status;
+    const prevStatus = before.status;
 
     // Mise à jour des champs propres à la tâche (dont la priorité, AVANT
     // le calcul d'alerte pour qu'un passage P1+Bloqué déclenche le critique).
@@ -165,7 +167,30 @@ export const updateTask = asyncHandler(async (req, res) => {
       await createBlockedAlert(client, taskId);
     }
 
-    return fetchTaskShaped(taskId, client);
+    const after = await fetchTaskShaped(taskId, client);
+
+    // Journalisation des changements significatifs
+    const logs = [];
+    if (status !== undefined && before.status !== after.status)
+      logs.push(['status', before.status, after.status]);
+    if (priority !== undefined && before.priority !== after.priority)
+      logs.push(['priority', before.priority, after.priority]);
+    if (name !== undefined && before.name !== after.name)
+      logs.push(['name', before.name, after.name]);
+    if (duedate !== undefined && (before.duedate || null) !== (after.duedate || null))
+      logs.push(['duedate', before.duedate || '—', after.duedate || '—']);
+    if (admin_id !== undefined && (before.admin?.id || null) !== (after.admin?.id || null))
+      logs.push(['admin', before.admin?.name || 'Personne', after.admin?.name || 'Personne']);
+
+    for (const [action, oldV, newV] of logs) {
+      await client.query(
+        `INSERT INTO activity_log (task_id, user_id, action_type, old_value, new_value)
+         VALUES ($1, $2, $3, $4, $5)`,
+        [taskId, actor_id || null, action, String(oldV), String(newV)]
+      );
+    }
+
+    return after;
   });
 
   res.json(task);

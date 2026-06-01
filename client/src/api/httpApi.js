@@ -39,6 +39,10 @@ export const httpApi = {
   updateTask: (id, patch) => request(`/tasks/${id}`, { method: 'PATCH', body: patch }),
   deleteTask: (id) => request(`/tasks/${id}`, { method: 'DELETE' }),
   reorderTasks: (items) => request('/tasks/reorder', { method: 'PUT', body: { items } }),
+  getComments: (taskId) => request(`/tasks/${taskId}/comments`),
+  addComment: (taskId, { user_id, content }) =>
+    request(`/tasks/${taskId}/comments`, { method: 'POST', body: { user_id, content } }),
+  getActivity: (taskId) => request(`/tasks/${taskId}/activity`),
 
   getAlerts: ({ user_id } = {}) =>
     request(`/alerts${user_id ? `?user_id=${user_id}` : ''}`),

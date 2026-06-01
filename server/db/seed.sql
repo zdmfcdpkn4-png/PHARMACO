@@ -52,3 +52,12 @@ INSERT INTO task_columns (task_id, admin_id, status, duedate) VALUES
 -- --- Alertes (la tâche bloquée génère une alerte) ------------------------
 INSERT INTO alerts (user_id, message, type) VALUES
     (1, 'La tâche « Tâche 3 » est passée au statut Bloqué.', 'blocked');
+
+-- --- Discussion & historique de démo (tâche 3 bloquée) -------------------
+INSERT INTO task_comments (task_id, user_id, content) VALUES
+    (3, 1, 'En attente du réapprovisionnement fournisseur.'),
+    (3, 2, 'Relance envoyée ce matin.');
+
+INSERT INTO activity_log (task_id, user_id, action_type, old_value, new_value) VALUES
+    (3, 1, 'created', NULL, 'Tâche 3'),
+    (3, 1, 'status', 'En cours', 'Bloqué');
