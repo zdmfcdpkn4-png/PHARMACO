@@ -27,7 +27,7 @@ const users = [
   { id: 1, name: 'Erwin Raingeard', email: 'erwin.raingeard@gmail.com', avatar_url: null, role: 'admin' },
   { id: 2, name: 'Alice Martin', email: 'alice.martin@example.com', avatar_url: null, role: 'member' },
   { id: 3, name: 'Bob Durand', email: 'bob.durand@example.com', avatar_url: null, role: 'member' },
-  { id: 4, name: 'Chloé Petit', email: 'chloe.petit@example.com', avatar_url: null, role: 'member' },
+  { id: 4, name: 'Chloé Petit', email: 'chloe.petit@example.com', avatar_url: null, role: 'viewer' },
 ];
 
 const findUser = (id) => users.find((u) => u.id === id) || null;

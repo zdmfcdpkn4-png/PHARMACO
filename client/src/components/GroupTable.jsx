@@ -28,6 +28,7 @@ export default function GroupTable({
   onOpenDetail,
   commentCounts = {},
   canEdit = true,
+  canManage = true,
   canDeleteTask,
   categories = [],
   categoryValue,
@@ -119,7 +120,7 @@ export default function GroupTable({
           type="button"
           onClick={() => onDeleteGroup()}
           title="Supprimer le groupe"
-          className="no-print ml-2 text-gray-300 hover:text-status-blocked"
+          className={`no-print ml-2 text-gray-300 hover:text-status-blocked ${canManage ? '' : 'hidden'}`}
         >
           <Trash2 size={15} />
         </button>
@@ -143,7 +144,7 @@ export default function GroupTable({
                 className="group/col relative w-36 shrink-0 border-l border-gray-100 py-2.5 text-center"
               >
                 {c.name}
-                {canEdit && (
+                {canManage && (
                   <button
                     onClick={() => onDeleteCategory?.(c.id)}
                     title="Supprimer la colonne"
@@ -155,7 +156,7 @@ export default function GroupTable({
               </div>
             ))}
             <div className="w-10 shrink-0 border-l border-gray-100" />
-            {canEdit && onCreateCategory && (
+            {canManage && onCreateCategory && (
               <div className="flex items-center border-l border-gray-100">
                 <AddColumnButton onCreate={onCreateCategory} />
               </div>
@@ -229,7 +230,7 @@ export default function GroupTable({
           </Droppable>
 
           {/* Ajouter une tâche */}
-          <div className="no-print flex items-stretch border-b border-gray-100 bg-white">
+          <div className={`no-print flex items-stretch border-b border-gray-100 bg-white ${canEdit ? '' : 'hidden'}`}>
             <div className="w-1 shrink-0" style={{ backgroundColor: group.color }} />
             <div className="w-6 shrink-0" />
             <div className="w-10 shrink-0" />

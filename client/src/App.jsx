@@ -86,14 +86,19 @@ function Board({ currentUser, onLogout }) {
   // Onglet de vue du tableau : 'table' | 'kanban' | 'calendar'
   const [boardView, setBoardView] = useState('table');
 
-  // Droits : seul le propriétaire du tableau peut modifier.
+  // -------- Gestion fine des rôles --------
+  // viewer : lecture seule. member / admin / propriétaire : édition.
   const isOwner = !board || board.created_by == null || board.created_by === CURRENT_USER_ID;
   const isAdmin = currentUser.role === 'admin';
+  const isViewer = currentUser.role === 'viewer';
+  const canEdit = !isViewer; // membres et admins peuvent éditer
 
-  // Suppression d'une tâche autorisée si : propriétaire du tableau, admin,
-  // admin assigné à la tâche, ou tâche vide (non assignée).
+  // Création de structure (groupes, colonnes) : propriétaire ou admin seulement.
+  const canManageBoard = isOwner || isAdmin;
+
+  // Suppression d'une tâche : propriétaire, admin, admin assigné, ou tâche vide.
   const canDeleteTask = (task) =>
-    isOwner || isAdmin || !task.admin || task.admin.id === CURRENT_USER_ID;
+    !isViewer && (isOwner || isAdmin || !task.admin || task.admin.id === CURRENT_USER_ID);
 
   // -------- Chargement initial --------
   const loadAlerts = useCallback(async () => {
@@ -871,6 +876,7 @@ function Board({ currentUser, onLogout }) {
                 filterFn={filterFn}
                 commentCounts={commentCounts}
                 onOpenComments={(t) => setDrawerTask(t)}
+                onOpenDetail={(t) => setDetailTask(t)}
                 onChangeStatus={handleChangeStatus}
                 onAssign={handleAssign}
                 onAddTask={(gid) => handleAddTask(gid, 'Nouvelle tâche')}
@@ -881,7 +887,7 @@ function Board({ currentUser, onLogout }) {
                 <KanbanView
                   board={board}
                   filterFn={filterFn}
-                  canEdit={isOwner}
+                  canEdit={canEdit}
                   commentCounts={commentCounts}
                   onChangeStatus={handleChangeStatus}
                   onOpenTask={(t) => setDrawerTask(t)}
@@ -894,7 +900,7 @@ function Board({ currentUser, onLogout }) {
                 <CalendarView
                   board={board}
                   filterFn={filterFn}
-                  canEdit={isOwner}
+                  canEdit={canEdit}
                   onOpenTask={(t) => setDrawerTask(t)}
                   onChangeDate={handleChangeDate}
                   onAddTaskOnDate={handleCreateTaskOnDate}
@@ -988,6 +994,30 @@ function Board({ currentUser, onLogout }) {
             onCommentsCountChange={() => loadCommentCounts()}
           />
         )}
+
+        {/* Panneau détaillé (Item Detail) — mobile */}
+        {detailTask && (() => {
+          const live =
+            board.groups.flatMap((g) => g.tasks).find((t) => t.id === detailTask.id) || detailTask;
+          return (
+            <TaskDetailPanel
+              task={live}
+              groups={board.groups}
+              users={users}
+              categories={board.categories || []}
+              categoryValue={categoryValue}
+              canEdit={canEdit}
+              onClose={() => setDetailTask(null)}
+              onRename={(name) => handleRenameTask(live.id, name)}
+              onChangeGroup={(gid) => handleChangeGroup(live.id, gid)}
+              onChangeStatus={(s) => handleChangeStatus(live.id, s)}
+              onChangePriority={(p) => handleChangePriority(live.id, p)}
+              onAssign={(adminId) => handleAssign(live.id, adminId)}
+              onChangeDate={(d) => handleChangeDate(live.id, d)}
+              onSetCategoryValue={handleSetCategoryValue}
+            />
+          );
+        })()}
       </div>
     );
   }
@@ -1180,7 +1210,8 @@ function Board({ currentUser, onLogout }) {
                               commentCounts={commentCounts}
                               onOpenDrawer={(t) => setDrawerTask(t)}
                               onOpenDetail={(t) => setDetailTask(t)}
-                              canEdit={isOwner}
+                              canEdit={canEdit}
+                              canManage={canManageBoard}
                               canDeleteTask={canDeleteTask}
                               categories={board.categories || []}
                               categoryValue={categoryValue}
@@ -1202,7 +1233,7 @@ function Board({ currentUser, onLogout }) {
                 </Droppable>
               </DragDropContext>
 
-              {isOwner && (
+              {canManageBoard && (
                 <button
                   type="button"
                   onClick={handleAddGroup}
@@ -1218,7 +1249,7 @@ function Board({ currentUser, onLogout }) {
               <KanbanView
                 board={board}
                 filterFn={filterFn}
-                canEdit={isOwner}
+                canEdit={canEdit}
                 commentCounts={commentCounts}
                 onChangeStatus={handleChangeStatus}
                 onOpenTask={(t) => setDrawerTask(t)}
@@ -1230,7 +1261,7 @@ function Board({ currentUser, onLogout }) {
               <CalendarView
                 board={board}
                 filterFn={filterFn}
-                canEdit={isOwner}
+                canEdit={canEdit}
                 onOpenTask={(t) => setDrawerTask(t)}
                 onChangeDate={handleChangeDate}
                 onAddTaskOnDate={handleCreateTaskOnDate}
@@ -1272,7 +1303,7 @@ function Board({ currentUser, onLogout }) {
               users={users}
               categories={board.categories || []}
               categoryValue={categoryValue}
-              canEdit={isOwner}
+              canEdit={canEdit}
               onClose={() => setDetailTask(null)}
               onRename={(name) => handleRenameTask(live.id, name)}
               onChangeGroup={(gid) => handleChangeGroup(live.id, gid)}

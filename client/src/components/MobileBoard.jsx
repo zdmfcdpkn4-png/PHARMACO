@@ -12,6 +12,7 @@ export default function MobileBoard({
   filterFn,
   commentCounts,
   onOpenComments,
+  onOpenDetail,
   onChangeStatus,
   onAssign,
   onAddTask,
@@ -86,6 +87,7 @@ export default function MobileBoard({
                     selectionMode={selectionMode}
                     selected={selected.has(task.id)}
                     onOpenComments={() => onOpenComments(task)}
+                    onOpenDetail={() => onOpenDetail?.(task)}
                     onMarkDone={() => onChangeStatus(task.id, 'Fait')}
                     onOpenStatusSheet={() => setStatusSheet({ task })}
                     onToggleSelect={() => toggleSel(task.id)}

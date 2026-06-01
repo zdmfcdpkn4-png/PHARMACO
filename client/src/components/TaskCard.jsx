@@ -12,6 +12,7 @@ export default function TaskCard({
   selectionMode,
   selected,
   onOpenComments,
+  onOpenDetail,
   onOpenStatus,
   onMarkDone,
   onOpenStatusSheet,
@@ -127,7 +128,16 @@ export default function TaskCard({
         <div className="min-w-0 flex-1">
           {/* Ligne 1 : nom + avatar */}
           <div className="flex items-start justify-between gap-2">
-            <span className="truncate text-base font-semibold text-gray-800">{task.name}</span>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                if (!selectionMode) onOpenDetail?.();
+              }}
+              className="min-w-0 truncate text-left text-base font-semibold text-gray-800"
+            >
+              {task.name}
+            </button>
             {task.admin ? (
               <Avatar name={task.admin.name} src={task.admin.avatar_url} size={30} ring={false} />
             ) : (
