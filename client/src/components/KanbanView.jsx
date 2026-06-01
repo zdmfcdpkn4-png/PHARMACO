@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { Lock, Plus, MessageSquare } from 'lucide-react';
-import Avatar from './Avatar.jsx';
+import { AvatarStack } from './AdminCell.jsx';
 import { STATUSES, STATUS_META, PRIORITY_META, formatShortDate } from '../lib/constants.js';
 
 // Vue Kanban : une colonne par statut, cartes déplaçables (si propriétaire).
@@ -49,8 +49,11 @@ export default function KanbanView({
     >
       <div className="flex items-start justify-between gap-2">
         <span className="text-sm font-medium text-gray-800">{task.name}</span>
-        {task.admin && (
-          <Avatar name={task.admin.name} src={task.admin.avatar_url} size={24} ring={false} />
+        {(task.assignees?.length || task.admin) && (
+          <AvatarStack
+            people={task.assignees?.length ? task.assignees : task.admin ? [task.admin] : []}
+            size={24}
+          />
         )}
       </div>
       <div className="mt-2 flex items-center gap-2">

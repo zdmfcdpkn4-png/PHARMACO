@@ -1,4 +1,4 @@
-import { Table2, GanttChartSquare, BarChart3, Bell, User } from 'lucide-react';
+import { Table2, CalendarRange, GanttChartSquare, Bell, User } from 'lucide-react';
 
 // Barre de navigation fixe en bas (mobile). Raccourcis clés + alertes + profil.
 export default function MobileNav({ view, onSelectView, onOpenAlerts, onOpenProfile, unreadCount }) {
@@ -24,16 +24,16 @@ export default function MobileNav({ view, onSelectView, onOpenAlerts, onOpenProf
     <nav className="fixed inset-x-0 bottom-0 z-40 flex border-t border-gray-200 bg-white pb-[env(safe-area-inset-bottom)] shadow-[0_-2px_8px_rgba(0,0,0,0.04)] md:hidden">
       <Item icon={Table2} label="Tableau" active={view === 'board'} onClick={() => onSelectView('board')} />
       <Item
+        icon={CalendarRange}
+        label="Planning"
+        active={view === 'timeline'}
+        onClick={() => onSelectView('timeline')}
+      />
+      <Item
         icon={GanttChartSquare}
         label="Gantt"
         active={view === 'gantt'}
         onClick={() => onSelectView('gantt')}
-      />
-      <Item
-        icon={BarChart3}
-        label="Reporting"
-        active={view === 'reporting'}
-        onClick={() => onSelectView('reporting')}
       />
       <Item icon={Bell} label="Alertes" badge={unreadCount} onClick={onOpenAlerts} />
       <Item icon={User} label="Profil" onClick={onOpenProfile} />
