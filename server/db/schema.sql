@@ -199,6 +199,33 @@ ALTER TABLE sub_tasks  ADD COLUMN IF NOT EXISTS etape_tag_id        INTEGER REFE
 ALTER TABLE sub_tasks  ADD COLUMN IF NOT EXISTS intervention_tag_id INTEGER REFERENCES project_tags(id) ON DELETE SET NULL;
 
 -- ---------------------------------------------------------------------
+--  Tables de jointure : multi-assignation (tâches & sous-items)
+-- ---------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS task_assignments (
+    id      SERIAL PRIMARY KEY,
+    task_id INTEGER NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    UNIQUE (task_id, user_id)
+);
+CREATE INDEX IF NOT EXISTS idx_task_assignments_task ON task_assignments(task_id);
+
+CREATE TABLE IF NOT EXISTS sub_task_assignments (
+    id          SERIAL PRIMARY KEY,
+    sub_task_id INTEGER NOT NULL REFERENCES sub_tasks(id) ON DELETE CASCADE,
+    user_id     INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    UNIQUE (sub_task_id, user_id)
+);
+CREATE INDEX IF NOT EXISTS idx_sub_task_assignments_sub ON sub_task_assignments(sub_task_id);
+
+-- Migration douce : recopie l'admin_id existant vers les tables de jointure.
+INSERT INTO task_assignments (task_id, user_id)
+  SELECT task_id, admin_id FROM task_columns WHERE admin_id IS NOT NULL
+  ON CONFLICT DO NOTHING;
+INSERT INTO sub_task_assignments (sub_task_id, user_id)
+  SELECT sub_task_id, admin_id FROM sub_task_columns WHERE admin_id IS NOT NULL
+  ON CONFLICT DO NOTHING;
+
+-- ---------------------------------------------------------------------
 --  Table : alerts (notifications)
 -- ---------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS alerts (

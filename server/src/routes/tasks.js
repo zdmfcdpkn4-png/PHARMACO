@@ -13,6 +13,7 @@ import {
   markRead,
 } from '../controllers/comments.controller.js';
 import { listSubtasks, createSubtask } from '../controllers/subtasks.controller.js';
+import { setTaskAssignees } from '../controllers/assignments.controller.js';
 
 const router = Router();
 
@@ -29,6 +30,7 @@ router.get('/:taskId/activity', listActivity);
 // Sous-items
 router.get('/:taskId/subtasks', listSubtasks);
 router.post('/:taskId/subtasks', createSubtask);
+router.put('/:id/assignees', setTaskAssignees);
 
 router.patch('/:id', updateTask);
 router.delete('/:id', deleteTask);

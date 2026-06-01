@@ -215,6 +215,36 @@ function Board({ currentUser, onLogout }) {
     }
   };
 
+  // Multi-assignation d'une tâche.
+  const handleSetTaskAssignees = (taskId, userIds) => {
+    const shaped = userIds.map((id) => users.find((u) => u.id === id)).filter(Boolean);
+    optimistic(
+      (b) => patchTaskLocal(b, taskId, { assignees: shaped, admin: shaped[0] || null }),
+      () => api.setTaskAssignees(taskId, userIds)
+    );
+  };
+
+  const handleSetSubtaskAssignees = async (subId, userIds) => {
+    const shaped = userIds.map((id) => users.find((u) => u.id === id)).filter(Boolean);
+    setBoard((b) => {
+      const next = structuredClone(b);
+      for (const g of next.groups)
+        for (const t of g.tasks) {
+          const s = (t.subtasks || []).find((x) => x.id === subId);
+          if (s) {
+            s.assignees = shaped;
+            s.admin = shaped[0] || null;
+          }
+        }
+      return next;
+    });
+    try {
+      await api.setSubtaskAssignees(subId, userIds);
+    } catch (e) {
+      setError(e.message);
+    }
+  };
+
   // Étiquette (Étape / Type) d'une tâche.
   const handleChangeTaskTag = (taskId, field, tagId) =>
     optimistic((b) => patchTaskLocal(b, taskId, { [field]: tagId }), () =>
@@ -1051,6 +1081,7 @@ function Board({ currentUser, onLogout }) {
               onChangeStatus={(s) => handleChangeStatus(live.id, s)}
               onChangePriority={(p) => handleChangePriority(live.id, p)}
               onAssign={(adminId) => handleAssign(live.id, adminId)}
+              onSetAssignees={(ids) => handleSetTaskAssignees(live.id, ids)}
               onChangeDate={(d) => handleChangeDate(live.id, d)}
               onChangeTag={(field, tagId) => handleChangeTaskTag(live.id, field, tagId)}
               onSetCategoryValue={handleSetCategoryValue}
@@ -1253,6 +1284,8 @@ function Board({ currentUser, onLogout }) {
                               onChangeStatus={handleChangeStatus}
                               onChangePriority={handleChangePriority}
                               onAssign={handleAssign}
+                              onSetAssignees={handleSetTaskAssignees}
+                              onSetSubtaskAssignees={handleSetSubtaskAssignees}
                               onChangeDate={handleChangeDate}
                               onDeleteTask={handleDeleteTask}
                               commentCounts={commentCounts}
@@ -1361,6 +1394,7 @@ function Board({ currentUser, onLogout }) {
               onChangeStatus={(s) => handleChangeStatus(live.id, s)}
               onChangePriority={(p) => handleChangePriority(live.id, p)}
               onAssign={(adminId) => handleAssign(live.id, adminId)}
+              onSetAssignees={(ids) => handleSetTaskAssignees(live.id, ids)}
               onChangeDate={(d) => handleChangeDate(live.id, d)}
               onChangeTag={(field, tagId) => handleChangeTaskTag(live.id, field, tagId)}
               onSetCategoryValue={handleSetCategoryValue}

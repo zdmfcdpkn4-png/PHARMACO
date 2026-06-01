@@ -58,6 +58,11 @@ export const httpApi = {
   deleteCategory: (id) => request(`/boards/categories/${id}`, { method: 'DELETE' }),
   setCategoryValue: (data) => request('/boards/categories/value', { method: 'POST', body: data }),
 
+  setTaskAssignees: (taskId, user_ids) =>
+    request(`/tasks/${taskId}/assignees`, { method: 'PUT', body: { user_ids } }),
+  setSubtaskAssignees: (subId, user_ids) =>
+    request(`/subtasks/${subId}/assignees`, { method: 'PUT', body: { user_ids } }),
+
   createTag: (boardId, data) => request(`/boards/${boardId}/tags`, { method: 'POST', body: data }),
   deleteTag: (id) => request(`/boards/tags/${id}`, { method: 'DELETE' }),
   updateSubtaskTags: (id, patch) => request(`/subtasks/${id}`, { method: 'PUT', body: patch }),

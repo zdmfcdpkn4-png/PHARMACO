@@ -23,6 +23,8 @@ export default function GroupTable({
   onChangeStatus,
   onChangePriority,
   onAssign,
+  onSetAssignees,
+  onSetSubtaskAssignees,
   onChangeDate,
   onDeleteTask,
   onOpenDrawer,
@@ -204,6 +206,7 @@ export default function GroupTable({
                           onChangeStatus={(status) => onChangeStatus(task.id, status)}
                           onChangePriority={(priority) => onChangePriority(task.id, priority)}
                           onAssign={(adminId) => onAssign(task.id, adminId)}
+                          onSetAssignees={(ids) => onSetAssignees?.(task.id, ids)}
                           onChangeDate={(date) => onChangeDate(task.id, date)}
                           onDelete={() => onDeleteTask(task.id)}
                           canDelete={canDeleteTask ? canDeleteTask(task) : true}
@@ -225,6 +228,7 @@ export default function GroupTable({
                             onCreate={onCreateSubtask}
                             onUpdate={onUpdateSubtask}
                             onDelete={onDeleteSubtask}
+                            onSetAssignees={onSetSubtaskAssignees}
                             tags={tags}
                           />
                         )}

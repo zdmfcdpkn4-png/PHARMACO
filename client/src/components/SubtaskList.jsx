@@ -16,6 +16,7 @@ export default function SubtaskList({
   onCreate,
   onUpdate,
   onDelete,
+  onSetAssignees,
 }) {
   const [adding, setAdding] = useState(false);
   const [newName, setNewName] = useState('');
@@ -41,6 +42,7 @@ export default function SubtaskList({
             tags={tags}
             onUpdate={onUpdate}
             onDelete={onDelete}
+            onSetAssignees={onSetAssignees}
           />
         ))}
 
@@ -81,7 +83,7 @@ export default function SubtaskList({
 }
 
 // Une ligne de sous-item : nom éditable, admin, statut, échéance.
-function SubRow({ sub, users, groupColor, canEdit, tags = [], onUpdate, onDelete }) {
+function SubRow({ sub, users, groupColor, canEdit, tags = [], onUpdate, onDelete, onSetAssignees }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(sub.name);
 
@@ -129,8 +131,9 @@ function SubRow({ sub, users, groupColor, canEdit, tags = [], onUpdate, onDelete
       <div className="flex w-28 shrink-0 items-center justify-center border-l border-gray-100">
         <AdminCell
           admin={sub.admin}
+          assignees={sub.assignees}
           users={users}
-          onAssign={(adminId) => canEdit && onUpdate(sub.id, { admin_id: adminId })}
+          onSetAssignees={canEdit ? (ids) => onSetAssignees?.(sub.id, ids) : undefined}
         />
       </div>
 

@@ -25,6 +25,7 @@ export default function TaskRow({
   onChangeStatus,
   onChangePriority,
   onAssign,
+  onSetAssignees,
   onChangeDate,
   onDelete,
   canDelete = true,
@@ -166,7 +167,12 @@ export default function TaskRow({
 
       {/* Admin */}
       <div className="flex w-32 shrink-0 items-center justify-center border-l border-gray-100">
-        <AdminCell admin={task.admin} users={users} onAssign={onAssign} />
+        <AdminCell
+          admin={task.admin}
+          assignees={task.assignees}
+          users={users}
+          onSetAssignees={onSetAssignees}
+        />
       </div>
 
       {/* Statut */}

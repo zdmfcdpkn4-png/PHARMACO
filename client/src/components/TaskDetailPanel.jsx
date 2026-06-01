@@ -44,6 +44,7 @@ export default function TaskDetailPanel({
   onChangeStatus,
   onChangePriority,
   onAssign,
+  onSetAssignees,
   onChangeDate,
   onChangeTag,
   onSetCategoryValue,
@@ -106,8 +107,17 @@ export default function TaskDetailPanel({
 
           <Field icon={User} label="Assignation">
             <div className="flex items-center gap-2">
-              <AdminCell admin={task.admin} users={users} onAssign={(id) => canEdit && onAssign(id)} />
-              <span className="text-sm text-gray-600">{task.admin?.name || 'Non assignée'}</span>
+              <AdminCell
+                admin={task.admin}
+                assignees={task.assignees}
+                users={users}
+                onSetAssignees={canEdit ? onSetAssignees : undefined}
+              />
+              <span className="truncate text-sm text-gray-600">
+                {(task.assignees && task.assignees.length
+                  ? task.assignees.map((a) => a.name).join(', ')
+                  : task.admin?.name) || 'Non assignée'}
+              </span>
             </div>
           </Field>
 

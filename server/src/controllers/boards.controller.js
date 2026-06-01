@@ -125,6 +125,49 @@ export const getBoardFull = asyncHandler(async (req, res) => {
     for (const t of list) t.subtasks = subsByTask.get(t.id) || [];
   }
 
+  // Multi-assignation : assignees par tâche et par sous-item
+  const taskAssignRes = await query(
+    `SELECT a.task_id, u.id, u.name, u.avatar_url
+     FROM task_assignments a
+     JOIN users u ON u.id = a.user_id
+     JOIN tasks t ON t.id = a.task_id
+     JOIN groups g ON g.id = t.group_id
+     WHERE g.board_id = $1
+     ORDER BY a.id`,
+    [boardId]
+  );
+  const subAssignRes = await query(
+    `SELECT a.sub_task_id, u.id, u.name, u.avatar_url
+     FROM sub_task_assignments a
+     JOIN users u ON u.id = a.user_id
+     JOIN sub_tasks s ON s.id = a.sub_task_id
+     JOIN tasks t ON t.id = s.parent_task_id
+     JOIN groups g ON g.id = t.group_id
+     WHERE g.board_id = $1
+     ORDER BY a.id`,
+    [boardId]
+  );
+  const taskAssignees = new Map();
+  for (const r of taskAssignRes.rows) {
+    if (!taskAssignees.has(r.task_id)) taskAssignees.set(r.task_id, []);
+    taskAssignees.get(r.task_id).push({ id: r.id, name: r.name, avatar_url: r.avatar_url });
+  }
+  const subAssignees = new Map();
+  for (const r of subAssignRes.rows) {
+    if (!subAssignees.has(r.sub_task_id)) subAssignees.set(r.sub_task_id, []);
+    subAssignees.get(r.sub_task_id).push({ id: r.id, name: r.name, avatar_url: r.avatar_url });
+  }
+  for (const list of tasksByGroup.values()) {
+    for (const t of list) {
+      t.assignees = taskAssignees.get(t.id) || (t.admin ? [t.admin] : []);
+      t.admin = t.assignees[0] || null; // rétrocompat
+      for (const s of t.subtasks) {
+        s.assignees = subAssignees.get(s.id) || (s.admin ? [s.admin] : []);
+        s.admin = s.assignees[0] || null;
+      }
+    }
+  }
+
   const groups = groupsRes.rows.map((g) => ({
     ...g,
     tasks: tasksByGroup.get(g.id) || [],

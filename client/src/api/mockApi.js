@@ -65,7 +65,7 @@ const board = {
       color: '#579bfc',
       position: 0,
       tasks: [
-        { id: 11, group_id: 1, name: 'Tâche 1', position: 0, status: 'En cours', priority: 'P1 - Urgent', start_date: weekday(0), duedate: weekday(2), created_at: daysAgo(10), admin: adminShape(1), etape_tag_id: 701, intervention_tag_id: null, subtasks: [
+        { id: 11, group_id: 1, name: 'Tâche 1', position: 0, status: 'En cours', priority: 'P1 - Urgent', start_date: weekday(0), duedate: weekday(2), created_at: daysAgo(10), admin: adminShape(1), assignees: [adminShape(1), adminShape(2)], etape_tag_id: 701, intervention_tag_id: null, subtasks: [
           { id: 510, parent_task_id: 11, name: 'Préparer le dossier', position: 0, status: 'Fait', duedate: weekday(0), admin: adminShape(1), etape_tag_id: 701, intervention_tag_id: 705 },
           { id: 511, parent_task_id: 11, name: 'Valider avec Alice', position: 1, status: 'En cours', duedate: weekday(1), admin: adminShape(2), etape_tag_id: null, intervention_tag_id: 706 },
         ] },
@@ -227,9 +227,41 @@ export const mockApi = {
 
   async getBoard(/* id */) {
     await delay();
-    // Garantit un tableau subtasks sur chaque tâche
-    for (const g of board.groups) for (const t of g.tasks) if (!t.subtasks) t.subtasks = [];
+    // Garantit subtasks + assignees (dérivés de admin si absents)
+    for (const g of board.groups)
+      for (const t of g.tasks) {
+        if (!t.subtasks) t.subtasks = [];
+        if (!t.assignees) t.assignees = t.admin ? [t.admin] : [];
+        t.admin = t.assignees[0] || null;
+        for (const s of t.subtasks) {
+          if (!s.assignees) s.assignees = s.admin ? [s.admin] : [];
+          s.admin = s.assignees[0] || null;
+        }
+      }
     return clone({ ...board, dependencies });
+  },
+
+  async setTaskAssignees(taskId, userIds) {
+    await delay(60);
+    const { task } = findTask(taskId);
+    if (!task) throw new Error('Tâche introuvable');
+    task.assignees = userIds.map((id) => adminShape(id)).filter(Boolean);
+    task.admin = task.assignees[0] || null;
+    return clone({ assignees: task.assignees, admin: task.admin });
+  },
+
+  async setSubtaskAssignees(subId, userIds) {
+    await delay(60);
+    for (const g of board.groups)
+      for (const t of g.tasks) {
+        const s = (t.subtasks || []).find((x) => x.id === subId);
+        if (s) {
+          s.assignees = userIds.map((id) => adminShape(id)).filter(Boolean);
+          s.admin = s.assignees[0] || null;
+          return clone({ assignees: s.assignees, admin: s.admin });
+        }
+      }
+    throw new Error('Sous-item introuvable');
   },
 
   async createSubtask(taskId, { name, admin_id, status, duedate }) {
