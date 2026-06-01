@@ -221,8 +221,8 @@ function Board({ currentUser, onLogout }) {
   };
 
   // -------- Membres / agents --------
-  const handleAddUser = async ({ name, email, role }) => {
-    const created = await api.createUser({ name, email, role });
+  const handleAddUser = async ({ name, email, role, password }) => {
+    const created = await api.createUser({ name, email, role, password });
     setUsers((prev) => [...prev, created].sort((a, b) => a.name.localeCompare(b.name)));
     return created;
   };

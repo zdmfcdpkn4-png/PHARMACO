@@ -8,6 +8,7 @@ function AddMemberForm({ onAddUser }) {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [role, setRole] = useState('member');
+  const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
@@ -16,10 +17,16 @@ function AddMemberForm({ onAddUser }) {
     setError(null);
     setLoading(true);
     try {
-      await onAddUser({ name: name.trim(), email: email.trim(), role });
+      await onAddUser({
+        name: name.trim(),
+        email: email.trim(),
+        role,
+        password: password.trim() || undefined,
+      });
       setName('');
       setEmail('');
       setRole('member');
+      setPassword('');
       setOpen(false);
     } catch (err) {
       setError(err.message || "Échec de l'ajout");
@@ -67,6 +74,18 @@ function AddMemberForm({ onAddUser }) {
         <option value="admin">Admin</option>
         <option value="viewer">Observateur</option>
       </select>
+
+      <input
+        type="password"
+        value={password}
+        onChange={(e) => setPassword(e.target.value)}
+        placeholder="Mot de passe (optionnel)"
+        autoComplete="new-password"
+        className="mb-1 w-full rounded-md border border-gray-200 px-2 py-1.5 text-sm outline-none focus:border-primary"
+      />
+      <p className="mb-2 text-[11px] text-gray-400">
+        Laisser vide si le membre n'a pas besoin de se connecter.
+      </p>
 
       {error && (
         <div className="mb-2 rounded-md bg-red-50 px-2 py-1 text-xs text-status-blocked">

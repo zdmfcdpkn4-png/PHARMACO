@@ -70,14 +70,17 @@ export const mockApi = {
   async login(email, password) {
     await delay();
     const user = users.find((u) => u.email.toLowerCase() === String(email).toLowerCase());
-    // En mode démo, le mot de passe par défaut est « pharmaco123 ».
-    if (!user || password !== 'pharmaco123') {
+    // Démo : on accepte le mot de passe propre au membre s'il en a un,
+    // sinon le mot de passe par défaut « pharmaco123 ».
+    const expected = user?.password || 'pharmaco123';
+    if (!user || password !== expected) {
       throw new Error('Identifiants invalides');
     }
-    return { token: `mock-${user.id}`, user: clone(user) };
+    const { password: _pw, ...safe } = user;
+    return { token: `mock-${user.id}`, user: clone(safe) };
   },
 
-  async createUser({ name, email, role }) {
+  async createUser({ name, email, role, password }) {
     await delay();
     if (!name || !email) throw new Error('name et email sont requis');
     if (users.some((u) => u.email.toLowerCase() === email.toLowerCase())) {
@@ -89,9 +92,12 @@ export const mockApi = {
       email,
       avatar_url: null,
       role: role || 'member',
+      // En démo, on stocke le mot de passe en clair pour permettre le login.
+      password: password || null,
     };
     users.push(user);
-    return clone(user);
+    const { password: _pw, ...safe } = user;
+    return clone(safe);
   },
 
   async getUsers() {
