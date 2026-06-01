@@ -1,6 +1,19 @@
 import { useState } from 'react';
-import { X, Bot, Sparkles, Heart, UserPlus, Loader2 } from 'lucide-react';
+import {
+  X,
+  Bot,
+  Sparkles,
+  Heart,
+  UserPlus,
+  Loader2,
+  Pencil,
+  Trash2,
+  KeyRound,
+  Check,
+} from 'lucide-react';
 import Avatar from './Avatar.jsx';
+
+const ROLE_LABELS = { member: 'Membre', admin: 'Admin', viewer: 'Observateur' };
 
 // Formulaire d'ajout de membre (agent).
 function AddMemberForm({ onAddUser }) {
@@ -74,7 +87,6 @@ function AddMemberForm({ onAddUser }) {
         <option value="admin">Admin</option>
         <option value="viewer">Observateur</option>
       </select>
-
       <input
         type="password"
         value={password}
@@ -117,9 +129,201 @@ function AddMemberForm({ onAddUser }) {
   );
 }
 
+// Ligne membre éditable : affichage + modes édition / mot de passe.
+function MemberRow({ user, onUpdateUser, onDeleteUser, onSetPassword }) {
+  const [mode, setMode] = useState(null); // null | 'edit' | 'password'
+  const [name, setName] = useState(user.name);
+  const [email, setEmail] = useState(user.email);
+  const [role, setRole] = useState(user.role);
+  const [password, setPassword] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState(null);
+
+  const reset = () => {
+    setName(user.name);
+    setEmail(user.email);
+    setRole(user.role);
+    setPassword('');
+    setError(null);
+    setMode(null);
+  };
+
+  const saveEdit = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      await onUpdateUser(user.id, { name: name.trim(), email: email.trim(), role });
+      setMode(null);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const savePassword = async (clear = false) => {
+    setBusy(true);
+    setError(null);
+    try {
+      await onSetPassword(user.id, clear ? null : password.trim());
+      setPassword('');
+      setMode(null);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const remove = async () => {
+    if (!confirm(`Supprimer le membre « ${user.name} » ?`)) return;
+    setBusy(true);
+    try {
+      await onDeleteUser(user.id);
+    } catch (err) {
+      setError(err.message);
+      setBusy(false);
+    }
+  };
+
+  if (mode === 'edit') {
+    return (
+      <li className="rounded-lg border border-gray-200 p-2">
+        <input
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          className="mb-1.5 w-full rounded-md border border-gray-200 px-2 py-1 text-sm outline-none focus:border-primary"
+        />
+        <input
+          type="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          className="mb-1.5 w-full rounded-md border border-gray-200 px-2 py-1 text-sm outline-none focus:border-primary"
+        />
+        <select
+          value={role}
+          onChange={(e) => setRole(e.target.value)}
+          className="mb-1.5 w-full rounded-md border border-gray-200 px-2 py-1 text-sm outline-none focus:border-primary"
+        >
+          <option value="member">Membre</option>
+          <option value="admin">Admin</option>
+          <option value="viewer">Observateur</option>
+        </select>
+        {error && <div className="mb-1 text-xs text-status-blocked">{error}</div>}
+        <div className="flex gap-1.5">
+          <button
+            onClick={saveEdit}
+            disabled={busy}
+            className="flex flex-1 items-center justify-center gap-1 rounded-md bg-primary py-1 text-xs font-medium text-white hover:bg-primary-hover disabled:opacity-60"
+          >
+            {busy ? <Loader2 size={12} className="animate-spin" /> : <Check size={12} />}
+            Enregistrer
+          </button>
+          <button
+            onClick={reset}
+            className="rounded-md border border-gray-200 px-2 py-1 text-xs text-gray-500 hover:bg-gray-100"
+          >
+            Annuler
+          </button>
+        </div>
+      </li>
+    );
+  }
+
+  if (mode === 'password') {
+    return (
+      <li className="rounded-lg border border-gray-200 p-2">
+        <div className="mb-1.5 text-xs font-medium text-gray-600">
+          Mot de passe — {user.name}
+        </div>
+        <input
+          type="password"
+          autoFocus
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          placeholder="Nouveau mot de passe"
+          autoComplete="new-password"
+          className="mb-1.5 w-full rounded-md border border-gray-200 px-2 py-1 text-sm outline-none focus:border-primary"
+        />
+        {error && <div className="mb-1 text-xs text-status-blocked">{error}</div>}
+        <div className="flex flex-wrap gap-1.5">
+          <button
+            onClick={() => savePassword(false)}
+            disabled={busy || !password.trim()}
+            className="flex flex-1 items-center justify-center gap-1 rounded-md bg-primary py-1 text-xs font-medium text-white hover:bg-primary-hover disabled:opacity-50"
+          >
+            {busy ? <Loader2 size={12} className="animate-spin" /> : <Check size={12} />}
+            Définir
+          </button>
+          <button
+            onClick={() => savePassword(true)}
+            disabled={busy}
+            className="rounded-md border border-gray-200 px-2 py-1 text-xs text-gray-500 hover:bg-gray-100"
+            title="Retirer le mot de passe (le membre ne pourra plus se connecter)"
+          >
+            Retirer
+          </button>
+          <button
+            onClick={reset}
+            className="rounded-md border border-gray-200 px-2 py-1 text-xs text-gray-500 hover:bg-gray-100"
+          >
+            Annuler
+          </button>
+        </div>
+      </li>
+    );
+  }
+
+  return (
+    <li className="group flex items-center gap-3 rounded-lg px-2 py-2 hover:bg-gray-50">
+      <Avatar name={user.name} src={user.avatar_url} size={32} ring={false} />
+      <div className="min-w-0 flex-1">
+        <div className="truncate text-sm font-medium text-gray-800">{user.name}</div>
+        <div className="truncate text-xs text-gray-400">{user.email}</div>
+      </div>
+      <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[11px] text-gray-500">
+        {ROLE_LABELS[user.role] || user.role}
+      </span>
+      {/* Actions (au survol) */}
+      <div className="flex shrink-0 gap-0.5 opacity-0 transition group-hover:opacity-100">
+        <button
+          onClick={() => setMode('edit')}
+          title="Modifier"
+          className="rounded p-1 text-gray-400 hover:bg-gray-200 hover:text-primary"
+        >
+          <Pencil size={14} />
+        </button>
+        <button
+          onClick={() => setMode('password')}
+          title="Mot de passe"
+          className="rounded p-1 text-gray-400 hover:bg-gray-200 hover:text-brand-orange"
+        >
+          <KeyRound size={14} />
+        </button>
+        <button
+          onClick={remove}
+          disabled={busy}
+          title="Supprimer"
+          className="rounded p-1 text-gray-400 hover:bg-gray-200 hover:text-status-blocked"
+        >
+          <Trash2 size={14} />
+        </button>
+      </div>
+    </li>
+  );
+}
+
 // Panneau latéral affiché quand on sélectionne un onglet du rail
 // (Agents = membres de l'équipe, Sidekick, Favoris).
-export default function RailPanel({ rail, users = [], onClose, onAddUser }) {
+export default function RailPanel({
+  rail,
+  users = [],
+  onClose,
+  onAddUser,
+  onUpdateUser,
+  onDeleteUser,
+  onSetPassword,
+}) {
   const config = {
     Agents: {
       icon: Bot,
@@ -128,19 +332,13 @@ export default function RailPanel({ rail, users = [], onClose, onAddUser }) {
         <>
           <ul className="space-y-1">
             {users.map((u) => (
-              <li
+              <MemberRow
                 key={u.id}
-                className="flex items-center gap-3 rounded-lg px-2 py-2 hover:bg-gray-50"
-              >
-                <Avatar name={u.name} src={u.avatar_url} size={32} ring={false} />
-                <div className="min-w-0">
-                  <div className="truncate text-sm font-medium text-gray-800">{u.name}</div>
-                  <div className="truncate text-xs text-gray-400">{u.email}</div>
-                </div>
-                <span className="ml-auto rounded-full bg-gray-100 px-2 py-0.5 text-[11px] capitalize text-gray-500">
-                  {u.role}
-                </span>
-              </li>
+                user={u}
+                onUpdateUser={onUpdateUser}
+                onDeleteUser={onDeleteUser}
+                onSetPassword={onSetPassword}
+              />
             ))}
             {users.length === 0 && (
               <li className="px-2 py-6 text-center text-sm text-gray-400">Aucun membre</li>

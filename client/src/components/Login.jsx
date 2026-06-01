@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { LogIn, Mail, Lock, Loader2 } from 'lucide-react';
 import { api } from '../api/index.js';
+import Logo from './Logo.jsx';
 
 // Page de connexion. Au succès, appelle onAuth({ token, user }).
 export default function Login({ onAuth }) {
@@ -28,10 +29,8 @@ export default function Login({ onAuth }) {
       <div className="w-full max-w-sm">
         {/* Logo */}
         <div className="mb-6 flex flex-col items-center gap-2">
-          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary text-2xl font-bold text-white">
-            P
-          </div>
-          <h1 className="text-xl font-bold text-gray-800">PHARMACO</h1>
+          <Logo size={72} withRing />
+          <h1 className="text-xl font-bold tracking-wide text-primary">PHARMACO</h1>
           <p className="text-sm text-gray-500">Connectez-vous à votre espace de travail</p>
         </div>
 

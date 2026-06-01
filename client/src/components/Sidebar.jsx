@@ -9,6 +9,7 @@ import {
   Plus,
   ChevronLeft,
 } from 'lucide-react';
+import Logo from './Logo.jsx';
 
 // Barre latérale de navigation, façon Monday.com.
 export default function Sidebar({
@@ -41,8 +42,8 @@ export default function Sidebar({
     <div className="flex h-full">
       {/* Rail d'icônes */}
       <nav className="flex w-16 shrink-0 flex-col items-center border-r border-gray-200 bg-white pt-3">
-        <div className="mb-2 flex h-9 w-9 items-center justify-center rounded-lg bg-primary text-lg font-bold text-white">
-          P
+        <div className="mb-2" title="PHARMACO">
+          <Logo size={36} />
         </div>
         <Rail icon={LayoutGrid} label="Espaces" />
         <Rail icon={Sparkles} label="Sidekick" />

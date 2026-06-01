@@ -100,9 +100,34 @@ export const mockApi = {
     return clone(safe);
   },
 
+  async updateUser(id, patch) {
+    await delay();
+    const u = users.find((x) => x.id === id);
+    if (!u) throw new Error('Utilisateur introuvable');
+    if (
+      patch.email &&
+      users.some((x) => x.id !== id && x.email.toLowerCase() === patch.email.toLowerCase())
+    ) {
+      throw new Error('Un membre avec cet e-mail existe déjà');
+    }
+    if (patch.name !== undefined) u.name = patch.name;
+    if (patch.email !== undefined) u.email = patch.email;
+    if (patch.role !== undefined) u.role = patch.role;
+    // password : chaîne -> (re)définit ; null -> supprime ; absent -> inchangé
+    if (patch.password !== undefined) u.password = patch.password || null;
+    const { password: _pw, ...safe } = u;
+    return clone(safe);
+  },
+
+  async deleteUser(id) {
+    await delay();
+    const idx = users.findIndex((x) => x.id === id);
+    if (idx >= 0) users.splice(idx, 1);
+  },
+
   async getUsers() {
     await delay();
-    return clone(users);
+    return clone(users.map(({ password: _pw, ...rest }) => rest));
   },
 
   async getBoard(/* id */) {

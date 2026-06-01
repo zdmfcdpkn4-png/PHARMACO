@@ -18,6 +18,39 @@ export const getUser = asyncHandler(async (req, res) => {
   res.json(rows[0]);
 });
 
+export const updateUser = asyncHandler(async (req, res) => {
+  const { name, email, role, password } = req.body;
+  // password : chaîne -> (ré)initialise ; null -> supprime ; absent -> inchangé
+  const setPasswordHash = password !== undefined;
+  const password_hash = password ? hashPassword(password) : null;
+
+  try {
+    const { rows } = await query(
+      `UPDATE users SET
+         name  = COALESCE($1, name),
+         email = COALESCE($2, email),
+         role  = COALESCE($3::user_role, role),
+         password_hash = CASE WHEN $4 THEN $5 ELSE password_hash END
+       WHERE id = $6
+       RETURNING id, name, email, avatar_url, role, created_at`,
+      [name ?? null, email ?? null, role ?? null, setPasswordHash, password_hash, req.params.id]
+    );
+    if (!rows.length) return res.status(404).json({ error: 'Utilisateur introuvable' });
+    res.json(rows[0]);
+  } catch (err) {
+    if (err.code === '23505') {
+      return res.status(409).json({ error: 'Un membre avec cet e-mail existe déjà' });
+    }
+    throw err;
+  }
+});
+
+export const deleteUser = asyncHandler(async (req, res) => {
+  const { rowCount } = await query('DELETE FROM users WHERE id = $1', [req.params.id]);
+  if (!rowCount) return res.status(404).json({ error: 'Utilisateur introuvable' });
+  res.status(204).end();
+});
+
 export const createUser = asyncHandler(async (req, res) => {
   const { name, email, avatar_url, role, password } = req.body;
   if (!name || !email) {

@@ -4,20 +4,27 @@ export default {
   theme: {
     extend: {
       colors: {
-        // Palette fidèle à Monday.com
-        canvas: '#f5f6f8', // fond gris très clair
+        // ---- Charte graphique PHARMACO (dérivée du logo floral) ----
+        canvas: '#faf7fb', // fond très clair teinté lilas
         primary: {
-          DEFAULT: '#0073ea', // bleu vif des boutons principaux
-          hover: '#0060b9',
+          DEFAULT: '#3b1f7a', // violet profond (lettre P du logo)
+          hover: '#2e1860',
+          light: '#ece6f6',
+        },
+        brand: {
+          purple: '#3b1f7a',
+          orange: '#e8722e', // orange (pétales + "pharmacotechnie")
+          yellow: '#f2c94c', // jaune
+          lilac: '#d9a7e0', // lilas
         },
         status: {
-          progress: '#fdab3d', // En cours (orange)
-          done: '#00c875', // Fait (vert)
-          blocked: '#e2445c', // Bloqué (rouge)
-          todo: '#c4c4c4', // À faire (gris)
+          progress: '#e8722e', // En cours -> orange du logo
+          done: '#00c875', // Fait -> vert
+          blocked: '#e2445c', // Bloqué -> rouge
+          todo: '#c4c4c4', // À faire -> gris
         },
         group: {
-          blue: '#579bfc',
+          blue: '#3b1f7a',
           green: '#00c875',
         },
       },

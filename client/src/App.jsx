@@ -227,6 +227,48 @@ function Board({ currentUser, onLogout }) {
     return created;
   };
 
+  const handleUpdateUser = async (id, patch) => {
+    const updated = await api.updateUser(id, patch);
+    setUsers((prev) =>
+      prev.map((u) => (u.id === id ? updated : u)).sort((a, b) => a.name.localeCompare(b.name))
+    );
+    // Répercute le changement de nom/avatar sur les tâches assignées
+    setBoard((b) => {
+      if (!b) return b;
+      const next = structuredClone(b);
+      for (const g of next.groups) {
+        for (const t of g.tasks) {
+          if (t.admin?.id === id) {
+            t.admin = { id: updated.id, name: updated.name, avatar_url: updated.avatar_url };
+          }
+        }
+      }
+      return next;
+    });
+    return updated;
+  };
+
+  const handleDeleteUser = async (id) => {
+    await api.deleteUser(id);
+    setUsers((prev) => prev.filter((u) => u.id !== id));
+    // Désassigne ce membre des tâches
+    setBoard((b) => {
+      if (!b) return b;
+      const next = structuredClone(b);
+      for (const g of next.groups) {
+        for (const t of g.tasks) {
+          if (t.admin?.id === id) t.admin = null;
+        }
+      }
+      return next;
+    });
+  };
+
+  // Définit (string) ou retire (null) le mot de passe d'un membre.
+  const handleSetPassword = async (id, password) => {
+    await api.updateUser(id, { password });
+  };
+
   // -------- Sélection --------
   const toggleSelect = (taskId) =>
     setSelectedIds((prev) => {
@@ -309,6 +351,9 @@ function Board({ currentUser, onLogout }) {
           rail={activeRail}
           users={users}
           onAddUser={handleAddUser}
+          onUpdateUser={handleUpdateUser}
+          onDeleteUser={handleDeleteUser}
+          onSetPassword={handleSetPassword}
           onClose={() => setActiveRail('Espaces')}
         />
       )}
