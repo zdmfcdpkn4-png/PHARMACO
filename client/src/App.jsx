@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Bell, Plus } from 'lucide-react';
 import Sidebar from './components/Sidebar.jsx';
+import RailPanel from './components/RailPanel.jsx';
 import BoardHeader from './components/BoardHeader.jsx';
 import GroupTable from './components/GroupTable.jsx';
 import AlertsPanel from './components/AlertsPanel.jsx';
@@ -23,6 +24,11 @@ export default function App() {
   const [statusFilter, setStatusFilter] = useState(null);
   const [selectedIds, setSelectedIds] = useState(new Set());
   const [alertsOpen, setAlertsOpen] = useState(false);
+
+  // Navigation latérale + outils de tri / affichage
+  const [activeRail, setActiveRail] = useState('Espaces');
+  const [sortBy, setSortBy] = useState(null); // null | 'nom' | 'statut' | 'échéance'
+  const [showDone, setShowDone] = useState(true); // afficher les tâches "Fait"
 
   // -------- Chargement initial --------
   const loadAlerts = useCallback(async () => {
@@ -197,9 +203,30 @@ export default function App() {
       if (q && !task.name.toLowerCase().includes(q)) return false;
       if (personFilter && task.admin?.id !== personFilter) return false;
       if (statusFilter && task.status !== statusFilter) return false;
+      if (!showDone && task.status === 'Fait') return false;
       return true;
     };
-  }, [search, personFilter, statusFilter]);
+  }, [search, personFilter, statusFilter, showDone]);
+
+  // -------- Tri (cycle : null -> nom -> statut -> échéance -> null) --------
+  const STATUS_ORDER = { Bloqué: 0, 'En cours': 1, 'À faire': 2, Fait: 3 };
+  const sortFn = useMemo(() => {
+    if (!sortBy) return null;
+    return (a, b) => {
+      if (sortBy === 'nom') return a.name.localeCompare(b.name);
+      if (sortBy === 'statut')
+        return (STATUS_ORDER[a.status] ?? 9) - (STATUS_ORDER[b.status] ?? 9);
+      if (sortBy === 'échéance')
+        return (a.duedate || '9999').localeCompare(b.duedate || '9999');
+      return 0;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sortBy]);
+
+  const cycleSort = () => {
+    const order = [null, 'nom', 'statut', 'échéance'];
+    setSortBy((prev) => order[(order.indexOf(prev) + 1) % order.length]);
+  };
 
   const unreadCount = alerts.filter((a) => !a.is_read).length;
 
@@ -231,7 +258,20 @@ export default function App() {
 
   return (
     <div className="flex h-screen overflow-hidden bg-canvas">
-      <Sidebar boardName={board.name} />
+      <Sidebar
+        boardName={board.name}
+        activeRail={activeRail}
+        onSelectRail={(rail) => setActiveRail(rail)}
+        onNewBoard={handleAddGroup}
+      />
+
+      {activeRail !== 'Espaces' && (
+        <RailPanel
+          rail={activeRail}
+          users={users}
+          onClose={() => setActiveRail('Espaces')}
+        />
+      )}
 
       <div className="flex min-w-0 flex-1 flex-col">
         {/* Barre supérieure */}
@@ -278,6 +318,10 @@ export default function App() {
           onStatusFilter={setStatusFilter}
           users={users}
           onAddTaskClick={() => board.groups[0] && handleAddTask(board.groups[0].id, 'Nouvelle tâche')}
+          sortBy={sortBy}
+          onToggleSort={cycleSort}
+          showDone={showDone}
+          onToggleShowDone={() => setShowDone((v) => !v)}
         />
 
         {/* Bandeau d'erreur transitoire */}
@@ -294,6 +338,7 @@ export default function App() {
               users={users}
               selectedIds={selectedIds}
               filterFn={filterFn}
+              sortFn={sortFn}
               onToggleSelect={toggleSelect}
               onAddTask={(name) => handleAddTask(group.id, name)}
               onRenameTask={handleRenameTask}

@@ -9,6 +9,7 @@ export default function GroupTable({
   users,
   selectedIds,
   filterFn,
+  sortFn,
   onToggleSelect,
   onAddTask,
   onRenameTask,
@@ -25,7 +26,9 @@ export default function GroupTable({
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleDraft, setTitleDraft] = useState(group.name);
 
-  const tasks = group.tasks.filter(filterFn);
+  const tasks = sortFn
+    ? [...group.tasks].filter(filterFn).sort(sortFn)
+    : group.tasks.filter(filterFn);
 
   const submitNew = () => {
     const name = newName.trim();
