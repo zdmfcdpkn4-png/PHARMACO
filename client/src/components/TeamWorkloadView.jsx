@@ -7,6 +7,7 @@ import {
   Eye,
   ChevronLeft,
   ChevronRight,
+  Download,
 } from 'lucide-react';
 import Avatar from './Avatar.jsx';
 import { STATUS_META } from '../lib/constants.js';
@@ -83,6 +84,73 @@ export default function TeamWorkloadView({ board, users }) {
   // Une tâche est "active" si non terminée
   const isActive = (t) => t.status !== 'Fait';
 
+  // Charge max (tâches actives sur un même jour) d'un agent dans la semaine
+  const maxActivePerDay = (uid) => {
+    const byDay = workload.get(uid) || {};
+    return weekKeys.reduce(
+      (m, k) => Math.max(m, (byDay[k] || []).filter(isActive).length),
+      0
+    );
+  };
+  const totalForUser = (uid) => {
+    const byDay = workload.get(uid) || {};
+    return weekKeys.reduce((s, k) => s + (byDay[k] || []).length, 0);
+  };
+
+  // ---- Récapitulatif global (sur les agents visibles) ----
+  const summary = useMemo(() => {
+    let totalTasks = 0;
+    let overloaded = 0;
+    let atLimit = 0;
+    let optimal = 0;
+    for (const u of visibleUsers) {
+      totalTasks += totalForUser(u.id);
+      const mx = maxActivePerDay(u.id);
+      if (mx > SATURATION_THRESHOLD) overloaded += 1;
+      else if (mx === SATURATION_THRESHOLD) atLimit += 1;
+      else optimal += 1;
+    }
+    return { totalTasks, overloaded, atLimit, optimal, agents: visibleUsers.length };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visibleUsers, workload, weekKeys]);
+
+  // ---- Export CSV de la charge affichée ----
+  const exportCsv = () => {
+    const header = ['Agent', 'Email', 'Total semaine', 'Max actives/jour', 'Capacité', ...weekDays.map((d, i) => `${DAY_LABELS[i]} ${d.getDate()}`)];
+    const rows = visibleUsers.map((u) => {
+      const byDay = workload.get(u.id) || {};
+      const mx = maxActivePerDay(u.id);
+      const capacite = mx > SATURATION_THRESHOLD ? 'Surchargé' : mx === SATURATION_THRESHOLD ? 'Limite' : 'Optimale';
+      const perDay = weekKeys.map((k) =>
+        (byDay[k] || []).map((t) => `${t.name} (${t.status})`).join(' | ')
+      );
+      return [u.name, u.email, totalForUser(u.id), mx, capacite, ...perDay];
+    });
+    const escape = (v) => {
+      const s = String(v ?? '');
+      return /[",;\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+    };
+    const csv = [header, ...rows].map((r) => r.map(escape).join(';')).join('\n');
+    // BOM pour Excel + accents
+    const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `charge-equipe-${weekKeys[0]}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const StatCard = ({ label, value, color }) => (
+    <div className="flex min-w-[120px] flex-1 items-center gap-3 rounded-lg border border-gray-200 bg-white px-4 py-3">
+      <span className="h-9 w-1.5 rounded-full" style={{ backgroundColor: color }} />
+      <div>
+        <div className="text-2xl font-bold text-gray-800">{value}</div>
+        <div className="text-xs text-gray-500">{label}</div>
+      </div>
+    </div>
+  );
+
   return (
     <div className="flex h-full flex-col">
       {/* Barre de filtres rapides */}
@@ -116,6 +184,16 @@ export default function TeamWorkloadView({ board, users }) {
         >
           {hideDone ? <EyeOff size={15} /> : <Eye size={15} />}
           {hideDone ? 'Tâches « Fait » masquées' : 'Tâches « Fait » affichées'}
+        </button>
+
+        {/* Export CSV */}
+        <button
+          type="button"
+          onClick={exportCsv}
+          title="Exporter la charge affichée en CSV"
+          className="flex items-center gap-1.5 rounded-md border border-gray-200 px-2.5 py-1.5 text-sm text-gray-600 hover:bg-gray-100"
+        >
+          <Download size={15} /> Export CSV
         </button>
 
         {/* Navigation de semaine */}
@@ -154,6 +232,15 @@ export default function TeamWorkloadView({ board, users }) {
 
       {/* Frise */}
       <div className="flex-1 overflow-auto p-6">
+        {/* Récapitulatif global */}
+        <div className="mb-5 flex flex-wrap gap-3">
+          <StatCard label="Agents" value={summary.agents} color="#3b1f7a" />
+          <StatCard label="Tâches (semaine)" value={summary.totalTasks} color="#579bfc" />
+          <StatCard label="Capacité optimale" value={summary.optimal} color="#00c875" />
+          <StatCard label="À la limite" value={summary.atLimit} color="#e8722e" />
+          <StatCard label="Surchargés" value={summary.overloaded} color="#e2445c" />
+        </div>
+
         <div className="min-w-[760px] overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
           {/* En-tête : jours */}
           <div className="flex border-b border-gray-200 bg-gray-50 text-xs font-semibold uppercase tracking-wide text-gray-500">
