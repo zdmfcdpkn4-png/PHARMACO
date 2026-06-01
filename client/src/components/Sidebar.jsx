@@ -6,6 +6,7 @@ import {
   Home,
   Table2,
   BarChart3,
+  PieChart,
   Plus,
   ChevronLeft,
 } from 'lucide-react';
@@ -123,6 +124,22 @@ export default function Sidebar({
               }`}
             >
               <BarChart3 size={16} /> Charge de travail de l'équipe
+            </button>
+          </li>
+          <li>
+            <button
+              type="button"
+              onClick={() => {
+                onSelectRail?.('Espaces');
+                onSelectView?.('reporting');
+              }}
+              className={`flex w-full items-center gap-2 rounded-md px-2 py-2 text-left text-sm ${
+                view === 'reporting'
+                  ? 'bg-blue-50 font-medium text-primary'
+                  : 'text-gray-600 hover:bg-gray-100'
+              }`}
+            >
+              <PieChart size={16} /> Tableau de bord et reporting
             </button>
           </li>
         </ul>

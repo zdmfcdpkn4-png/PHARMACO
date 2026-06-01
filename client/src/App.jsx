@@ -8,6 +8,7 @@ import GroupTable from './components/GroupTable.jsx';
 import AlertsPanel from './components/AlertsPanel.jsx';
 import Avatar from './components/Avatar.jsx';
 import TeamWorkloadView from './components/TeamWorkloadView.jsx';
+import ReportingView from './components/ReportingView.jsx';
 import Login from './components/Login.jsx';
 import { api, IS_MOCK } from './api/index.js';
 import { GROUP_COLORS } from './lib/constants.js';
@@ -527,7 +528,19 @@ function Board({ currentUser, onLogout }) {
           </div>
         </div>
 
-        {view === 'workload' ? (
+        {view === 'reporting' ? (
+          <>
+            <div className="border-b border-gray-200 bg-white px-6 pt-4">
+              <h2 className="mb-3 flex items-center gap-2 text-2xl font-bold text-gray-800">
+                Tableau de bord et reporting
+              </h2>
+            </div>
+            {error && (
+              <div className="bg-red-50 px-6 py-2 text-sm text-status-blocked">{error}</div>
+            )}
+            <ReportingView board={board} />
+          </>
+        ) : view === 'workload' ? (
           <>
             <div className="border-b border-gray-200 bg-white px-6 pt-4">
               <h2 className="mb-3 flex items-center gap-2 text-2xl font-bold text-gray-800">
