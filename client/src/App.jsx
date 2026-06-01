@@ -81,20 +81,15 @@ function Board({ currentUser, onLogout }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Charge le nombre de commentaires par tâche (pour la bulle).
-  const loadCommentCounts = useCallback(async (boardData) => {
+  // Charge le nombre de commentaires NON LUS par tâche (pour la bulle).
+  const loadCommentCounts = useCallback(async () => {
     try {
-      const tasks = (boardData?.groups || []).flatMap((g) => g.tasks);
-      const entries = await Promise.all(
-        tasks.map(async (t) => {
-          const c = await api.getComments(t.id);
-          return [t.id, c.length];
-        })
-      );
-      setCommentCounts(Object.fromEntries(entries));
+      const counts = await api.getUnreadCounts(CURRENT_USER_ID);
+      setCommentCounts(counts || {});
     } catch {
       /* non bloquant */
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -666,10 +661,13 @@ function Board({ currentUser, onLogout }) {
             board.groups.flatMap((g) => g.tasks).find((t) => t.id === drawerTask.id) || drawerTask
           }
           currentUser={currentUser}
-          onClose={() => setDrawerTask(null)}
-          onCommentsCountChange={(taskId, count) =>
-            setCommentCounts((prev) => ({ ...prev, [taskId]: count }))
-          }
+          users={users}
+          onClose={() => {
+            setDrawerTask(null);
+            loadCommentCounts(); // rafraîchit les non-lus (la discussion a été lue)
+            loadAlerts(); // une @mention a pu générer une alerte
+          }}
+          onCommentsCountChange={() => loadCommentCounts()}
         />
       )}
     </div>

@@ -47,20 +47,85 @@ function activityLabel(a) {
   }
 }
 
+// Met en évidence les @mentions reconnues (noms d'utilisateurs) dans un texte.
+function renderWithMentions(text, users, mine) {
+  if (!text) return null;
+  // Trie par longueur décroissante pour matcher les noms composés d'abord
+  const names = users.map((u) => u.name).sort((a, b) => b.length - a.length);
+  if (names.length === 0) return text;
+  const escaped = names.map((n) => n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+  const re = new RegExp(`@(${escaped.join('|')})`, 'gi');
+  const parts = [];
+  let last = 0;
+  let m;
+  while ((m = re.exec(text)) !== null) {
+    if (m.index > last) parts.push(text.slice(last, m.index));
+    parts.push(
+      <span
+        key={m.index}
+        className={`rounded px-1 font-semibold ${
+          mine ? 'bg-white/25' : 'bg-primary-light text-primary'
+        }`}
+      >
+        {m[0]}
+      </span>
+    );
+    last = m.index + m[0].length;
+  }
+  if (last < text.length) parts.push(text.slice(last));
+  return parts;
+}
+
 // Panneau latéral coulissant d'une tâche : Discussion + Historique.
-export default function TaskDrawer({ task, currentUser, onClose, onCommentsCountChange }) {
+export default function TaskDrawer({
+  task,
+  currentUser,
+  users = [],
+  onClose,
+  onCommentsCountChange,
+}) {
   const [tab, setTab] = useState('discussion');
   const [comments, setComments] = useState([]);
   const [activity, setActivity] = useState([]);
   const [loading, setLoading] = useState(true);
   const [draft, setDraft] = useState('');
   const [sending, setSending] = useState(false);
+  const [mentionQuery, setMentionQuery] = useState(null); // texte après @ en cours
   const scrollRef = useRef(null);
+  const textareaRef = useRef(null);
+
+  // Suggestions de mention filtrées
+  const mentionMatches =
+    mentionQuery !== null
+      ? users
+          .filter((u) => u.name.toLowerCase().includes(mentionQuery.toLowerCase()))
+          .slice(0, 5)
+      : [];
+
+  // Détecte un "@xxx" en cours de frappe juste avant le curseur.
+  const handleDraftChange = (e) => {
+    const value = e.target.value;
+    setDraft(value);
+    const pos = e.target.selectionStart;
+    const before = value.slice(0, pos);
+    const m = before.match(/@([\wÀ-ÿ' -]*)$/);
+    setMentionQuery(m ? m[1] : null);
+  };
+
+  const insertMention = (name) => {
+    const el = textareaRef.current;
+    const pos = el ? el.selectionStart : draft.length;
+    const before = draft.slice(0, pos).replace(/@([\wÀ-ÿ' -]*)$/, `@${name} `);
+    const after = draft.slice(pos);
+    setDraft(before + after);
+    setMentionQuery(null);
+    requestAnimationFrame(() => el?.focus());
+  };
 
   useEffect(() => {
     let active = true;
     setLoading(true);
-    Promise.all([api.getComments(task.id), api.getActivity(task.id)])
+    Promise.all([api.getComments(task.id, currentUser.id), api.getActivity(task.id)])
       .then(([c, a]) => {
         if (!active) return;
         setComments(c);
@@ -217,13 +282,13 @@ export default function TaskDrawer({ task, currentUser, onClose, onCommentsCount
                         <span>{timeAgo(c.created_at)}</span>
                       </div>
                       <div
-                        className={`inline-block rounded-2xl px-3 py-2 text-sm ${
+                        className={`inline-block whitespace-pre-wrap rounded-2xl px-3 py-2 text-left text-sm ${
                           mine
                             ? 'bg-primary text-white'
                             : 'bg-gray-100 text-gray-800'
                         }`}
                       >
-                        {c.content}
+                        {renderWithMentions(c.content, users, mine)}
                       </div>
                     </div>
                   </div>
@@ -231,19 +296,43 @@ export default function TaskDrawer({ task, currentUser, onClose, onCommentsCount
               })}
             </div>
             {/* Saisie */}
-            <form onSubmit={send} className="border-t border-gray-100 p-3">
+            <form onSubmit={send} className="relative border-t border-gray-100 p-3">
+              {/* Suggestions de @mention */}
+              {mentionMatches.length > 0 && (
+                <div className="absolute bottom-full left-3 mb-1 w-56 overflow-hidden rounded-lg border border-gray-200 bg-white shadow-xl">
+                  <div className="px-2 py-1 text-[11px] font-semibold uppercase text-gray-400">
+                    Mentionner
+                  </div>
+                  {mentionMatches.map((u) => (
+                    <button
+                      key={u.id}
+                      type="button"
+                      onClick={() => insertMention(u.name)}
+                      className="flex w-full items-center gap-2 px-2 py-1.5 text-left text-sm hover:bg-gray-100"
+                    >
+                      <Avatar name={u.name} src={u.avatar_url} size={22} ring={false} />
+                      <span className="truncate text-gray-700">{u.name}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
               <div className="flex items-end gap-2">
                 <textarea
+                  ref={textareaRef}
                   value={draft}
-                  onChange={(e) => setDraft(e.target.value)}
+                  onChange={handleDraftChange}
                   onKeyDown={(e) => {
-                    if (e.key === 'Enter' && !e.shiftKey) {
+                    if (e.key === 'Enter' && !e.shiftKey && mentionMatches.length === 0) {
                       e.preventDefault();
                       send(e);
                     }
+                    if (e.key === 'Escape' && mentionQuery !== null) {
+                      e.preventDefault();
+                      setMentionQuery(null);
+                    }
                   }}
                   rows={1}
-                  placeholder="Écrire un message…  (Entrée pour envoyer)"
+                  placeholder="Écrire un message…  @ pour mentionner"
                   className="max-h-28 flex-1 resize-none rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-primary"
                 />
                 <button

@@ -84,6 +84,10 @@ let activity = [
   { id: 801, task_id: 13, action_type: 'created', old_value: null, new_value: 'Tâche 3', user: adminShape(1), created_at: daysAgo(7) },
 ];
 
+// Suivi lu/non-lu : { `${userId}:${taskId}`: ISO last_read_at }
+let commentReads = {};
+const readKey = (userId, taskId) => `${userId}:${taskId}`;
+
 const logActivity = (taskId, action, oldV, newV, actorId) => {
   activity = [
     {
@@ -277,8 +281,10 @@ export const mockApi = {
     if (group && task) group.tasks = group.tasks.filter((t) => t.id !== id);
   },
 
-  async getComments(taskId) {
+  async getComments(taskId, userId) {
     await delay(60);
+    // Marque comme lu pour cet utilisateur
+    if (userId) commentReads[readKey(userId, taskId)] = new Date().toISOString();
     return clone(
       comments
         .filter((c) => c.task_id === taskId)
@@ -288,15 +294,60 @@ export const mockApi = {
 
   async addComment(taskId, { user_id, content }) {
     await delay(60);
+    const text = content.trim();
     const c = {
       id: uid(),
       task_id: taskId,
-      content: content.trim(),
+      content: text,
       user: user_id ? adminShape(user_id) : null,
       created_at: new Date().toISOString(),
     };
     comments.push(c);
-    return clone(c);
+    // L'auteur a lu sa propre discussion
+    if (user_id) commentReads[readKey(user_id, taskId)] = new Date().toISOString();
+
+    // @mentions -> alertes
+    const lower = text.toLowerCase();
+    const taskName =
+      board.groups.flatMap((g) => g.tasks).find((t) => t.id === taskId)?.name || 'une tâche';
+    const authorName = user_id ? adminShape(user_id)?.name : 'Quelqu’un';
+    const mentioned = [];
+    for (const u of users) {
+      if (u.id !== user_id && lower.includes(`@${u.name.toLowerCase()}`)) {
+        mentioned.push(u.id);
+        alerts = [
+          {
+            id: uid(),
+            user_id: u.id,
+            message: `💬 ${authorName} vous a mentionné sur « ${taskName} » : ${text.slice(0, 80)}`,
+            type: 'mention',
+            is_read: false,
+            created_at: new Date().toISOString(),
+          },
+          ...alerts,
+        ];
+      }
+    }
+    return clone({ ...c, mentioned });
+  },
+
+  async markCommentsRead(taskId, userId) {
+    await delay(40);
+    if (userId) commentReads[readKey(userId, taskId)] = new Date().toISOString();
+    return { ok: true };
+  },
+
+  async getUnreadCounts(userId) {
+    await delay(40);
+    const counts = {};
+    for (const c of comments) {
+      if (c.user?.id === userId) continue; // ses propres messages
+      const last = commentReads[readKey(userId, c.task_id)];
+      if (!last || new Date(c.created_at) > new Date(last)) {
+        counts[c.task_id] = (counts[c.task_id] || 0) + 1;
+      }
+    }
+    return counts;
   },
 
   async getActivity(taskId) {

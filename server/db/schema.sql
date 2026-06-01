@@ -148,6 +148,17 @@ CREATE TABLE IF NOT EXISTS task_comments (
 CREATE INDEX IF NOT EXISTS idx_task_comments_task ON task_comments(task_id);
 
 -- ---------------------------------------------------------------------
+--  Table : comment_reads (suivi lu / non-lu par utilisateur)
+--  Mémorise le dernier commentaire lu par un utilisateur sur une tâche.
+-- ---------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS comment_reads (
+    user_id      INTEGER     NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    task_id      INTEGER     NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
+    last_read_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    PRIMARY KEY (user_id, task_id)
+);
+
+-- ---------------------------------------------------------------------
 --  Table : activity_log (journal d'activité d'une tâche)
 -- ---------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS activity_log (

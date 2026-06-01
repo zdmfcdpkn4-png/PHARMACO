@@ -110,7 +110,7 @@ export default function TaskRow({
             <button
               type="button"
               onClick={() => onOpenDrawer?.('discussion')}
-              title={commentCount > 0 ? `${commentCount} commentaire(s)` : 'Commenter'}
+              title={commentCount > 0 ? `${commentCount} message(s) non lu(s)` : 'Commenter'}
               className={`relative flex items-center gap-0.5 rounded px-1 py-0.5 text-xs transition ${
                 commentCount > 0
                   ? 'text-primary'
