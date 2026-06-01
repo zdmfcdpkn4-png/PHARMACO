@@ -7,7 +7,8 @@ import {
   Eye,
   ChevronLeft,
   ChevronRight,
-  Download,
+  FileSpreadsheet,
+  FileText,
 } from 'lucide-react';
 import Avatar from './Avatar.jsx';
 import { STATUS_META } from '../lib/constants.js';
@@ -141,6 +142,63 @@ export default function TeamWorkloadView({ board, users }) {
     URL.revokeObjectURL(url);
   };
 
+  // ---- Export PDF direct de la charge affichée ----
+  const exportPdf = async () => {
+    const { jsPDF } = await import('jspdf');
+    const autoTable = (await import('jspdf-autotable')).default;
+
+    const doc = new jsPDF({ orientation: 'landscape', unit: 'pt', format: 'a4' });
+    const margin = 28;
+
+    doc.setFontSize(16);
+    doc.setTextColor(59, 31, 122);
+    doc.text("PHARMACO — Charge de travail de l'équipe", margin, margin);
+    doc.setFontSize(9);
+    doc.setTextColor(120);
+    doc.text(
+      `Semaine du ${weekDays[0].toLocaleDateString('fr-FR', {
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric',
+      })} · Seuil de saturation : ${SATURATION_THRESHOLD} tâches actives/jour`,
+      margin,
+      margin + 16
+    );
+
+    const head = [['Agent', 'Capacité', 'Total', ...weekDays.map((d, i) => `${DAY_LABELS[i]} ${d.getDate()}`)]];
+    const body = visibleUsers.map((u) => {
+      const byDay = workload.get(u.id) || {};
+      const mx = maxActivePerDay(u.id);
+      const capacite = mx > SATURATION_THRESHOLD ? 'Surchargé' : mx === SATURATION_THRESHOLD ? 'Limite' : 'Optimale';
+      const perDay = weekKeys.map((k) => (byDay[k] || []).map((t) => t.name).join('\n') || '');
+      return [u.name, capacite, String(totalForUser(u.id)), ...perDay];
+    });
+
+    autoTable(doc, {
+      startY: margin + 28,
+      margin: { left: margin, right: margin },
+      head,
+      body,
+      styles: { fontSize: 8, cellPadding: 4, overflow: 'linebreak', valign: 'top' },
+      headStyles: { fillColor: [59, 31, 122], textColor: 255, fontStyle: 'bold' },
+      alternateRowStyles: { fillColor: [250, 247, 251] },
+      columnStyles: { 1: { halign: 'center' }, 2: { halign: 'center' } },
+      // Colore la cellule "Capacité"
+      didParseCell: (data) => {
+        if (data.section === 'body' && data.column.index === 1) {
+          const v = data.cell.raw;
+          const color =
+            v === 'Surchargé' ? [226, 68, 92] : v === 'Limite' ? [232, 114, 46] : [0, 200, 117];
+          data.cell.styles.fillColor = color;
+          data.cell.styles.textColor = 255;
+          data.cell.styles.fontStyle = 'bold';
+        }
+      },
+    });
+
+    doc.save(`charge-equipe-${weekKeys[0]}.pdf`);
+  };
+
   const StatCard = ({ label, value, color }) => (
     <div className="flex min-w-[120px] flex-1 items-center gap-3 rounded-lg border border-gray-200 bg-white px-4 py-3">
       <span className="h-9 w-1.5 rounded-full" style={{ backgroundColor: color }} />
@@ -193,7 +251,17 @@ export default function TeamWorkloadView({ board, users }) {
           title="Exporter la charge affichée en CSV"
           className="flex items-center gap-1.5 rounded-md border border-gray-200 px-2.5 py-1.5 text-sm text-gray-600 hover:bg-gray-100"
         >
-          <Download size={15} /> Export CSV
+          <FileSpreadsheet size={15} /> CSV
+        </button>
+
+        {/* Export PDF */}
+        <button
+          type="button"
+          onClick={exportPdf}
+          title="Télécharger la charge affichée en PDF"
+          className="flex items-center gap-1.5 rounded-md border border-gray-200 px-2.5 py-1.5 text-sm text-gray-600 hover:bg-gray-100"
+        >
+          <FileText size={15} /> PDF
         </button>
 
         {/* Navigation de semaine */}
