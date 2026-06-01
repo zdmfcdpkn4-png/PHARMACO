@@ -56,6 +56,60 @@ const createBlockedAlert = async (client, taskId) => {
   return inserted[0];
 };
 
+const addDaysIso = (iso, n) => {
+  const d = new Date(iso);
+  d.setDate(d.getDate() + n);
+  return d.toISOString().slice(0, 10);
+};
+const diffDays = (a, b) => Math.round((new Date(b) - new Date(a)) / 86400000);
+
+// Contrainte Finish-to-Start : après changement des dates d'une tâche,
+// repousse en cascade les successeurs qui démarreraient avant la fin du
+// prédécesseur. Conserve la durée de chaque successeur. Renvoie les ids
+// modifiés. Protégé contre les boucles par un compteur de profondeur.
+const cascadeShiftSuccessors = async (client, taskId, depth = 0) => {
+  if (depth > 200) return [];
+  const shifted = [];
+  const { rows: deps } = await client.query(
+    'SELECT successor_id FROM task_dependencies WHERE predecessor_id = $1',
+    [taskId]
+  );
+  if (!deps.length) return shifted;
+
+  const predRes = await client.query('SELECT start_date, duedate FROM tasks WHERE id = $1', [
+    taskId,
+  ]);
+  const predEnd = predRes.rows[0]?.duedate || predRes.rows[0]?.start_date;
+  if (!predEnd) return shifted;
+  const predEndIso = new Date(predEnd).toISOString().slice(0, 10);
+
+  for (const { successor_id } of deps) {
+    const sRes = await client.query('SELECT start_date, duedate FROM tasks WHERE id = $1', [
+      successor_id,
+    ]);
+    const s = sRes.rows[0];
+    const sStart = s.start_date || s.duedate;
+    if (!sStart) continue;
+    const sStartIso = new Date(sStart).toISOString().slice(0, 10);
+    const minStart = addDaysIso(predEndIso, 1); // démarre le lendemain de la fin
+
+    if (sStartIso < minStart) {
+      const duration = s.duedate && s.start_date ? diffDays(s.start_date, s.duedate) : 0;
+      const newStart = minStart;
+      const newEnd = addDaysIso(newStart, duration);
+      await client.query('UPDATE tasks SET start_date = $1, duedate = $2 WHERE id = $3', [
+        newStart,
+        newEnd,
+        successor_id,
+      ]);
+      shifted.push(successor_id);
+      const sub = await cascadeShiftSuccessors(client, successor_id, depth + 1);
+      shifted.push(...sub);
+    }
+  }
+  return shifted;
+};
+
 /**
  * Crée une tâche + sa ligne task_columns associée (transaction).
  * Body : { group_id, name, admin_id?, status?, duedate?, priority? }
@@ -203,10 +257,26 @@ export const updateTask = asyncHandler(async (req, res) => {
       );
     }
 
-    return after;
+    // Contrainte de planning : si les dates ont changé, repousse les successeurs.
+    let shiftedIds = [];
+    const datesChanged =
+      (start_date !== undefined && (before.start_date || null) !== (after.start_date || null)) ||
+      (duedate !== undefined && (before.duedate || null) !== (after.duedate || null));
+    if (datesChanged) {
+      shiftedIds = await cascadeShiftSuccessors(client, taskId);
+    }
+
+    const shifted = [];
+    for (const id of [...new Set(shiftedIds)]) {
+      shifted.push(await fetchTaskShaped(id, client));
+    }
+
+    return { ...after, _shifted: shifted };
   });
 
-  res.json(task);
+  // _shifted : tâches successeurs repoussées par la contrainte de planning
+  const { _shifted, ...clean } = task;
+  res.json({ ...clean, shifted: _shifted });
 });
 
 export const deleteTask = asyncHandler(async (req, res) => {

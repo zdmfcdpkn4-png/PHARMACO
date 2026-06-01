@@ -84,6 +84,9 @@ let activity = [
   { id: 801, task_id: 13, action_type: 'created', old_value: null, new_value: 'Tâche 3', user: adminShape(1), created_at: daysAgo(7) },
 ];
 
+// Dépendances Gantt : predecessor doit finir avant successor (Finish-to-Start)
+let dependencies = [{ id: 600, predecessor_id: 11, successor_id: 13 }];
+
 // Suivi lu/non-lu : { `${userId}:${taskId}`: ISO last_read_at }
 let commentReads = {};
 const readKey = (userId, taskId) => `${userId}:${taskId}`;
@@ -113,6 +116,35 @@ const findTask = (tid) => {
     if (t) return { task: t, group: g };
   }
   return { task: null, group: null };
+};
+
+const addIso = (iso, n) => {
+  const d = new Date(iso);
+  d.setDate(d.getDate() + n);
+  return d.toISOString().slice(0, 10);
+};
+const diffIso = (a, b) => Math.round((new Date(b) - new Date(a)) / 86400000);
+
+// Contrainte Finish-to-Start (mock) : repousse en cascade les successeurs.
+const cascadeShift = (taskId, depth = 0, acc = []) => {
+  if (depth > 200) return acc;
+  const { task: pred } = findTask(taskId);
+  const predEnd = pred?.duedate || pred?.start_date;
+  if (!predEnd) return acc;
+  const minStart = addIso(predEnd.slice(0, 10), 1);
+  for (const dep of dependencies.filter((d) => d.predecessor_id === taskId)) {
+    const { task: succ } = findTask(dep.successor_id);
+    if (!succ) continue;
+    const sStart = (succ.start_date || succ.duedate || '').slice(0, 10);
+    if (sStart && sStart < minStart) {
+      const duration = succ.start_date && succ.duedate ? diffIso(succ.start_date, succ.duedate) : 0;
+      succ.start_date = minStart;
+      succ.duedate = addIso(minStart, duration);
+      acc.push(JSON.parse(JSON.stringify(succ)));
+      cascadeShift(succ.id, depth + 1, acc);
+    }
+  }
+  return acc;
 };
 
 export const mockApi = {
@@ -181,7 +213,40 @@ export const mockApi = {
 
   async getBoard(/* id */) {
     await delay();
-    return clone(board);
+    return clone({ ...board, dependencies });
+  },
+
+  async getDependencies() {
+    await delay(40);
+    return clone(dependencies);
+  },
+
+  async addDependency(predecessor_id, successor_id) {
+    await delay(60);
+    if (predecessor_id === successor_id) throw new Error('Une tâche ne peut dépendre d’elle-même');
+    // Détection de cycle (succ atteint déjà pred ?)
+    const reaches = (from, target, seen = new Set()) => {
+      if (from === target) return true;
+      for (const d of dependencies.filter((x) => x.predecessor_id === from)) {
+        if (!seen.has(d.successor_id)) {
+          seen.add(d.successor_id);
+          if (reaches(d.successor_id, target, seen)) return true;
+        }
+      }
+      return false;
+    };
+    if (reaches(successor_id, predecessor_id)) throw new Error('Dépendance circulaire détectée');
+    if (dependencies.some((d) => d.predecessor_id === predecessor_id && d.successor_id === successor_id)) {
+      throw new Error('Cette dépendance existe déjà');
+    }
+    const dep = { id: uid(), predecessor_id, successor_id };
+    dependencies.push(dep);
+    return clone(dep);
+  },
+
+  async deleteDependency(id) {
+    await delay(40);
+    dependencies = dependencies.filter((d) => d.id !== id);
   },
 
   async createGroup({ name, color }) {
@@ -249,7 +314,7 @@ export const mockApi = {
     await delay();
     const { task } = findTask(id);
     if (!task) throw new Error('Tâche introuvable');
-    const prev = { status: task.status, priority: task.priority, name: task.name, duedate: task.duedate, admin: task.admin };
+    const prev = { status: task.status, priority: task.priority, name: task.name, duedate: task.duedate, start_date: task.start_date, admin: task.admin };
 
     if (patch.name !== undefined) task.name = patch.name;
     if (patch.status !== undefined) task.status = patch.status;
@@ -274,7 +339,15 @@ export const mockApi = {
       logActivity(id, 'duedate', prev.duedate || '—', task.duedate || '—', actor);
     if (patch.admin_id !== undefined && (prev.admin?.id || null) !== (task.admin?.id || null))
       logActivity(id, 'admin', prev.admin?.name || 'Personne', task.admin?.name || 'Personne', actor);
-    return clone(task);
+
+    // Contrainte de planning : repousse les successeurs si les dates changent
+    let shifted = [];
+    const datesChanged =
+      (patch.start_date !== undefined && (prev.start_date || null) !== (task.start_date || null)) ||
+      (patch.duedate !== undefined && (prev.duedate || null) !== (task.duedate || null));
+    if (datesChanged) shifted = cascadeShift(id);
+
+    return clone({ ...task, shifted });
   },
 
   async deleteTask(id) {

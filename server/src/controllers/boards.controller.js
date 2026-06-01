@@ -88,7 +88,17 @@ export const getBoardFull = asyncHandler(async (req, res) => {
     tasks: tasksByGroup.get(g.id) || [],
   }));
 
-  res.json({ ...boardRes.rows[0], groups });
+  // Dépendances entre tâches du board (pour le Gantt)
+  const depsRes = await query(
+    `SELECT d.id, d.predecessor_id, d.successor_id
+     FROM task_dependencies d
+     JOIN tasks tp ON tp.id = d.predecessor_id
+     JOIN groups g ON g.id = tp.group_id
+     WHERE g.board_id = $1`,
+    [boardId]
+  );
+
+  res.json({ ...boardRes.rows[0], groups, dependencies: depsRes.rows });
 });
 
 export const createBoard = asyncHandler(async (req, res) => {

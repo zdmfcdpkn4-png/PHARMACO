@@ -48,6 +48,11 @@ export const httpApi = {
   getUnreadCounts: (user_id) => request(`/tasks/comments/unread?user_id=${user_id}`),
   getActivity: (taskId) => request(`/tasks/${taskId}/activity`),
 
+  getDependencies: (board_id) => request(`/dependencies?board_id=${board_id}`),
+  addDependency: (predecessor_id, successor_id) =>
+    request('/dependencies', { method: 'POST', body: { predecessor_id, successor_id } }),
+  deleteDependency: (id) => request(`/dependencies/${id}`, { method: 'DELETE' }),
+
   getAlerts: ({ user_id } = {}) =>
     request(`/alerts${user_id ? `?user_id=${user_id}` : ''}`),
   markAlertRead: (id) => request(`/alerts/${id}/read`, { method: 'PATCH' }),

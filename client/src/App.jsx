@@ -243,10 +243,57 @@ function Board({ currentUser, onLogout }) {
   };
 
   // Mise à jour des dates depuis le Gantt (déplacement / redimensionnement).
-  const handleUpdateTaskDates = (taskId, patch) =>
-    optimistic((b) => patchTaskLocal(b, taskId, patch), () =>
-      api.updateTask(taskId, { ...patch, ...actor })
-    );
+  // Applique aussi les successeurs repoussés par la contrainte de planning.
+  const handleUpdateTaskDates = (taskId, patch) => {
+    setBoard((prev) => patchTaskLocal(structuredClone(prev), taskId, patch));
+    const snapshot = board;
+    (async () => {
+      try {
+        const res = await api.updateTask(taskId, { ...patch, ...actor });
+        const shifted = res?.shifted || [];
+        if (shifted.length) {
+          setBoard((b) => {
+            const next = structuredClone(b);
+            for (const s of shifted) {
+              patchTaskLocal(next, s.id, { start_date: s.start_date, duedate: s.duedate });
+            }
+            return next;
+          });
+        }
+      } catch (e) {
+        setBoard(snapshot);
+        setError(e.message || 'Échec de la mise à jour');
+        setTimeout(() => setError(null), 3000);
+      }
+    })();
+  };
+
+  // Dépendances (Gantt)
+  const handleAddDependency = async (predId, succId) => {
+    await api.addDependency(predId, succId);
+    setBoard((b) => ({
+      ...b,
+      dependencies: [
+        ...(b.dependencies || []),
+        { id: `tmp-${Date.now()}`, predecessor_id: predId, successor_id: succId },
+      ],
+    }));
+    // Recharge pour récupérer l'id réel + d'éventuels recalages
+    const fresh = await api.getBoard(board.id);
+    setBoard(fresh);
+  };
+
+  const handleDeleteDependency = async (depId) => {
+    setBoard((b) => ({
+      ...b,
+      dependencies: (b.dependencies || []).filter((d) => d.id !== depId),
+    }));
+    try {
+      await api.deleteDependency(depId);
+    } catch {
+      /* ignore */
+    }
+  };
 
   // -------- Handlers groupes --------
   const handleAddGroup = async () => {
@@ -711,6 +758,8 @@ function Board({ currentUser, onLogout }) {
               board={board}
               onUpdateTask={handleUpdateTaskDates}
               onCreateTask={handleCreateTaskFull}
+              onAddDependency={handleAddDependency}
+              onDeleteDependency={handleDeleteDependency}
             />
           </>
         ) : view === 'reporting' ? (

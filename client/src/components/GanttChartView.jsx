@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState, useCallback } from 'react';
-import { ChevronLeft, ChevronRight, Plus, X, Loader2 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus, X, Loader2, Link2 } from 'lucide-react';
 import {
   STATUS_META,
   toYmd,
@@ -29,11 +29,18 @@ function mondayOf(d) {
 }
 
 // Vue Gantt / Chronogramme : tâches (par groupe) × échelle de temps.
-export default function GanttChartView({ board, onUpdateTask, onCreateTask }) {
+export default function GanttChartView({
+  board,
+  onUpdateTask,
+  onCreateTask,
+  onAddDependency,
+  onDeleteDependency,
+}) {
   const [mode, setMode] = useState('week'); // 'week' | 'month'
   const [anchor, setAnchor] = useState(() => mondayOf(new Date())); // début de fenêtre
   const [drag, setDrag] = useState(null); // état d'un drag/resize en cours
   const [quickCreate, setQuickCreate] = useState(null); // { group_id, start, end }
+  const [linking, setLinking] = useState(null); // { fromId, x, y } création de lien
   const gridRef = useRef(null);
 
   const unit = mode === 'week' ? DAY_W : WEEK_W;
@@ -94,6 +101,21 @@ export default function GanttChartView({ board, onUpdateTask, onCreateTask }) {
     return out;
   }, [board]);
 
+  // Index de ligne par tâche (pour positionner les flèches de dépendance)
+  const rowIndexByTask = useMemo(() => {
+    const m = new Map();
+    rows.forEach((r, i) => {
+      if (r.type === 'task') m.set(r.task.id, i);
+    });
+    return m;
+  }, [rows]);
+
+  const taskById = useMemo(() => {
+    const m = new Map();
+    for (const r of rows) if (r.type === 'task') m.set(r.task.id, r.task);
+    return m;
+  }, [rows]);
+
   // Position d'une barre (left/width en px) à partir de start/due.
   const barGeometry = useCallback(
     (task) => {
@@ -113,6 +135,56 @@ export default function GanttChartView({ board, onUpdateTask, onCreateTask }) {
     },
     [rangeStart, pxPerDay]
   );
+
+  // Flèches de dépendance : du bord droit du prédécesseur au bord gauche du successeur.
+  const arrows = useMemo(() => {
+    const deps = board?.dependencies || [];
+    const out = [];
+    for (const d of deps) {
+      const pi = rowIndexByTask.get(d.predecessor_id);
+      const si = rowIndexByTask.get(d.successor_id);
+      const pTask = taskById.get(d.predecessor_id);
+      const sTask = taskById.get(d.successor_id);
+      if (pi == null || si == null || !pTask || !sTask) continue;
+      const pg = barGeometry(pTask);
+      const sg = barGeometry(sTask);
+      if (!pg || !sg) continue;
+      const x1 = pg.left + Math.max(pg.width, 12);
+      const y1 = pi * ROW_H + ROW_H / 2;
+      const x2 = sg.left;
+      const y2 = si * ROW_H + ROW_H / 2;
+      out.push({ id: d.id, x1, y1, x2, y2 });
+    }
+    return out;
+  }, [board?.dependencies, rowIndexByTask, taskById, barGeometry]);
+
+  // ----- Création de lien (drag depuis la pastille de liaison) -----
+  const onLinkPointerDown = (e, task) => {
+    e.stopPropagation();
+    e.preventDefault();
+    const rect = gridRef.current.getBoundingClientRect();
+    const x = e.clientX - rect.left + gridRef.current.scrollLeft;
+    const y = e.clientY - rect.top + gridRef.current.scrollTop;
+    setLinking({ fromId: task.id, sx: x, sy: y, x, y });
+    const move = (ev) => {
+      const rx = ev.clientX - rect.left + gridRef.current.scrollLeft;
+      const ry = ev.clientY - rect.top + gridRef.current.scrollTop;
+      setLinking((prev) => (prev ? { ...prev, x: rx, y: ry } : prev));
+    };
+    const up = (ev) => {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+      const target = document.elementFromPoint(ev.clientX, ev.clientY);
+      const bar = target?.closest('[data-task-id]');
+      const toId = bar ? Number(bar.getAttribute('data-task-id')) : null;
+      setLinking(null);
+      if (toId && toId !== task.id) {
+        onAddDependency?.(task.id, toId);
+      }
+    };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
+  };
 
   // ----- Drag / Resize via pointer events -----
   const onBarPointerDown = (e, task, kind) => {
@@ -339,10 +411,70 @@ export default function GanttChartView({ board, onUpdateTask, onCreateTask }) {
                     rowH={ROW_H}
                     label={labelFor(r.task)}
                     onPointerDownBar={(e, kind) => onBarPointerDown(e, r.task, kind)}
+                    onLinkStart={(e) => onLinkPointerDown(e, r.task)}
                     onDblClick={(e) => onLanePointerDblClick(e, r.group)}
                   />
                 )
               )}
+
+              {/* Calque SVG des flèches de dépendance */}
+              <svg
+                className="pointer-events-none absolute inset-0"
+                style={{ width: gridWidth, height: rows.length * ROW_H }}
+              >
+                <defs>
+                  <marker
+                    id="gantt-arrow"
+                    markerWidth="7"
+                    markerHeight="7"
+                    refX="5"
+                    refY="3"
+                    orient="auto"
+                  >
+                    <path d="M0,0 L6,3 L0,6 Z" fill="#7a6aa8" />
+                  </marker>
+                </defs>
+                {arrows.map((a) => {
+                  const midX = Math.max(a.x1 + 14, (a.x1 + a.x2) / 2);
+                  const path = `M ${a.x1} ${a.y1} C ${midX} ${a.y1}, ${midX} ${a.y2}, ${a.x2 - 6} ${a.y2}`;
+                  return (
+                    <g key={a.id} className="pointer-events-auto">
+                      <path
+                        d={path}
+                        fill="none"
+                        stroke="#7a6aa8"
+                        strokeWidth="1.6"
+                        markerEnd="url(#gantt-arrow)"
+                      />
+                      {/* zone de clic épaisse pour supprimer */}
+                      <path
+                        d={path}
+                        fill="none"
+                        stroke="transparent"
+                        strokeWidth="10"
+                        className="cursor-pointer"
+                        onClick={() => {
+                          if (confirm('Supprimer cette dépendance ?')) onDeleteDependency?.(a.id);
+                        }}
+                      >
+                        <title>Cliquer pour supprimer la dépendance</title>
+                      </path>
+                    </g>
+                  );
+                })}
+                {/* Ligne en cours de création */}
+                {linking && (
+                  <line
+                    x1={linking.sx}
+                    y1={linking.sy}
+                    x2={linking.x}
+                    y2={linking.y}
+                    stroke="#0073ea"
+                    strokeWidth="1.6"
+                    strokeDasharray="4 3"
+                  />
+                )}
+              </svg>
             </div>
           </div>
         </div>
@@ -369,7 +501,17 @@ export default function GanttChartView({ board, onUpdateTask, onCreateTask }) {
 }
 
 // Une ligne (lane) avec sa barre de tâche.
-function GanttLane({ task, group, geo, previewGeo, rowH, label, onPointerDownBar, onDblClick }) {
+function GanttLane({
+  task,
+  group,
+  geo,
+  previewGeo,
+  rowH,
+  label,
+  onPointerDownBar,
+  onLinkStart,
+  onDblClick,
+}) {
   const g = previewGeo || geo;
   const color = STATUS_META[task.status]?.bg || group.color;
   return (
@@ -380,6 +522,7 @@ function GanttLane({ task, group, geo, previewGeo, rowH, label, onPointerDownBar
     >
       {g && (
         <div
+          data-task-id={task.id}
           className="group/bar absolute top-1/2 flex -translate-y-1/2 items-center rounded-md text-[11px] font-medium text-white shadow-sm ring-1 ring-black/5"
           style={{
             left: g.left,
@@ -403,6 +546,14 @@ function GanttLane({ task, group, geo, previewGeo, rowH, label, onPointerDownBar
             onPointerDown={(e) => onPointerDownBar(e, 'resize-end')}
             className="absolute right-0 top-0 h-full w-1.5 cursor-ew-resize rounded-r-md bg-black/10 opacity-0 group-hover/bar:opacity-100"
           />
+          {/* pastille de liaison (créer une dépendance) */}
+          <span
+            onPointerDown={onLinkStart}
+            title="Glisser vers une autre tâche pour créer une dépendance"
+            className="absolute -right-2.5 top-1/2 flex h-4 w-4 -translate-y-1/2 cursor-crosshair items-center justify-center rounded-full bg-white text-primary opacity-0 shadow ring-1 ring-primary/40 group-hover/bar:opacity-100"
+          >
+            <Link2 size={10} />
+          </span>
         </div>
       )}
     </div>

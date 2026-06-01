@@ -161,6 +161,22 @@ CREATE TABLE IF NOT EXISTS comment_reads (
 );
 
 -- ---------------------------------------------------------------------
+--  Table : task_dependencies (dépendances Gantt)
+--  predecessor doit se terminer avant que successor ne commence
+--  (relation Finish-to-Start).
+-- ---------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS task_dependencies (
+    id             SERIAL PRIMARY KEY,
+    predecessor_id INTEGER NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
+    successor_id   INTEGER NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
+    created_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
+    UNIQUE (predecessor_id, successor_id),
+    CHECK (predecessor_id <> successor_id)
+);
+CREATE INDEX IF NOT EXISTS idx_task_dep_pred ON task_dependencies(predecessor_id);
+CREATE INDEX IF NOT EXISTS idx_task_dep_succ ON task_dependencies(successor_id);
+
+-- ---------------------------------------------------------------------
 --  Table : activity_log (journal d'activité d'une tâche)
 -- ---------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS activity_log (

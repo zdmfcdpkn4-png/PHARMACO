@@ -10,6 +10,7 @@ import tasksRouter from './routes/tasks.js';
 import usersRouter from './routes/users.js';
 import workspacesRouter from './routes/workspaces.js';
 import alertsRouter from './routes/alerts.js';
+import dependenciesRouter from './routes/dependencies.js';
 import { notFound, errorHandler } from './middleware/error.js';
 
 dotenv.config();
@@ -36,6 +37,7 @@ app.use('/api/groups', groupsRouter);
 app.use('/api/tasks', tasksRouter);
 app.use('/api/users', usersRouter);
 app.use('/api/alerts', alertsRouter);
+app.use('/api/dependencies', dependenciesRouter);
 
 // Gestion des erreurs
 app.use(notFound);
