@@ -5,7 +5,7 @@ import { asyncHandler } from '../middleware/error.js';
 const fetchTaskShaped = async (taskId, client = { query }) => {
   const { rows } = await client.query(
     `SELECT
-        t.id, t.group_id, t.name, t.position, t.created_at,
+        t.id, t.group_id, t.name, t.position, t.priority, t.created_at,
         tc.admin_id, tc.status, tc.duedate,
         u.id AS admin_user_id, u.name AS admin_name, u.avatar_url AS admin_avatar_url
      FROM tasks t
@@ -21,6 +21,7 @@ const fetchTaskShaped = async (taskId, client = { query }) => {
     group_id: row.group_id,
     name: row.name,
     position: row.position,
+    priority: row.priority || 'P3 - Normal',
     created_at: row.created_at,
     status: row.status || 'À faire',
     duedate: row.duedate,
@@ -30,28 +31,36 @@ const fetchTaskShaped = async (taskId, client = { query }) => {
   };
 };
 
-// Crée une alerte "Bloqué" pour l'admin de la tâche (si assigné).
+// Crée une alerte quand une tâche passe "Bloqué".
+// Une tâche P1 - Urgent bloquée génère une alerte CRITIQUE.
 const createBlockedAlert = async (client, taskId) => {
   const { rows } = await client.query(
-    `SELECT t.name, tc.admin_id
+    `SELECT t.name, t.priority, tc.admin_id
      FROM tasks t JOIN task_columns tc ON tc.task_id = t.id
      WHERE t.id = $1`,
     [taskId]
   );
-  if (!rows.length || !rows[0].admin_id) return;
-  await client.query(
+  if (!rows.length || !rows[0].admin_id) return null;
+  const { name, priority, admin_id } = rows[0];
+  const critical = priority === 'P1 - Urgent';
+  const type = critical ? 'critical' : 'blocked';
+  const message = critical
+    ? `🚨 CRITIQUE : la tâche P1 « ${name} » est BLOQUÉE et nécessite une action immédiate.`
+    : `La tâche « ${name} » est passée au statut Bloqué.`;
+  const { rows: inserted } = await client.query(
     `INSERT INTO alerts (user_id, message, type)
-     VALUES ($1, $2, 'blocked')`,
-    [rows[0].admin_id, `La tâche « ${rows[0].name} » est passée au statut Bloqué.`]
+     VALUES ($1, $2, $3::alert_type) RETURNING *`,
+    [admin_id, message, type]
   );
+  return inserted[0];
 };
 
 /**
  * Crée une tâche + sa ligne task_columns associée (transaction).
- * Body : { group_id, name, admin_id?, status?, duedate? }
+ * Body : { group_id, name, admin_id?, status?, duedate?, priority? }
  */
 export const createTask = asyncHandler(async (req, res) => {
-  const { group_id, name, admin_id, status, duedate } = req.body;
+  const { group_id, name, admin_id, status, duedate, priority } = req.body;
   if (!group_id || !name) {
     return res.status(400).json({ error: 'group_id et name sont requis' });
   }
@@ -64,8 +73,9 @@ export const createTask = asyncHandler(async (req, res) => {
     const position = posRes.rows[0].next;
 
     const taskRes = await client.query(
-      'INSERT INTO tasks (group_id, name, position) VALUES ($1, $2, $3) RETURNING id',
-      [group_id, name, position]
+      `INSERT INTO tasks (group_id, name, position, priority)
+       VALUES ($1, $2, $3, COALESCE($4::task_priority, 'P3 - Normal')) RETURNING id`,
+      [group_id, name, position, priority || null]
     );
     const taskId = taskRes.rows[0].id;
 
@@ -87,12 +97,13 @@ export const createTask = asyncHandler(async (req, res) => {
 
 /**
  * Met à jour une tâche et/ou ses colonnes.
- * Body : { name?, position?, group_id?, admin_id?, status?, duedate? }
- * Si status passe à "Bloqué", une alerte est créée pour l'admin.
+ * Body : { name?, position?, group_id?, admin_id?, status?, duedate?, priority? }
+ * Si status passe à "Bloqué", une alerte est créée pour l'admin
+ * (critique si la tâche est P1 - Urgent).
  */
 export const updateTask = asyncHandler(async (req, res) => {
   const taskId = req.params.id;
-  const { name, position, group_id, admin_id, status, duedate } = req.body;
+  const { name, position, group_id, admin_id, status, duedate, priority } = req.body;
 
   const task = await withTransaction(async (client) => {
     const existing = await client.query(
@@ -108,15 +119,22 @@ export const updateTask = asyncHandler(async (req, res) => {
     }
     const prevStatus = existing.rows[0].prev_status;
 
-    // Mise à jour des champs propres à la tâche
-    if (name !== undefined || position !== undefined || group_id !== undefined) {
+    // Mise à jour des champs propres à la tâche (dont la priorité, AVANT
+    // le calcul d'alerte pour qu'un passage P1+Bloqué déclenche le critique).
+    if (
+      name !== undefined ||
+      position !== undefined ||
+      group_id !== undefined ||
+      priority !== undefined
+    ) {
       await client.query(
         `UPDATE tasks
          SET name = COALESCE($1, name),
              position = COALESCE($2, position),
-             group_id = COALESCE($3, group_id)
-         WHERE id = $4`,
-        [name ?? null, position ?? null, group_id ?? null, taskId]
+             group_id = COALESCE($3, group_id),
+             priority = COALESCE($4::task_priority, priority)
+         WHERE id = $5`,
+        [name ?? null, position ?? null, group_id ?? null, priority ?? null, taskId]
       );
     }
 

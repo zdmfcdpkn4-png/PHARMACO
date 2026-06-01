@@ -32,6 +32,9 @@ export default function GroupSummary({ tasks }) {
       <div className="w-10 shrink-0" />
       <div className="flex-1" />
 
+      {/* Colonne Priorité (vide) */}
+      <div className="w-28 shrink-0 border-l border-transparent" />
+
       {/* Colonne Admin (vide) */}
       <div className="w-32 shrink-0 border-l border-transparent" />
 

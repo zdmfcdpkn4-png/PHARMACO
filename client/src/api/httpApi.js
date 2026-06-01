@@ -43,4 +43,6 @@ export const httpApi = {
   getAlerts: ({ user_id } = {}) =>
     request(`/alerts${user_id ? `?user_id=${user_id}` : ''}`),
   markAlertRead: (id) => request(`/alerts/${id}/read`, { method: 'PATCH' }),
+  markAllAlertsRead: (user_id) =>
+    request('/alerts/read-all', { method: 'POST', body: { user_id } }),
 };

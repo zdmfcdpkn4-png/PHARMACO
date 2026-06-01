@@ -35,10 +35,10 @@ INSERT INTO groups (board_id, name, color, position) VALUES
     (1, 'Terminé', '#00c875', 1);   -- vert
 
 -- --- Tasks (groupe To-do = group_id 1) -----------------------------------
-INSERT INTO tasks (group_id, name, position) VALUES
-    (1, 'Tâche 1', 0),
-    (1, 'Tâche 2', 1),
-    (1, 'Tâche 3', 2);
+INSERT INTO tasks (group_id, name, position, priority) VALUES
+    (1, 'Tâche 1', 0, 'P1 - Urgent'),
+    (1, 'Tâche 2', 1, 'P3 - Normal'),
+    (1, 'Tâche 3', 2, 'P2 - Élevé');
 
 -- --- Task columns --------------------------------------------------------
 -- Tâche 1 : En cours, échéance mai 28, assignée à Erwin

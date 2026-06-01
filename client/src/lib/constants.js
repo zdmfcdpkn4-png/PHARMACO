@@ -9,6 +9,15 @@ export const STATUS_META = {
   Bloqué: { label: 'Bloqué', bg: '#e2445c', text: '#ffffff' },
 };
 
+// Référentiel des priorités : libellé court, couleur, et ordre de tri.
+export const PRIORITIES = ['P1 - Urgent', 'P2 - Élevé', 'P3 - Normal'];
+
+export const PRIORITY_META = {
+  'P1 - Urgent': { label: 'P1', full: 'Urgent', bg: '#e2445c', order: 0 }, // rouge vif
+  'P2 - Élevé': { label: 'P2', full: 'Élevé', bg: '#fdab3d', order: 1 }, // orange
+  'P3 - Normal': { label: 'P3', full: 'Normal', bg: '#579bfc', order: 2 }, // bleu
+};
+
 // Palette de couleurs proposée pour les groupes.
 export const GROUP_COLORS = [
   '#579bfc',

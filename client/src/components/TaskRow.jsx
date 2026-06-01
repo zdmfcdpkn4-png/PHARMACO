@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import { Trash2, GripVertical } from 'lucide-react';
 import StatusBadge from './StatusBadge.jsx';
+import PriorityBadge from './PriorityBadge.jsx';
 import AdminCell from './AdminCell.jsx';
 import { formatShortDate } from '../lib/constants.js';
 
-// Une ligne de tâche : poignée drag, checkbox, nom éditable, admin, statut, échéance.
+// Une ligne de tâche : poignée drag, checkbox, nom, priorité, admin, statut, échéance.
 export default function TaskRow({
   task,
   users,
@@ -16,6 +17,7 @@ export default function TaskRow({
   onToggleSelect,
   onRename,
   onChangeStatus,
+  onChangePriority,
   onAssign,
   onChangeDate,
   onDelete,
@@ -100,6 +102,11 @@ export default function TaskRow({
             {task.name}
           </button>
         )}
+      </div>
+
+      {/* Priorité */}
+      <div className="flex w-28 shrink-0 items-center justify-center border-l border-gray-100">
+        <PriorityBadge priority={task.priority} onChange={onChangePriority} />
       </div>
 
       {/* Admin */}

@@ -24,7 +24,18 @@ BEGIN
     END IF;
 
     IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'alert_type') THEN
-        CREATE TYPE alert_type AS ENUM ('blocked', 'assigned', 'due_soon', 'mention', 'info');
+        CREATE TYPE alert_type AS ENUM ('blocked', 'assigned', 'due_soon', 'mention', 'info', 'critical');
+    END IF;
+    -- Ajoute 'critical' aux bases déjà créées
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_enum e JOIN pg_type t ON t.oid = e.enumtypid
+        WHERE t.typname = 'alert_type' AND e.enumlabel = 'critical'
+    ) THEN
+        ALTER TYPE alert_type ADD VALUE 'critical';
+    END IF;
+
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'task_priority') THEN
+        CREATE TYPE task_priority AS ENUM ('P1 - Urgent', 'P2 - Élevé', 'P3 - Normal');
     END IF;
 END$$;
 
@@ -88,9 +99,13 @@ CREATE TABLE IF NOT EXISTS tasks (
     group_id  INTEGER      NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
     name      VARCHAR(255) NOT NULL,
     position  INTEGER      NOT NULL DEFAULT 0,
+    priority  task_priority NOT NULL DEFAULT 'P3 - Normal',
     created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS idx_tasks_group ON tasks(group_id);
+
+-- Pour les bases déjà créées : ajoute la colonne si absente.
+ALTER TABLE tasks ADD COLUMN IF NOT EXISTS priority task_priority NOT NULL DEFAULT 'P3 - Normal';
 
 -- ---------------------------------------------------------------------
 --  Table : task_columns (les valeurs des colonnes d'une tâche)

@@ -126,11 +126,26 @@ function Board({ currentUser, onLogout }) {
       api.updateTask(taskId, { name })
     );
 
+  // Renvoie la priorité courante d'une tâche (pour décider du refresh d'alertes)
+  const findTaskPriority = (taskId) => {
+    for (const g of board?.groups || []) {
+      const t = g.tasks.find((x) => x.id === taskId);
+      if (t) return t.priority;
+    }
+    return 'P3 - Normal';
+  };
+
   const handleChangeStatus = (taskId, status) => {
     optimistic((b) => patchTaskLocal(b, taskId, { status }), async () => {
       await api.updateTask(taskId, { status });
-      if (status === 'Bloqué') loadAlerts(); // l'alerte est créée côté serveur
+      if (status === 'Bloqué') loadAlerts(); // alerte (critique si P1) créée côté serveur
     });
+  };
+
+  const handleChangePriority = (taskId, priority) => {
+    optimistic((b) => patchTaskLocal(b, taskId, { priority }), () =>
+      api.updateTask(taskId, { priority })
+    );
   };
 
   const handleAssign = (taskId, adminId) => {
@@ -381,11 +396,14 @@ function Board({ currentUser, onLogout }) {
     };
   }, [search, personFilter, statusFilter, showDone]);
 
-  // -------- Tri (cycle : null -> nom -> statut -> échéance -> null) --------
+  // -------- Tri (cycle : null -> priorité -> nom -> statut -> échéance) --------
   const STATUS_ORDER = { Bloqué: 0, 'En cours': 1, 'À faire': 2, Fait: 3 };
+  const PRIORITY_ORDER = { 'P1 - Urgent': 0, 'P2 - Élevé': 1, 'P3 - Normal': 2 };
   const sortFn = useMemo(() => {
     if (!sortBy) return null;
     return (a, b) => {
+      if (sortBy === 'priorité')
+        return (PRIORITY_ORDER[a.priority] ?? 9) - (PRIORITY_ORDER[b.priority] ?? 9);
       if (sortBy === 'nom') return a.name.localeCompare(b.name);
       if (sortBy === 'statut')
         return (STATUS_ORDER[a.status] ?? 9) - (STATUS_ORDER[b.status] ?? 9);
@@ -397,7 +415,7 @@ function Board({ currentUser, onLogout }) {
   }, [sortBy]);
 
   const cycleSort = () => {
-    const order = [null, 'nom', 'statut', 'échéance'];
+    const order = [null, 'priorité', 'nom', 'statut', 'échéance'];
     setSortBy((prev) => order[(order.indexOf(prev) + 1) % order.length]);
   };
 
@@ -412,6 +430,15 @@ function Board({ currentUser, onLogout }) {
     setAlerts((prev) => prev.map((a) => (a.id === id ? { ...a, is_read: true } : a)));
     try {
       await api.markAlertRead(id);
+    } catch {
+      /* ignore */
+    }
+  };
+
+  const handleMarkAllRead = async () => {
+    setAlerts((prev) => prev.map((a) => ({ ...a, is_read: true })));
+    try {
+      await api.markAllAlertsRead(CURRENT_USER_ID);
     } catch {
       /* ignore */
     }
@@ -481,6 +508,7 @@ function Board({ currentUser, onLogout }) {
               open={alertsOpen}
               onClose={() => setAlertsOpen(false)}
               onMarkRead={handleMarkRead}
+              onMarkAllRead={handleMarkAllRead}
             />
             <Avatar
               name={currentUser.name || ''}
@@ -562,6 +590,7 @@ function Board({ currentUser, onLogout }) {
                               onAddTask={(name) => handleAddTask(group.id, name)}
                               onRenameTask={handleRenameTask}
                               onChangeStatus={handleChangeStatus}
+                              onChangePriority={handleChangePriority}
                               onAssign={handleAssign}
                               onChangeDate={handleChangeDate}
                               onDeleteTask={handleDeleteTask}

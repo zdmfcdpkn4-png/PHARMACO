@@ -18,6 +18,7 @@ export default function GroupTable({
   onAddTask,
   onRenameTask,
   onChangeStatus,
+  onChangePriority,
   onAssign,
   onChangeDate,
   onDeleteTask,
@@ -116,6 +117,7 @@ export default function GroupTable({
             <div className="w-6 shrink-0" />
             <div className="w-10 shrink-0" />
             <div className="flex-1 py-2.5 pl-2">Tâche</div>
+            <div className="w-28 shrink-0 border-l border-gray-100 py-2.5 text-center">Priorité</div>
             <div className="w-32 shrink-0 border-l border-gray-100 py-2.5 text-center">Admin</div>
             <div className="w-40 shrink-0 border-l border-gray-100 py-2.5 text-center">Statut</div>
             <div className="w-36 shrink-0 border-l border-gray-100 py-2.5 text-center">Échéance</div>
@@ -149,6 +151,7 @@ export default function GroupTable({
                         onToggleSelect={() => onToggleSelect(task.id)}
                         onRename={(name) => onRenameTask(task.id, name)}
                         onChangeStatus={(status) => onChangeStatus(task.id, status)}
+                        onChangePriority={(priority) => onChangePriority(task.id, priority)}
                         onAssign={(adminId) => onAssign(task.id, adminId)}
                         onChangeDate={(date) => onChangeDate(task.id, date)}
                         onDelete={() => onDeleteTask(task.id)}
