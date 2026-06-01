@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import {
   PieChart,
   Pie,
@@ -11,13 +11,22 @@ import {
   Legend,
   ResponsiveContainer,
 } from 'recharts';
-import { TrendingUp, CheckCircle2, X } from 'lucide-react';
-import { STATUSES, STATUS_META, PRIORITY_META, formatShortDate } from '../lib/constants.js';
+import { toPng } from 'html-to-image';
+import { TrendingUp, CheckCircle2, X, Download, Loader2 } from 'lucide-react';
+import {
+  STATUSES,
+  STATUS_META,
+  PRIORITIES,
+  PRIORITY_META,
+  formatShortDate,
+} from '../lib/constants.js';
 
 // Page "Tableau de bord et reporting" : donut des statuts, barres cumulées
 // par groupe, KPI de complétion, et liste interactive filtrée au clic.
-export default function ReportingView({ board }) {
+export default function ReportingView({ board, users = [] }) {
   const [selectedStatus, setSelectedStatus] = useState(null);
+  const [exporting, setExporting] = useState(false);
+  const dashboardRef = useRef(null);
 
   // Toutes les tâches à plat (avec le nom du groupe)
   const allTasks = useMemo(() => {
@@ -55,6 +64,34 @@ export default function ReportingView({ board }) {
     [board]
   );
 
+  // Répartition par priorité
+  const priorityData = useMemo(
+    () =>
+      PRIORITIES.map((p) => ({
+        name: PRIORITY_META[p].label,
+        full: p,
+        value: allTasks.filter((t) => t.priority === p).length,
+        color: PRIORITY_META[p].bg,
+      })).filter((d) => d.value > 0),
+    [allTasks]
+  );
+
+  // Charge active par membre (tâches non terminées assignées)
+  const memberData = useMemo(() => {
+    const counts = new Map();
+    for (const u of users) counts.set(u.id, { name: u.name, active: 0, done: 0 });
+    for (const t of allTasks) {
+      if (!t.admin) continue;
+      const entry = counts.get(t.admin.id);
+      if (!entry) continue;
+      if (t.status === 'Fait') entry.done += 1;
+      else entry.active += 1;
+    }
+    return [...counts.values()]
+      .filter((e) => e.active + e.done > 0)
+      .sort((a, b) => b.active - a.active);
+  }, [allTasks, users]);
+
   // KPI : taux de complétion
   const doneCount = statusCounts['Fait'] || 0;
   const completion = total > 0 ? Math.round((doneCount / total) * 100) : 0;
@@ -64,6 +101,27 @@ export default function ReportingView({ board }) {
     ? allTasks.filter((t) => t.status === selectedStatus)
     : [];
 
+  // Export PNG du tableau de bord
+  const exportPng = async () => {
+    if (!dashboardRef.current) return;
+    setExporting(true);
+    try {
+      const dataUrl = await toPng(dashboardRef.current, {
+        backgroundColor: '#faf7fb',
+        pixelRatio: 2,
+        cacheBust: true,
+      });
+      const a = document.createElement('a');
+      a.href = dataUrl;
+      a.download = `pharmaco-dashboard-${new Date().toISOString().slice(0, 10)}.png`;
+      a.click();
+    } catch (e) {
+      console.error('Export PNG échoué', e);
+    } finally {
+      setExporting(false);
+    }
+  };
+
   const Card = ({ children, className = '' }) => (
     <div className={`rounded-xl border border-gray-200 bg-white p-5 shadow-sm ${className}`}>
       {children}
@@ -72,6 +130,20 @@ export default function ReportingView({ board }) {
 
   return (
     <div className="flex-1 overflow-auto bg-canvas p-6">
+      {/* Barre d'actions */}
+      <div className="mb-4 flex justify-end">
+        <button
+          type="button"
+          onClick={exportPng}
+          disabled={exporting}
+          className="flex items-center gap-1.5 rounded-md border border-gray-200 bg-white px-3 py-1.5 text-sm text-gray-600 shadow-sm hover:border-primary hover:text-primary disabled:opacity-60"
+        >
+          {exporting ? <Loader2 size={15} className="animate-spin" /> : <Download size={15} />}
+          Exporter en PNG
+        </button>
+      </div>
+
+      <div ref={dashboardRef} className="bg-canvas">
       {/* ---- Ligne KPI ---- */}
       <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Card className="lg:col-span-1">
@@ -190,6 +262,72 @@ export default function ReportingView({ board }) {
           )}
         </Card>
       </div>
+
+      {/* ---- 2e rangée : priorité + charge par membre ---- */}
+      <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
+        {/* Répartition par priorité */}
+        <Card>
+          <h3 className="mb-1 text-sm font-semibold text-gray-700">Répartition par priorité</h3>
+          <p className="mb-3 text-xs text-gray-400">Nombre de tâches par niveau de priorité.</p>
+          {priorityData.length === 0 ? (
+            <p className="py-16 text-center text-sm text-gray-400">Aucune tâche</p>
+          ) : (
+            <ResponsiveContainer width="100%" height={260}>
+              <PieChart>
+                <Pie
+                  data={priorityData}
+                  dataKey="value"
+                  nameKey="full"
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={65}
+                  outerRadius={100}
+                  paddingAngle={2}
+                >
+                  {priorityData.map((d) => (
+                    <Cell key={d.full} fill={d.color} stroke="#fff" strokeWidth={1} />
+                  ))}
+                </Pie>
+                <Tooltip
+                  formatter={(value, name) => [`${value} (${Math.round((value / total) * 100)}%)`, name]}
+                />
+                <Legend />
+              </PieChart>
+            </ResponsiveContainer>
+          )}
+        </Card>
+
+        {/* Charge par membre */}
+        <Card>
+          <h3 className="mb-1 text-sm font-semibold text-gray-700">Charge par membre</h3>
+          <p className="mb-3 text-xs text-gray-400">Tâches actives vs terminées par agent.</p>
+          {memberData.length === 0 ? (
+            <p className="py-16 text-center text-sm text-gray-400">Aucune assignation</p>
+          ) : (
+            <ResponsiveContainer width="100%" height={260}>
+              <BarChart
+                layout="vertical"
+                data={memberData}
+                margin={{ top: 8, right: 16, left: 24, bottom: 0 }}
+              >
+                <XAxis type="number" allowDecimals={false} tick={{ fontSize: 12, fill: '#676879' }} />
+                <YAxis
+                  type="category"
+                  dataKey="name"
+                  width={90}
+                  tick={{ fontSize: 12, fill: '#676879' }}
+                />
+                <Tooltip />
+                <Legend />
+                <Bar dataKey="active" name="Actives" stackId="m" fill="#e8722e" radius={[0, 0, 0, 0]} />
+                <Bar dataKey="done" name="Terminées" stackId="m" fill="#00c875" radius={[0, 4, 4, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          )}
+        </Card>
+      </div>
+      </div>
+      {/* fin de la zone exportée (dashboardRef) */}
 
       {/* ---- Liste interactive (filtrée par clic sur le donut) ---- */}
       {selectedStatus && (

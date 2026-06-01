@@ -538,7 +538,7 @@ function Board({ currentUser, onLogout }) {
             {error && (
               <div className="bg-red-50 px-6 py-2 text-sm text-status-blocked">{error}</div>
             )}
-            <ReportingView board={board} />
+            <ReportingView board={board} users={users} />
           </>
         ) : view === 'workload' ? (
           <>
