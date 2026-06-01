@@ -258,6 +258,65 @@ function Board({ currentUser, onLogout }) {
     return created;
   };
 
+  // -------- Sous-items --------
+  const handleCreateSubtask = async (taskId, name) => {
+    const created = await api.createSubtask(taskId, { name });
+    setBoard((b) => {
+      const next = structuredClone(b);
+      for (const g of next.groups) {
+        const t = g.tasks.find((x) => x.id === taskId);
+        if (t) {
+          t.subtasks = [...(t.subtasks || []), created];
+          break;
+        }
+      }
+      return next;
+    });
+  };
+
+  const handleUpdateSubtask = async (subId, patch) => {
+    // Optimiste local
+    setBoard((b) => {
+      const next = structuredClone(b);
+      for (const g of next.groups)
+        for (const t of g.tasks) {
+          const s = (t.subtasks || []).find((x) => x.id === subId);
+          if (s) {
+            if (patch.name !== undefined) s.name = patch.name;
+            if (patch.status !== undefined) s.status = patch.status;
+            if (patch.duedate !== undefined) s.duedate = patch.duedate;
+            if (patch.admin_id !== undefined)
+              s.admin = patch.admin_id ? users.find((u) => u.id === patch.admin_id) || null : null;
+          }
+        }
+      return next;
+    });
+    try {
+      const res = await api.updateSubtask(subId, patch);
+      // Auto-complétion du parent reflétée dans l'UI
+      if (res?.parentCompleted && res.parentId) {
+        setBoard((b) => patchTaskLocal(structuredClone(b), res.parentId, { status: 'Fait' }));
+      }
+    } catch (e) {
+      setError(e.message);
+    }
+  };
+
+  const handleDeleteSubtask = async (subId) => {
+    setBoard((b) => {
+      const next = structuredClone(b);
+      for (const g of next.groups)
+        for (const t of g.tasks)
+          if (t.subtasks) t.subtasks = t.subtasks.filter((s) => s.id !== subId);
+      return next;
+    });
+    try {
+      await api.deleteSubtask(subId);
+    } catch {
+      /* ignore */
+    }
+  };
+
   // Création rapide d'une tâche à une date donnée (Calendrier).
   const handleCreateTaskOnDate = async (dateKey) => {
     const group = board?.groups?.[0];
@@ -721,19 +780,49 @@ function Board({ currentUser, onLogout }) {
               onStatusFilter={setStatusFilter}
               users={users}
             />
+            <div className="overflow-x-auto">
+              <BoardTabs active={boardView} onChange={setBoardView} />
+            </div>
             {error && (
               <div className="bg-red-50 px-4 py-2 text-sm text-status-blocked">{error}</div>
             )}
-            <MobileBoard
-              board={board}
-              users={users}
-              filterFn={filterFn}
-              commentCounts={commentCounts}
-              onOpenComments={(t) => setDrawerTask(t)}
-              onChangeStatus={handleChangeStatus}
-              onAssign={handleAssign}
-              onAddTask={(gid) => handleAddTask(gid, 'Nouvelle tâche')}
-            />
+            {boardView === 'table' && (
+              <MobileBoard
+                board={board}
+                users={users}
+                filterFn={filterFn}
+                commentCounts={commentCounts}
+                onOpenComments={(t) => setDrawerTask(t)}
+                onChangeStatus={handleChangeStatus}
+                onAssign={handleAssign}
+                onAddTask={(gid) => handleAddTask(gid, 'Nouvelle tâche')}
+              />
+            )}
+            {boardView === 'kanban' && (
+              <div className="flex-1 overflow-auto pb-20">
+                <KanbanView
+                  board={board}
+                  filterFn={filterFn}
+                  canEdit={isOwner}
+                  commentCounts={commentCounts}
+                  onChangeStatus={handleChangeStatus}
+                  onOpenTask={(t) => setDrawerTask(t)}
+                  onAddTask={() => board.groups[0] && handleAddTask(board.groups[0].id, 'Nouvelle tâche')}
+                />
+              </div>
+            )}
+            {boardView === 'calendar' && (
+              <div className="flex flex-1 flex-col overflow-hidden pb-20">
+                <CalendarView
+                  board={board}
+                  filterFn={filterFn}
+                  canEdit={isOwner}
+                  onOpenTask={(t) => setDrawerTask(t)}
+                  onChangeDate={handleChangeDate}
+                  onAddTaskOnDate={handleCreateTaskOnDate}
+                />
+              </div>
+            )}
           </>
         ) : (
           <div className="flex flex-1 flex-col overflow-hidden">
@@ -1012,6 +1101,10 @@ function Board({ currentUser, onLogout }) {
                               onDeleteTask={handleDeleteTask}
                               commentCounts={commentCounts}
                               onOpenDrawer={(t) => setDrawerTask(t)}
+                              canEdit={isOwner}
+                              onCreateSubtask={handleCreateSubtask}
+                              onUpdateSubtask={handleUpdateSubtask}
+                              onDeleteSubtask={handleDeleteSubtask}
                               onRenameGroup={(name) => handleRenameGroup(group.id, name)}
                               onDeleteGroup={() => handleDeleteGroup(group.id)}
                             />

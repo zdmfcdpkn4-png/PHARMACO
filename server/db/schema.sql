@@ -129,6 +129,53 @@ CREATE INDEX IF NOT EXISTS idx_task_columns_admin  ON task_columns(admin_id);
 CREATE INDEX IF NOT EXISTS idx_task_columns_status ON task_columns(status);
 
 -- ---------------------------------------------------------------------
+--  Table : sub_tasks (sous-items d'une tâche)
+-- ---------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS sub_tasks (
+    id             SERIAL PRIMARY KEY,
+    parent_task_id INTEGER      NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
+    name           VARCHAR(255) NOT NULL,
+    position       INTEGER      NOT NULL DEFAULT 0,
+    created_at     TIMESTAMPTZ  NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_sub_tasks_parent ON sub_tasks(parent_task_id);
+
+-- ---------------------------------------------------------------------
+--  Table : sub_task_columns (attributs propres à chaque sous-item)
+--  Relation 1-1 avec sub_tasks. Chaque sous-item a son admin/statut/date.
+-- ---------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS sub_task_columns (
+    id          SERIAL PRIMARY KEY,
+    sub_task_id INTEGER     NOT NULL UNIQUE REFERENCES sub_tasks(id) ON DELETE CASCADE,
+    admin_id    INTEGER     REFERENCES users(id) ON DELETE SET NULL,
+    status      task_status NOT NULL DEFAULT 'À faire',
+    duedate     DATE,
+    updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_sub_task_columns_admin ON sub_task_columns(admin_id);
+
+-- ---------------------------------------------------------------------
+--  Table : custom_categories (colonnes personnalisées d'un board)
+-- ---------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS custom_categories (
+    id         SERIAL PRIMARY KEY,
+    board_id   INTEGER      NOT NULL REFERENCES boards(id) ON DELETE CASCADE,
+    name       VARCHAR(120) NOT NULL,
+    type       VARCHAR(20)  NOT NULL DEFAULT 'text', -- text | status | person | date
+    position   INTEGER      NOT NULL DEFAULT 0,
+    created_at TIMESTAMPTZ  NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_custom_categories_board ON custom_categories(board_id);
+
+-- Valeurs des catégories personnalisées par tâche (clé/valeur souple).
+CREATE TABLE IF NOT EXISTS custom_values (
+    category_id INTEGER NOT NULL REFERENCES custom_categories(id) ON DELETE CASCADE,
+    task_id     INTEGER NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
+    value       TEXT,
+    PRIMARY KEY (category_id, task_id)
+);
+
+-- ---------------------------------------------------------------------
 --  Table : alerts (notifications)
 -- ---------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS alerts (

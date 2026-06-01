@@ -47,6 +47,8 @@ const board = {
   name: 'Suivi',
   description: 'Tableau de bord de suivi du projet',
   created_by: 1, // Erwin est propriétaire
+  categories: [],
+  categoryValues: [],
   groups: [
     {
       id: 1,
@@ -55,7 +57,10 @@ const board = {
       color: '#579bfc',
       position: 0,
       tasks: [
-        { id: 11, group_id: 1, name: 'Tâche 1', position: 0, status: 'En cours', priority: 'P1 - Urgent', start_date: weekday(0), duedate: weekday(2), created_at: daysAgo(10), admin: adminShape(1) },
+        { id: 11, group_id: 1, name: 'Tâche 1', position: 0, status: 'En cours', priority: 'P1 - Urgent', start_date: weekday(0), duedate: weekday(2), created_at: daysAgo(10), admin: adminShape(1), subtasks: [
+          { id: 510, parent_task_id: 11, name: 'Préparer le dossier', position: 0, status: 'Fait', duedate: weekday(0), admin: adminShape(1) },
+          { id: 511, parent_task_id: 11, name: 'Valider avec Alice', position: 1, status: 'En cours', duedate: weekday(1), admin: adminShape(2) },
+        ] },
         { id: 12, group_id: 1, name: 'Tâche 2', position: 1, status: 'Fait', priority: 'P3 - Normal', start_date: weekday(1), duedate: weekday(3), created_at: daysAgo(9), admin: adminShape(2) },
         { id: 13, group_id: 1, name: 'Tâche 3', position: 2, status: 'Bloqué', priority: 'P2 - Élevé', start_date: weekday(2), duedate: weekday(4), created_at: daysAgo(7), admin: null },
         // Erwin chargé sur mardi (pour illustrer la saturation > 3)
@@ -214,7 +219,92 @@ export const mockApi = {
 
   async getBoard(/* id */) {
     await delay();
+    // Garantit un tableau subtasks sur chaque tâche
+    for (const g of board.groups) for (const t of g.tasks) if (!t.subtasks) t.subtasks = [];
     return clone({ ...board, dependencies });
+  },
+
+  async createSubtask(taskId, { name, admin_id, status, duedate }) {
+    await delay(80);
+    const { task } = findTask(taskId);
+    if (!task) throw new Error('Tâche introuvable');
+    if (!task.subtasks) task.subtasks = [];
+    const sub = {
+      id: uid(),
+      parent_task_id: taskId,
+      name: name.trim(),
+      position: task.subtasks.length,
+      status: status || 'À faire',
+      duedate: duedate || null,
+      admin: admin_id ? adminShape(admin_id) : null,
+    };
+    task.subtasks.push(sub);
+    return clone(sub);
+  },
+
+  async updateSubtask(id, patch) {
+    await delay(60);
+    let parent = null;
+    let sub = null;
+    for (const g of board.groups) {
+      for (const t of g.tasks) {
+        const s = (t.subtasks || []).find((x) => x.id === id);
+        if (s) { parent = t; sub = s; break; }
+      }
+      if (sub) break;
+    }
+    if (!sub) throw new Error('Sous-item introuvable');
+    if (patch.name !== undefined) sub.name = patch.name;
+    if (patch.status !== undefined) sub.status = patch.status;
+    if (patch.duedate !== undefined) sub.duedate = patch.duedate;
+    if (patch.admin_id !== undefined) sub.admin = patch.admin_id ? adminShape(patch.admin_id) : null;
+
+    // Auto-complétion : tous les sous-items "Fait" -> parent "Fait"
+    let parentCompleted = false;
+    const subs = parent.subtasks || [];
+    if (subs.length > 0 && subs.every((s) => s.status === 'Fait')) {
+      parent.status = 'Fait';
+      parentCompleted = true;
+    }
+    return clone({ subtask: sub, parentCompleted, parentId: parent.id });
+  },
+
+  async deleteSubtask(id) {
+    await delay(40);
+    for (const g of board.groups) {
+      for (const t of g.tasks) {
+        if (t.subtasks) t.subtasks = t.subtasks.filter((s) => s.id !== id);
+      }
+    }
+  },
+
+  async createCategory(boardId, { name, type }) {
+    await delay(60);
+    const cat = {
+      id: uid(),
+      board_id: boardId,
+      name: name.trim(),
+      type: ['text', 'status', 'person', 'date'].includes(type) ? type : 'text',
+      position: board.categories.length,
+    };
+    board.categories.push(cat);
+    return clone(cat);
+  },
+
+  async deleteCategory(id) {
+    await delay(40);
+    board.categories = board.categories.filter((c) => c.id !== id);
+    board.categoryValues = board.categoryValues.filter((v) => v.category_id !== id);
+  },
+
+  async setCategoryValue({ category_id, task_id, value }) {
+    await delay(30);
+    const existing = board.categoryValues.find(
+      (v) => v.category_id === category_id && v.task_id === task_id
+    );
+    if (existing) existing.value = value;
+    else board.categoryValues.push({ category_id, task_id, value });
+    return { ok: true };
   },
 
   async getDependencies() {

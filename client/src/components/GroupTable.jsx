@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { ChevronDown, ChevronRight, Plus, Trash2, GripVertical } from 'lucide-react';
 import { Droppable, Draggable } from '@hello-pangea/dnd';
 import TaskRow from './TaskRow.jsx';
+import SubtaskList from './SubtaskList.jsx';
 import GroupSummary from './GroupSummary.jsx';
 
 // Section pliable contenant l'en-tête de colonnes, les tâches et le résumé.
@@ -24,10 +25,15 @@ export default function GroupTable({
   onDeleteTask,
   onOpenDrawer,
   commentCounts = {},
+  canEdit = true,
+  onCreateSubtask,
+  onUpdateSubtask,
+  onDeleteSubtask,
   onRenameGroup,
   onDeleteGroup,
 }) {
   const [collapsed, setCollapsed] = useState(false);
+  const [expanded, setExpanded] = useState({}); // sous-items développés par task id
   const [adding, setAdding] = useState(false);
   const [newName, setNewName] = useState('');
   const [editingTitle, setEditingTitle] = useState(false);
@@ -142,24 +148,43 @@ export default function GroupTable({
                     isDragDisabled={!dragEnabled}
                   >
                     {(dragProvided, dragSnapshot) => (
-                      <TaskRow
-                        task={task}
-                        users={users}
-                        groupColor={group.color}
-                        selected={selectedIds.has(task.id)}
-                        dragEnabled={dragEnabled}
-                        dragProvided={dragProvided}
-                        dragSnapshot={dragSnapshot}
-                        commentCount={commentCounts[task.id] || 0}
-                        onToggleSelect={() => onToggleSelect(task.id)}
-                        onRename={(name) => onRenameTask(task.id, name)}
-                        onChangeStatus={(status) => onChangeStatus(task.id, status)}
-                        onChangePriority={(priority) => onChangePriority(task.id, priority)}
-                        onAssign={(adminId) => onAssign(task.id, adminId)}
-                        onChangeDate={(date) => onChangeDate(task.id, date)}
-                        onDelete={() => onDeleteTask(task.id)}
-                        onOpenDrawer={(tabKey) => onOpenDrawer?.(task, tabKey)}
-                      />
+                      <div ref={dragProvided.innerRef} {...dragProvided.draggableProps}>
+                        <TaskRow
+                          task={task}
+                          users={users}
+                          groupColor={group.color}
+                          selected={selectedIds.has(task.id)}
+                          dragEnabled={dragEnabled}
+                          dragHandleProps={dragProvided.dragHandleProps}
+                          dragSnapshot={dragSnapshot}
+                          commentCount={commentCounts[task.id] || 0}
+                          subtaskCount={(task.subtasks || []).length}
+                          expanded={!!expanded[task.id]}
+                          onToggleExpand={() =>
+                            setExpanded((e) => ({ ...e, [task.id]: !e[task.id] }))
+                          }
+                          onToggleSelect={() => onToggleSelect(task.id)}
+                          onRename={(name) => onRenameTask(task.id, name)}
+                          onChangeStatus={(status) => onChangeStatus(task.id, status)}
+                          onChangePriority={(priority) => onChangePriority(task.id, priority)}
+                          onAssign={(adminId) => onAssign(task.id, adminId)}
+                          onChangeDate={(date) => onChangeDate(task.id, date)}
+                          onDelete={() => onDeleteTask(task.id)}
+                          onOpenDrawer={(tabKey) => onOpenDrawer?.(task, tabKey)}
+                        />
+                        {expanded[task.id] && (
+                          <SubtaskList
+                            parentId={task.id}
+                            subtasks={task.subtasks || []}
+                            users={users}
+                            groupColor={group.color}
+                            canEdit={canEdit}
+                            onCreate={onCreateSubtask}
+                            onUpdate={onUpdateSubtask}
+                            onDelete={onDeleteSubtask}
+                          />
+                        )}
+                      </div>
                     )}
                   </Draggable>
                 ))}

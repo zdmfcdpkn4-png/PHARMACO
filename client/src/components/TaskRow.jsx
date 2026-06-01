@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Trash2, GripVertical, Pencil, MessageSquare } from 'lucide-react';
+import { Trash2, GripVertical, Pencil, MessageSquare, ChevronRight, ChevronDown } from 'lucide-react';
 import StatusBadge from './StatusBadge.jsx';
 import PriorityBadge from './PriorityBadge.jsx';
 import AdminCell from './AdminCell.jsx';
@@ -12,9 +12,12 @@ export default function TaskRow({
   groupColor,
   selected,
   dragEnabled = false,
-  dragProvided = null,
+  dragHandleProps = null,
   dragSnapshot = null,
   commentCount = 0,
+  subtaskCount = 0,
+  expanded = false,
+  onToggleExpand,
   onToggleSelect,
   onRename,
   onChangeStatus,
@@ -43,9 +46,6 @@ export default function TaskRow({
 
   return (
     <div
-      ref={dragProvided?.innerRef}
-      {...(dragProvided?.draggableProps || {})}
-      style={dragProvided?.draggableProps?.style}
       className={`group flex items-stretch border-b border-gray-100 bg-white text-sm transition-shadow hover:bg-gray-50 ${
         isDragging ? 'rotate-[1.5deg] rounded-lg shadow-2xl ring-1 ring-primary/30' : ''
       }`}
@@ -57,7 +57,7 @@ export default function TaskRow({
       <div className="no-print flex w-6 shrink-0 items-center justify-center">
         {dragEnabled ? (
           <span
-            {...(dragProvided?.dragHandleProps || {})}
+            {...(dragHandleProps || {})}
             title="Glisser pour réorganiser"
             className="cursor-grab text-gray-300 opacity-0 transition hover:text-gray-500 group-hover:opacity-100 active:cursor-grabbing"
           >
@@ -97,6 +97,17 @@ export default function TaskRow({
           />
         ) : (
           <div className="flex w-full min-w-0 items-center gap-1">
+            {/* Chevron de développement des sous-items */}
+            <button
+              type="button"
+              onClick={onToggleExpand}
+              title={expanded ? 'Replier les sous-items' : 'Développer les sous-items'}
+              className={`shrink-0 rounded p-0.5 hover:bg-gray-200 ${
+                subtaskCount > 0 ? 'text-gray-500' : 'text-gray-300'
+              }`}
+            >
+              {expanded ? <ChevronDown size={15} /> : <ChevronRight size={15} />}
+            </button>
             <button
               type="button"
               onClick={() => onOpenDrawer?.()}
@@ -104,6 +115,11 @@ export default function TaskRow({
               className="min-w-0 flex-1 truncate rounded px-2 py-1 text-left text-gray-800 hover:bg-gray-100"
             >
               {task.name}
+              {subtaskCount > 0 && (
+                <span className="ml-1.5 rounded-full bg-gray-100 px-1.5 text-[10px] text-gray-500">
+                  {subtaskCount}
+                </span>
+              )}
             </button>
 
             {/* Bulle de commentaires */}

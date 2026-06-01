@@ -48,6 +48,16 @@ export const httpApi = {
   getUnreadCounts: (user_id) => request(`/tasks/comments/unread?user_id=${user_id}`),
   getActivity: (taskId) => request(`/tasks/${taskId}/activity`),
 
+  createSubtask: (taskId, data) =>
+    request(`/tasks/${taskId}/subtasks`, { method: 'POST', body: data }),
+  updateSubtask: (id, patch) => request(`/subtasks/${id}`, { method: 'PUT', body: patch }),
+  deleteSubtask: (id) => request(`/subtasks/${id}`, { method: 'DELETE' }),
+
+  createCategory: (boardId, data) =>
+    request(`/boards/${boardId}/categories`, { method: 'POST', body: data }),
+  deleteCategory: (id) => request(`/boards/categories/${id}`, { method: 'DELETE' }),
+  setCategoryValue: (data) => request('/boards/categories/value', { method: 'POST', body: data }),
+
   getDependencies: (board_id) => request(`/dependencies?board_id=${board_id}`),
   addDependency: (predecessor_id, successor_id) =>
     request('/dependencies', { method: 'POST', body: { predecessor_id, successor_id } }),

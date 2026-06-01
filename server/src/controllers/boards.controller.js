@@ -78,9 +78,44 @@ export const getBoardFull = asyncHandler(async (req, res) => {
             avatar_url: row.admin_avatar_url,
           }
         : null,
+      subtasks: [],
     };
     if (!tasksByGroup.has(row.group_id)) tasksByGroup.set(row.group_id, []);
     tasksByGroup.get(row.group_id).push(task);
+  }
+
+  // Sous-items de toutes les tâches du board
+  const subsRes = await query(
+    `SELECT s.id, s.parent_task_id, s.name, s.position,
+            c.status, c.duedate,
+            u.id AS admin_user_id, u.name AS admin_name, u.avatar_url AS admin_avatar_url
+     FROM sub_tasks s
+     JOIN tasks t ON t.id = s.parent_task_id
+     JOIN groups g ON g.id = t.group_id
+     LEFT JOIN sub_task_columns c ON c.sub_task_id = s.id
+     LEFT JOIN users u ON u.id = c.admin_id
+     WHERE g.board_id = $1
+     ORDER BY s.position, s.id`,
+    [boardId]
+  );
+  const subsByTask = new Map();
+  for (const r of subsRes.rows) {
+    const sub = {
+      id: r.id,
+      parent_task_id: r.parent_task_id,
+      name: r.name,
+      position: r.position,
+      status: r.status || 'À faire',
+      duedate: r.duedate,
+      admin: r.admin_user_id
+        ? { id: r.admin_user_id, name: r.admin_name, avatar_url: r.admin_avatar_url }
+        : null,
+    };
+    if (!subsByTask.has(r.parent_task_id)) subsByTask.set(r.parent_task_id, []);
+    subsByTask.get(r.parent_task_id).push(sub);
+  }
+  for (const list of tasksByGroup.values()) {
+    for (const t of list) t.subtasks = subsByTask.get(t.id) || [];
   }
 
   const groups = groupsRes.rows.map((g) => ({
@@ -98,7 +133,26 @@ export const getBoardFull = asyncHandler(async (req, res) => {
     [boardId]
   );
 
-  res.json({ ...boardRes.rows[0], groups, dependencies: depsRes.rows });
+  // Catégories personnalisées + leurs valeurs
+  const catsRes = await query(
+    'SELECT id, board_id, name, type, position FROM custom_categories WHERE board_id = $1 ORDER BY position, id',
+    [boardId]
+  );
+  const valsRes = await query(
+    `SELECT v.category_id, v.task_id, v.value
+     FROM custom_values v
+     JOIN custom_categories c ON c.id = v.category_id
+     WHERE c.board_id = $1`,
+    [boardId]
+  );
+
+  res.json({
+    ...boardRes.rows[0],
+    groups,
+    dependencies: depsRes.rows,
+    categories: catsRes.rows,
+    categoryValues: valsRes.rows,
+  });
 });
 
 export const createBoard = asyncHandler(async (req, res) => {
