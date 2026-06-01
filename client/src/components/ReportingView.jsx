@@ -5,6 +5,9 @@ import {
   Cell,
   BarChart,
   Bar,
+  LineChart,
+  Line,
+  CartesianGrid,
   XAxis,
   YAxis,
   Tooltip,
@@ -12,7 +15,8 @@ import {
   ResponsiveContainer,
 } from 'recharts';
 import { toPng } from 'html-to-image';
-import { TrendingUp, CheckCircle2, X, Download, Loader2 } from 'lucide-react';
+import { jsPDF } from 'jspdf';
+import { TrendingUp, CheckCircle2, X, Download, FileText, Loader2 } from 'lucide-react';
 import {
   STATUSES,
   STATUS_META,
@@ -92,6 +96,48 @@ export default function ReportingView({ board, users = [] }) {
       .sort((a, b) => b.active - a.active);
   }, [allTasks, users]);
 
+  // Évolution sur 14 jours : tâches créées (par created_at) et complétées
+  // cumulées (tâches "Fait" par échéance). Échéance utilisée comme proxy de
+  // date de complétion faute d'horodatage dédié.
+  const timeData = useMemo(() => {
+    const days = 14;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const start = new Date(today);
+    start.setDate(start.getDate() - (days - 1));
+
+    const ymd = (d) => d.toISOString().slice(0, 10);
+    const buckets = [];
+    for (let i = 0; i < days; i += 1) {
+      const d = new Date(start);
+      d.setDate(start.getDate() + i);
+      buckets.push({ key: ymd(d), date: d, créées: 0, terminées: 0 });
+    }
+    const idx = new Map(buckets.map((b, i) => [b.key, i]));
+
+    for (const t of allTasks) {
+      if (t.created_at) {
+        const k = t.created_at.slice(0, 10);
+        if (idx.has(k)) buckets[idx.get(k)].créées += 1;
+      }
+      if (t.status === 'Fait' && t.duedate) {
+        const k = t.duedate.slice(0, 10);
+        if (idx.has(k)) buckets[idx.get(k)].terminées += 1;
+      }
+    }
+
+    // Cumul des terminées pour une courbe d'avancement croissante
+    let cumulDone = 0;
+    return buckets.map((b) => {
+      cumulDone += b.terminées;
+      return {
+        label: b.date.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }),
+        créées: b.créées,
+        'terminées (cumul)': cumulDone,
+      };
+    });
+  }, [allTasks]);
+
   // KPI : taux de complétion
   const doneCount = statusCounts['Fait'] || 0;
   const completion = total > 0 ? Math.round((doneCount / total) * 100) : 0;
@@ -122,6 +168,55 @@ export default function ReportingView({ board, users = [] }) {
     }
   };
 
+  // Export PDF : capture le tableau de bord et l'insère dans un PDF A4 paysage.
+  const exportPdf = async () => {
+    if (!dashboardRef.current) return;
+    setExporting(true);
+    try {
+      const dataUrl = await toPng(dashboardRef.current, {
+        backgroundColor: '#ffffff',
+        pixelRatio: 2,
+        cacheBust: true,
+      });
+      const img = new Image();
+      img.src = dataUrl;
+      await new Promise((resolve) => {
+        img.onload = resolve;
+      });
+
+      const pdf = new jsPDF({ orientation: 'landscape', unit: 'pt', format: 'a4' });
+      const pageW = pdf.internal.pageSize.getWidth();
+      const pageH = pdf.internal.pageSize.getHeight();
+      const margin = 24;
+
+      // En-tête
+      pdf.setFontSize(16);
+      pdf.setTextColor(59, 31, 122); // violet PHARMACO
+      pdf.text('PHARMACO — Tableau de bord', margin, margin + 6);
+      pdf.setFontSize(9);
+      pdf.setTextColor(120);
+      pdf.text(
+        `Généré le ${new Date().toLocaleDateString('fr-FR')} · Complétion ${completion}% · ${total} tâche(s)`,
+        margin,
+        margin + 22
+      );
+
+      // Image, mise à l'échelle pour tenir dans la page
+      const availW = pageW - margin * 2;
+      const availH = pageH - margin * 2 - 34;
+      const ratio = Math.min(availW / img.width, availH / img.height);
+      const w = img.width * ratio;
+      const h = img.height * ratio;
+      pdf.addImage(dataUrl, 'PNG', margin, margin + 34, w, h);
+
+      pdf.save(`pharmaco-dashboard-${new Date().toISOString().slice(0, 10)}.pdf`);
+    } catch (e) {
+      console.error('Export PDF échoué', e);
+    } finally {
+      setExporting(false);
+    }
+  };
+
   const Card = ({ children, className = '' }) => (
     <div className={`rounded-xl border border-gray-200 bg-white p-5 shadow-sm ${className}`}>
       {children}
@@ -131,7 +226,7 @@ export default function ReportingView({ board, users = [] }) {
   return (
     <div className="flex-1 overflow-auto bg-canvas p-6">
       {/* Barre d'actions */}
-      <div className="mb-4 flex justify-end">
+      <div className="mb-4 flex justify-end gap-2">
         <button
           type="button"
           onClick={exportPng}
@@ -139,7 +234,16 @@ export default function ReportingView({ board, users = [] }) {
           className="flex items-center gap-1.5 rounded-md border border-gray-200 bg-white px-3 py-1.5 text-sm text-gray-600 shadow-sm hover:border-primary hover:text-primary disabled:opacity-60"
         >
           {exporting ? <Loader2 size={15} className="animate-spin" /> : <Download size={15} />}
-          Exporter en PNG
+          PNG
+        </button>
+        <button
+          type="button"
+          onClick={exportPdf}
+          disabled={exporting}
+          className="flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-white shadow-sm hover:bg-primary-hover disabled:opacity-60"
+        >
+          {exporting ? <Loader2 size={15} className="animate-spin" /> : <FileText size={15} />}
+          Exporter en PDF
         </button>
       </div>
 
@@ -326,6 +430,37 @@ export default function ReportingView({ board, users = [] }) {
           )}
         </Card>
       </div>
+
+      {/* ---- 3e rangée : évolution dans le temps ---- */}
+      <Card className="mt-6">
+        <h3 className="mb-1 text-sm font-semibold text-gray-700">Évolution (14 derniers jours)</h3>
+        <p className="mb-3 text-xs text-gray-400">
+          Tâches créées par jour et progression cumulée des tâches terminées.
+        </p>
+        <ResponsiveContainer width="100%" height={280}>
+          <LineChart data={timeData} margin={{ top: 8, right: 16, left: -16, bottom: 0 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke="#eef0f4" />
+            <XAxis dataKey="label" tick={{ fontSize: 11, fill: '#676879' }} />
+            <YAxis allowDecimals={false} tick={{ fontSize: 12, fill: '#676879' }} />
+            <Tooltip />
+            <Legend />
+            <Line
+              type="monotone"
+              dataKey="créées"
+              stroke="#579bfc"
+              strokeWidth={2}
+              dot={{ r: 3 }}
+            />
+            <Line
+              type="monotone"
+              dataKey="terminées (cumul)"
+              stroke="#00c875"
+              strokeWidth={2}
+              dot={{ r: 3 }}
+            />
+          </LineChart>
+        </ResponsiveContainer>
+      </Card>
       </div>
       {/* fin de la zone exportée (dashboardRef) */}
 

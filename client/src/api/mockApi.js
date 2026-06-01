@@ -14,6 +14,13 @@ const weekday = (dow) => {
   return d.toISOString().slice(0, 10);
 };
 
+// Date ISO il y a N jours (pour created_at de démo).
+const daysAgo = (n) => {
+  const d = new Date();
+  d.setDate(d.getDate() - n);
+  return d.toISOString();
+};
+
 // avatar_url laissé à null : les pastilles d'initiales sont générées
 // localement par le composant Avatar (aucune dépendance réseau).
 const users = [
@@ -47,13 +54,13 @@ const board = {
       color: '#579bfc',
       position: 0,
       tasks: [
-        { id: 11, group_id: 1, name: 'Tâche 1', position: 0, status: 'En cours', priority: 'P1 - Urgent', duedate: weekday(0), admin: adminShape(1) },
-        { id: 12, group_id: 1, name: 'Tâche 2', position: 1, status: 'Fait', priority: 'P3 - Normal', duedate: weekday(1), admin: adminShape(2) },
-        { id: 13, group_id: 1, name: 'Tâche 3', position: 2, status: 'Bloqué', priority: 'P2 - Élevé', duedate: weekday(2), admin: null },
+        { id: 11, group_id: 1, name: 'Tâche 1', position: 0, status: 'En cours', priority: 'P1 - Urgent', duedate: weekday(0), created_at: daysAgo(10), admin: adminShape(1) },
+        { id: 12, group_id: 1, name: 'Tâche 2', position: 1, status: 'Fait', priority: 'P3 - Normal', duedate: weekday(1), created_at: daysAgo(9), admin: adminShape(2) },
+        { id: 13, group_id: 1, name: 'Tâche 3', position: 2, status: 'Bloqué', priority: 'P2 - Élevé', duedate: weekday(2), created_at: daysAgo(7), admin: null },
         // Erwin chargé sur mardi (pour illustrer la saturation > 3)
-        { id: 14, group_id: 1, name: 'Audit qualité', position: 3, status: 'En cours', priority: 'P2 - Élevé', duedate: weekday(1), admin: adminShape(1) },
-        { id: 15, group_id: 1, name: 'Revue lots', position: 4, status: 'À faire', priority: 'P3 - Normal', duedate: weekday(1), admin: adminShape(1) },
-        { id: 16, group_id: 1, name: 'Contrôle péremption', position: 5, status: 'En cours', priority: 'P3 - Normal', duedate: weekday(1), admin: adminShape(1) },
+        { id: 14, group_id: 1, name: 'Audit qualité', position: 3, status: 'En cours', priority: 'P2 - Élevé', duedate: weekday(1), created_at: daysAgo(5), admin: adminShape(1) },
+        { id: 15, group_id: 1, name: 'Revue lots', position: 4, status: 'À faire', priority: 'P3 - Normal', duedate: weekday(1), created_at: daysAgo(3), admin: adminShape(1) },
+        { id: 16, group_id: 1, name: 'Contrôle péremption', position: 5, status: 'En cours', priority: 'P3 - Normal', duedate: weekday(1), created_at: daysAgo(1), admin: adminShape(1) },
       ],
     },
     {
