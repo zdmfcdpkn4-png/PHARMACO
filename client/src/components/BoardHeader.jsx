@@ -10,6 +10,7 @@ import {
   ChevronDown,
   Download,
   FileSpreadsheet,
+  FileText,
   Printer,
 } from 'lucide-react';
 import { STATUSES } from '../lib/constants.js';
@@ -31,6 +32,7 @@ export default function BoardHeader({
   showDone,
   onToggleShowDone,
   onExportCsv,
+  onExportPdf,
   onPrint,
 }) {
   const [editing, setEditing] = useState(false);
@@ -195,11 +197,21 @@ export default function BoardHeader({
                 type="button"
                 onClick={() => {
                   setExportOpen(false);
+                  onExportPdf?.();
+                }}
+                className="flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-left text-sm text-gray-700 hover:bg-gray-100"
+              >
+                <FileText size={16} className="text-status-blocked" /> Télécharger en PDF
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setExportOpen(false);
                   onPrint?.();
                 }}
                 className="flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-left text-sm text-gray-700 hover:bg-gray-100"
               >
-                <Printer size={16} className="text-primary" /> Imprimer / PDF
+                <Printer size={16} className="text-primary" /> Imprimer
               </button>
             </div>
           )}

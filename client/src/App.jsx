@@ -12,7 +12,7 @@ import ReportingView from './components/ReportingView.jsx';
 import TaskDrawer from './components/TaskDrawer.jsx';
 import Login from './components/Login.jsx';
 import { api, IS_MOCK } from './api/index.js';
-import { GROUP_COLORS } from './lib/constants.js';
+import { GROUP_COLORS, STATUS_META, PRIORITY_META } from './lib/constants.js';
 
 const AUTH_KEY = 'pharmaco_auth';
 
@@ -491,6 +491,86 @@ function Board({ currentUser, onLogout }) {
     window.print();
   };
 
+  // Export PDF direct du tableau (jsPDF + autoTable), filtres/tri respectés.
+  const handleExportPdf = async () => {
+    const { jsPDF } = await import('jspdf');
+    const autoTable = (await import('jspdf-autotable')).default;
+    const rows = buildVisibleRows();
+
+    const hexToRgb = (hex) => {
+      const h = hex.replace('#', '');
+      return [
+        parseInt(h.slice(0, 2), 16),
+        parseInt(h.slice(2, 4), 16),
+        parseInt(h.slice(4, 6), 16),
+      ];
+    };
+
+    const doc = new jsPDF({ orientation: 'landscape', unit: 'pt', format: 'a4' });
+    const margin = 32;
+
+    // En-tête
+    doc.setFontSize(16);
+    doc.setTextColor(59, 31, 122);
+    doc.text(`PHARMACO — ${board?.name || 'Tableau'}`, margin, margin);
+    doc.setFontSize(9);
+    doc.setTextColor(120);
+    const filtres = [
+      search.trim() && `recherche « ${search.trim()} »`,
+      personFilter && `personne`,
+      statusFilter && `statut ${statusFilter}`,
+      !showDone && 'tâches terminées masquées',
+    ].filter(Boolean);
+    doc.text(
+      `Synthèse du ${new Date().toLocaleDateString('fr-FR')}${
+        filtres.length ? ' · Filtres : ' + filtres.join(', ') : ''
+      } · ${rows.length} tâche(s)`,
+      margin,
+      margin + 16
+    );
+
+    autoTable(doc, {
+      startY: margin + 28,
+      margin: { left: margin, right: margin },
+      head: [['Groupe', 'Tâche', 'Admin', 'Statut', 'Priorité', 'Échéance']],
+      body: rows.map((r) => [r.groupe, r.tache, r.admin || '—', r.statut, r.priorite, r.echeance || '—']),
+      styles: { fontSize: 9, cellPadding: 5, overflow: 'linebreak' },
+      headStyles: { fillColor: [59, 31, 122], textColor: 255, fontStyle: 'bold' },
+      alternateRowStyles: { fillColor: [250, 247, 251] },
+      columnStyles: {
+        3: { halign: 'center' },
+        4: { halign: 'center' },
+        5: { halign: 'center' },
+      },
+      // Colorise les cellules Statut (3) et Priorité (4)
+      didParseCell: (data) => {
+        if (data.section !== 'body') return;
+        if (data.column.index === 3) {
+          const meta = STATUS_META[data.cell.raw];
+          if (meta) {
+            data.cell.styles.fillColor = hexToRgb(meta.bg);
+            data.cell.styles.textColor = 255;
+            data.cell.styles.fontStyle = 'bold';
+          }
+        }
+        if (data.column.index === 4) {
+          const meta = PRIORITY_META[data.cell.raw];
+          if (meta) {
+            data.cell.styles.fillColor = hexToRgb(meta.bg);
+            data.cell.styles.textColor = 255;
+            data.cell.styles.fontStyle = 'bold';
+          }
+        }
+      },
+    });
+
+    doc.save(
+      `${(board?.name || 'tableau').replace(/\s+/g, '-')}-${new Date()
+        .toISOString()
+        .slice(0, 10)}.pdf`
+    );
+  };
+
   const unreadCount = alerts.filter((a) => !a.is_read).length;
 
   const handleMarkRead = async (id) => {
@@ -640,6 +720,7 @@ function Board({ currentUser, onLogout }) {
               showDone={showDone}
               onToggleShowDone={() => setShowDone((v) => !v)}
               onExportCsv={handleExportCsv}
+              onExportPdf={handleExportPdf}
               onPrint={handlePrint}
             />
 
