@@ -10,6 +10,7 @@ import Avatar from './components/Avatar.jsx';
 import TeamWorkloadView from './components/TeamWorkloadView.jsx';
 import ReportingView from './components/ReportingView.jsx';
 import GanttChartView from './components/GanttChartView.jsx';
+import DynamicTimeView from './components/DynamicTimeView.jsx';
 import KanbanView from './components/KanbanView.jsx';
 import CalendarView from './components/CalendarView.jsx';
 import BoardTabs from './components/BoardTabs.jsx';
@@ -981,12 +982,14 @@ function Board({ currentUser, onLogout }) {
               <h1 className="text-lg font-bold text-gray-800">
                 {view === 'gantt'
                   ? 'Gantt / Chronogramme'
+                  : view === 'timeline'
+                  ? 'Planning dynamique'
                   : view === 'reporting'
                   ? 'Reporting'
                   : 'Charge de travail'}
               </h1>
             </div>
-            <div className="flex-1 overflow-auto pb-20">
+            <div className="flex flex-1 flex-col overflow-auto pb-20">
               {view === 'gantt' && (
                 <GanttChartView
                   board={board}
@@ -994,6 +997,13 @@ function Board({ currentUser, onLogout }) {
                   onCreateTask={handleCreateTaskFull}
                   onAddDependency={handleAddDependency}
                   onDeleteDependency={handleDeleteDependency}
+                />
+              )}
+              {view === 'timeline' && (
+                <DynamicTimeView
+                  board={board}
+                  tags={board.tags || []}
+                  onOpenTask={(t) => setDetailTask(t)}
                 />
               )}
               {view === 'reporting' && <ReportingView board={board} users={users} />}
@@ -1166,7 +1176,23 @@ function Board({ currentUser, onLogout }) {
           </div>
         </div>
 
-        {view === 'gantt' ? (
+        {view === 'timeline' ? (
+          <>
+            <div className="border-b border-gray-200 bg-white px-6 pt-4">
+              <h2 className="mb-3 flex items-center gap-2 text-2xl font-bold text-gray-800">
+                Planning dynamique
+              </h2>
+            </div>
+            {error && (
+              <div className="bg-red-50 px-6 py-2 text-sm text-status-blocked">{error}</div>
+            )}
+            <DynamicTimeView
+              board={board}
+              tags={board.tags || []}
+              onOpenTask={(t) => setDetailTask(t)}
+            />
+          </>
+        ) : view === 'gantt' ? (
           <>
             <div className="border-b border-gray-200 bg-white px-6 pt-4">
               <h2 className="mb-3 flex items-center gap-2 text-2xl font-bold text-gray-800">

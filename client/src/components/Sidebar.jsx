@@ -8,6 +8,7 @@ import {
   BarChart3,
   PieChart,
   GanttChartSquare,
+  CalendarRange,
   Plus,
   ChevronLeft,
   PanelLeft,
@@ -158,6 +159,22 @@ export default function Sidebar({
               }`}
             >
               <GanttChartSquare size={16} /> Gantt / Chronogramme
+            </button>
+          </li>
+          <li>
+            <button
+              type="button"
+              onClick={() => {
+                onSelectRail?.('Espaces');
+                onSelectView?.('timeline');
+              }}
+              className={`flex w-full items-center gap-2 rounded-md px-2 py-2 text-left text-sm ${
+                view === 'timeline'
+                  ? 'bg-blue-50 font-medium text-primary'
+                  : 'text-gray-600 hover:bg-gray-100'
+              }`}
+            >
+              <CalendarRange size={16} /> Planning dynamique
             </button>
           </li>
           <li>
