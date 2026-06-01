@@ -1,0 +1,14 @@
+{
+  "name": "PHARMACO",
+  "short_name": "PHARMACO",
+  "description": "Outil de gestion de projet et d'équipe",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#faf7fb",
+  "theme_color": "#3b1f7a",
+  "icons": [
+    { "src": "/logo-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/logo-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "/logo.svg", "sizes": "any", "type": "image/svg+xml" }
+  ]
+}
