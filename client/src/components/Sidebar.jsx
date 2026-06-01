@@ -10,7 +10,9 @@ import {
   GanttChartSquare,
   Plus,
   ChevronLeft,
+  PanelLeft,
 } from 'lucide-react';
+import { useEffect, useState } from 'react';
 import Logo from './Logo.jsx';
 
 // Barre latérale de navigation, façon Monday.com.
@@ -23,6 +25,17 @@ export default function Sidebar({
   view = 'board',
   onSelectView,
 }) {
+  // Panneau d'espace de travail repliable. Replié par défaut sur tablette
+  // (768–1024px) pour gagner de la place, déplié au-delà.
+  const [panelOpen, setPanelOpen] = useState(
+    typeof window !== 'undefined' ? window.innerWidth >= 1024 : true
+  );
+  useEffect(() => {
+    const mq = window.matchMedia('(min-width: 1024px)');
+    const handler = (e) => setPanelOpen(e.matches);
+    mq.addEventListener('change', handler);
+    return () => mq.removeEventListener('change', handler);
+  }, []);
   const Rail = ({ icon: Icon, label }) => {
     const active = activeRail === label;
     return (
@@ -53,13 +66,33 @@ export default function Sidebar({
         <Rail icon={Sparkles} label="Sidekick" />
         <Rail icon={Bot} label="Agents" />
         <Rail icon={Heart} label="Favoris" />
+
+        {/* Bascule du panneau (utile en tablette) */}
+        <button
+          type="button"
+          onClick={() => setPanelOpen((v) => !v)}
+          title={panelOpen ? 'Replier le panneau' : 'Déplier le panneau'}
+          className={`mt-auto mb-3 rounded-lg p-2 transition ${
+            panelOpen ? 'text-gray-400 hover:bg-gray-100' : 'bg-blue-50 text-primary'
+          }`}
+        >
+          <PanelLeft size={18} />
+        </button>
       </nav>
 
-      {/* Panneau de l'espace de travail */}
+      {/* Panneau de l'espace de travail (repliable) */}
+      {panelOpen && (
       <aside className="flex w-60 shrink-0 flex-col border-r border-gray-200 bg-white">
         <div className="flex items-center justify-between px-4 py-3">
           <span className="text-sm font-semibold text-gray-700">Espace de travail</span>
-          <ChevronLeft size={16} className="text-gray-400" />
+          <button
+            type="button"
+            onClick={() => setPanelOpen(false)}
+            title="Replier le panneau"
+            className="rounded p-0.5 text-gray-400 hover:bg-gray-100"
+          >
+            <ChevronLeft size={16} />
+          </button>
         </div>
 
         <div className="px-3">
@@ -161,6 +194,7 @@ export default function Sidebar({
           </li>
         </ul>
       </aside>
+      )}
     </div>
   );
 }
