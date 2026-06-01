@@ -37,6 +37,7 @@ export const httpApi = {
   createTask: (data) => request('/tasks', { method: 'POST', body: data }),
   updateTask: (id, patch) => request(`/tasks/${id}`, { method: 'PATCH', body: patch }),
   deleteTask: (id) => request(`/tasks/${id}`, { method: 'DELETE' }),
+  reorderTasks: (items) => request('/tasks/reorder', { method: 'PUT', body: { items } }),
 
   getAlerts: ({ user_id } = {}) =>
     request(`/alerts${user_id ? `?user_id=${user_id}` : ''}`),

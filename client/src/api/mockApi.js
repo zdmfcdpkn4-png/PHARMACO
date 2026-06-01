@@ -205,6 +205,32 @@ export const mockApi = {
     if (group && task) group.tasks = group.tasks.filter((t) => t.id !== id);
   },
 
+  async reorderTasks(items) {
+    await delay(80);
+    // Applique group_id + position à chaque tâche, puis ré-affecte
+    // chaque tâche à son groupe cible.
+    const byId = new Map(items.map((it) => [it.id, it]));
+    const all = [];
+    for (const g of board.groups) {
+      for (const t of g.tasks) all.push(t);
+    }
+    // Détache toutes les tâches concernées
+    for (const t of all) {
+      const it = byId.get(t.id);
+      if (it) {
+        t.group_id = it.group_id;
+        t.position = it.position;
+      }
+    }
+    // Recompose chaque groupe
+    for (const g of board.groups) {
+      g.tasks = all
+        .filter((t) => t.group_id === g.id)
+        .sort((a, b) => a.position - b.position);
+    }
+    return { ok: true, updated: items.length };
+  },
+
   async getAlerts({ user_id } = {}) {
     await delay();
     return clone(user_id ? alerts.filter((a) => a.user_id === user_id) : alerts);

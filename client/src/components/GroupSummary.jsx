@@ -28,6 +28,7 @@ export default function GroupSummary({ tasks }) {
   return (
     <div className="flex items-stretch bg-white text-sm">
       <div className="w-1 shrink-0 bg-transparent" />
+      <div className="w-6 shrink-0" />
       <div className="w-10 shrink-0" />
       <div className="flex-1" />
 

@@ -1,15 +1,18 @@
 import { useEffect, useRef, useState } from 'react';
-import { Trash2 } from 'lucide-react';
+import { Trash2, GripVertical } from 'lucide-react';
 import StatusBadge from './StatusBadge.jsx';
 import AdminCell from './AdminCell.jsx';
 import { formatShortDate } from '../lib/constants.js';
 
-// Une ligne de tâche : checkbox, nom éditable, admin, statut, échéance.
+// Une ligne de tâche : poignée drag, checkbox, nom éditable, admin, statut, échéance.
 export default function TaskRow({
   task,
   users,
   groupColor,
   selected,
+  dragEnabled = false,
+  dragProvided = null,
+  dragSnapshot = null,
   onToggleSelect,
   onRename,
   onChangeStatus,
@@ -32,10 +35,34 @@ export default function TaskRow({
     else setDraft(task.name);
   };
 
+  const isDragging = dragSnapshot?.isDragging;
+
   return (
-    <div className="group flex items-stretch border-b border-gray-100 bg-white text-sm hover:bg-gray-50">
+    <div
+      ref={dragProvided?.innerRef}
+      {...(dragProvided?.draggableProps || {})}
+      style={dragProvided?.draggableProps?.style}
+      className={`group flex items-stretch border-b border-gray-100 bg-white text-sm transition-shadow hover:bg-gray-50 ${
+        isDragging ? 'rotate-[1.5deg] rounded-lg shadow-2xl ring-1 ring-primary/30' : ''
+      }`}
+    >
       {/* Barre de couleur du groupe */}
       <div className="w-1 shrink-0" style={{ backgroundColor: groupColor }} />
+
+      {/* Poignée de drag */}
+      <div className="flex w-6 shrink-0 items-center justify-center">
+        {dragEnabled ? (
+          <span
+            {...(dragProvided?.dragHandleProps || {})}
+            title="Glisser pour réorganiser"
+            className="cursor-grab text-gray-300 opacity-0 transition hover:text-gray-500 group-hover:opacity-100 active:cursor-grabbing"
+          >
+            <GripVertical size={16} />
+          </span>
+        ) : (
+          <span className="w-4" />
+        )}
+      </div>
 
       {/* Checkbox */}
       <div className="flex w-10 shrink-0 items-center justify-center">

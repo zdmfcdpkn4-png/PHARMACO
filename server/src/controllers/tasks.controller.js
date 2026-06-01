@@ -158,3 +158,50 @@ export const deleteTask = asyncHandler(async (req, res) => {
   if (!rowCount) return res.status(404).json({ error: 'Tâche introuvable' });
   res.status(204).end();
 });
+
+/**
+ * Réordonne / déplace des tâches en une seule transaction.
+ * Body : { items: [{ id, group_id, position }, ...] }
+ * Met à jour group_id et position pour chaque tâche fournie via un
+ * UPDATE ... FROM (unnest) unique, donc une seule requête en base.
+ */
+export const reorderTasks = asyncHandler(async (req, res) => {
+  const { items } = req.body;
+  if (!Array.isArray(items) || items.length === 0) {
+    return res.status(400).json({ error: 'items (tableau non vide) est requis' });
+  }
+
+  // Validation + extraction en colonnes parallèles pour unnest()
+  const ids = [];
+  const groupIds = [];
+  const positions = [];
+  for (const it of items) {
+    if (it == null || it.id == null || it.group_id == null || it.position == null) {
+      return res
+        .status(400)
+        .json({ error: 'chaque item doit avoir id, group_id et position' });
+    }
+    ids.push(Number(it.id));
+    groupIds.push(Number(it.group_id));
+    positions.push(Number(it.position));
+  }
+
+  await withTransaction(async (client) => {
+    // Un seul UPDATE pour toutes les lignes : on déballe les 3 tableaux
+    // en une table virtuelle (id, group_id, position) puis on joint.
+    await client.query(
+      `UPDATE tasks AS t
+         SET group_id = v.group_id,
+             position = v.position
+       FROM (
+         SELECT * FROM unnest(
+           $1::int[], $2::int[], $3::int[]
+         ) AS u(id, group_id, position)
+       ) AS v
+       WHERE t.id = v.id`,
+      [ids, groupIds, positions]
+    );
+  });
+
+  res.json({ ok: true, updated: ids.length });
+});

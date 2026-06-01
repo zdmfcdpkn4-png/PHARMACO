@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Bell, Plus, LogOut } from 'lucide-react';
+import { DragDropContext } from '@hello-pangea/dnd';
 import Sidebar from './components/Sidebar.jsx';
 import RailPanel from './components/RailPanel.jsx';
 import BoardHeader from './components/BoardHeader.jsx';
@@ -269,6 +270,63 @@ function Board({ currentUser, onLogout }) {
     await api.updateUser(id, { password });
   };
 
+  // -------- Glisser-déposer des tâches --------
+  // Réorganise une liste et renvoie les items déplacés avec leur position.
+  const handleDragEnd = (result) => {
+    const { source, destination, draggableId } = result;
+    if (!destination) return; // déposé hors zone
+    const sameSpot =
+      source.droppableId === destination.droppableId && source.index === destination.index;
+    if (sameSpot) return;
+
+    const fromGroupId = Number(source.droppableId);
+    const toGroupId = Number(destination.droppableId);
+    const taskId = Number(draggableId);
+
+    let payload = null;
+
+    setBoard((prev) => {
+      const next = structuredClone(prev);
+      const fromGroup = next.groups.find((g) => g.id === fromGroupId);
+      const toGroup = next.groups.find((g) => g.id === toGroupId);
+      if (!fromGroup || !toGroup) return prev;
+
+      // Retire la tâche de sa position d'origine
+      const [moved] = fromGroup.tasks.splice(source.index, 1);
+      if (!moved) return prev;
+      moved.group_id = toGroupId;
+
+      // Insère à la position cible
+      toGroup.tasks.splice(destination.index, 0, moved);
+
+      // Recalcule les positions des groupes affectés
+      const affected = new Set([fromGroupId, toGroupId]);
+      const items = [];
+      for (const g of next.groups) {
+        if (!affected.has(g.id)) continue;
+        g.tasks.forEach((t, i) => {
+          t.position = i;
+          items.push({ id: t.id, group_id: g.id, position: i });
+        });
+      }
+      payload = items;
+      return next;
+    });
+
+    // Persistance (optimiste : l'UI est déjà à jour). Rollback si échec.
+    if (payload) {
+      const snapshot = board;
+      api.reorderTasks(payload).catch((e) => {
+        setBoard(snapshot);
+        setError(e.message || 'Échec du déplacement');
+        setTimeout(() => setError(null), 3000);
+      });
+      // Le statut "Bloqué" peut dépendre du contexte : on rafraîchit juste
+      // l'identité de la tâche déplacée si besoin (no-op ici).
+      void taskId;
+    }
+  };
+
   // -------- Sélection --------
   const toggleSelect = (taskId) =>
     setSelectedIds((prev) => {
@@ -308,6 +366,11 @@ function Board({ currentUser, onLogout }) {
     const order = [null, 'nom', 'statut', 'échéance'];
     setSortBy((prev) => order[(order.indexOf(prev) + 1) % order.length]);
   };
+
+  // Le drag n'a de sens que sur l'ordre "naturel" : on le désactive quand
+  // un tri, une recherche ou un filtre modifie l'ordre/visibilité affiché.
+  const dragEnabled =
+    !sortBy && !search.trim() && !personFilter && !statusFilter && showDone;
 
   const unreadCount = alerts.filter((a) => !a.is_read).length;
 
@@ -424,25 +487,28 @@ function Board({ currentUser, onLogout }) {
 
         {/* Contenu scrollable */}
         <main className="flex-1 overflow-auto px-6 py-5">
-          {board.groups.map((group) => (
-            <GroupTable
-              key={group.id}
-              group={group}
-              users={users}
-              selectedIds={selectedIds}
-              filterFn={filterFn}
-              sortFn={sortFn}
-              onToggleSelect={toggleSelect}
-              onAddTask={(name) => handleAddTask(group.id, name)}
-              onRenameTask={handleRenameTask}
-              onChangeStatus={handleChangeStatus}
-              onAssign={handleAssign}
-              onChangeDate={handleChangeDate}
-              onDeleteTask={handleDeleteTask}
-              onRenameGroup={(name) => handleRenameGroup(group.id, name)}
-              onDeleteGroup={() => handleDeleteGroup(group.id)}
-            />
-          ))}
+          <DragDropContext onDragEnd={handleDragEnd}>
+            {board.groups.map((group) => (
+              <GroupTable
+                key={group.id}
+                group={group}
+                users={users}
+                selectedIds={selectedIds}
+                filterFn={filterFn}
+                sortFn={sortFn}
+                dragEnabled={dragEnabled}
+                onToggleSelect={toggleSelect}
+                onAddTask={(name) => handleAddTask(group.id, name)}
+                onRenameTask={handleRenameTask}
+                onChangeStatus={handleChangeStatus}
+                onAssign={handleAssign}
+                onChangeDate={handleChangeDate}
+                onDeleteTask={handleDeleteTask}
+                onRenameGroup={(name) => handleRenameGroup(group.id, name)}
+                onDeleteGroup={() => handleDeleteGroup(group.id)}
+              />
+            ))}
+          </DragDropContext>
 
           <button
             type="button"

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { ChevronDown, ChevronRight, Plus, Trash2 } from 'lucide-react';
+import { Droppable, Draggable } from '@hello-pangea/dnd';
 import TaskRow from './TaskRow.jsx';
 import GroupSummary from './GroupSummary.jsx';
 
@@ -10,6 +11,7 @@ export default function GroupTable({
   selectedIds,
   filterFn,
   sortFn,
+  dragEnabled,
   onToggleSelect,
   onAddTask,
   onRenameTask,
@@ -92,6 +94,7 @@ export default function GroupTable({
           {/* En-tête de colonnes */}
           <div className="flex items-stretch border-b border-gray-200 bg-white text-xs font-medium uppercase tracking-wide text-gray-500">
             <div className="w-1 shrink-0" style={{ backgroundColor: group.color }} />
+            <div className="w-6 shrink-0" />
             <div className="w-10 shrink-0" />
             <div className="flex-1 py-2.5 pl-2">Tâche</div>
             <div className="w-32 shrink-0 border-l border-gray-100 py-2.5 text-center">Admin</div>
@@ -100,26 +103,49 @@ export default function GroupTable({
             <div className="w-10 shrink-0 border-l border-gray-100" />
           </div>
 
-          {/* Lignes de tâches */}
-          {tasks.map((task) => (
-            <TaskRow
-              key={task.id}
-              task={task}
-              users={users}
-              groupColor={group.color}
-              selected={selectedIds.has(task.id)}
-              onToggleSelect={() => onToggleSelect(task.id)}
-              onRename={(name) => onRenameTask(task.id, name)}
-              onChangeStatus={(status) => onChangeStatus(task.id, status)}
-              onAssign={(adminId) => onAssign(task.id, adminId)}
-              onChangeDate={(date) => onChangeDate(task.id, date)}
-              onDelete={() => onDeleteTask(task.id)}
-            />
-          ))}
+          {/* Lignes de tâches (zone de dépôt) */}
+          <Droppable droppableId={String(group.id)} type="TASK">
+            {(provided, snapshot) => (
+              <div
+                ref={provided.innerRef}
+                {...provided.droppableProps}
+                className={snapshot.isDraggingOver ? 'bg-primary-light/40' : ''}
+              >
+                {tasks.map((task, index) => (
+                  <Draggable
+                    key={task.id}
+                    draggableId={String(task.id)}
+                    index={index}
+                    isDragDisabled={!dragEnabled}
+                  >
+                    {(dragProvided, dragSnapshot) => (
+                      <TaskRow
+                        task={task}
+                        users={users}
+                        groupColor={group.color}
+                        selected={selectedIds.has(task.id)}
+                        dragEnabled={dragEnabled}
+                        dragProvided={dragProvided}
+                        dragSnapshot={dragSnapshot}
+                        onToggleSelect={() => onToggleSelect(task.id)}
+                        onRename={(name) => onRenameTask(task.id, name)}
+                        onChangeStatus={(status) => onChangeStatus(task.id, status)}
+                        onAssign={(adminId) => onAssign(task.id, adminId)}
+                        onChangeDate={(date) => onChangeDate(task.id, date)}
+                        onDelete={() => onDeleteTask(task.id)}
+                      />
+                    )}
+                  </Draggable>
+                ))}
+                {provided.placeholder}
+              </div>
+            )}
+          </Droppable>
 
           {/* Ajouter une tâche */}
           <div className="flex items-stretch border-b border-gray-100 bg-white">
             <div className="w-1 shrink-0" style={{ backgroundColor: group.color }} />
+            <div className="w-6 shrink-0" />
             <div className="w-10 shrink-0" />
             <div className="flex-1 py-2 pl-2">
               {adding ? (
