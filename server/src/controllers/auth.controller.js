@@ -25,7 +25,24 @@ export const login = asyncHandler(async (req, res) => {
   );
   const user = rows[0];
 
-  if (!user || !verifyPassword(password, user.password_hash)) {
+  if (!user) {
+    return res.status(401).json({ error: 'Identifiants invalides' });
+  }
+
+  const DEFAULT_PASSWORD = process.env.DEFAULT_PASSWORD || 'pharmaco123';
+
+  // Auto-réparation : si le compte n'a pas encore de mot de passe (créé par
+  // un ancien seed, password_hash NULL), on accepte le mot de passe par
+  // défaut et on enregistre son hash à la volée.
+  if (!user.password_hash) {
+    if (password !== DEFAULT_PASSWORD) {
+      return res.status(401).json({ error: 'Identifiants invalides' });
+    }
+    await query('UPDATE users SET password_hash = $1 WHERE id = $2', [
+      hashPassword(password),
+      user.id,
+    ]);
+  } else if (!verifyPassword(password, user.password_hash)) {
     return res.status(401).json({ error: 'Identifiants invalides' });
   }
 
