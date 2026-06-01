@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import { MessageSquare, Check, CheckCircle2, Circle } from 'lucide-react';
 import Avatar from './Avatar.jsx';
+import { TagPill } from './TagCell.jsx';
 import { STATUS_META, PRIORITY_META, formatShortDate } from '../lib/constants.js';
 
 // Carte de tâche mobile avec gestes : swipe droite = commentaires,
@@ -8,6 +9,7 @@ import { STATUS_META, PRIORITY_META, formatShortDate } from '../lib/constants.js
 export default function TaskCard({
   task,
   groupColor,
+  tags = [],
   commentCount = 0,
   selectionMode,
   selected,
@@ -172,6 +174,14 @@ export default function TaskCard({
               </span>
             )}
           </div>
+
+          {/* Ligne 3 : étiquettes Étape / Type */}
+          {(task.etape_tag_id || task.intervention_tag_id) && (
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              <TagPill tag={tags.find((t) => t.id === task.etape_tag_id)} />
+              <TagPill tag={tags.find((t) => t.id === task.intervention_tag_id)} />
+            </div>
+          )}
         </div>
       </div>
     </div>

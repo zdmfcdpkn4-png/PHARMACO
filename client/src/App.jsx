@@ -893,6 +893,11 @@ function Board({ currentUser, onLogout }) {
               statusFilter={statusFilter}
               onStatusFilter={setStatusFilter}
               users={users}
+              tags={board.tags || []}
+              etapeFilter={etapeFilter}
+              onEtapeFilter={setEtapeFilter}
+              interventionFilter={interventionFilter}
+              onInterventionFilter={setInterventionFilter}
             />
             <div className="overflow-x-auto">
               <BoardTabs active={boardView} onChange={setBoardView} />
@@ -905,6 +910,7 @@ function Board({ currentUser, onLogout }) {
                 board={board}
                 users={users}
                 filterFn={filterFn}
+                tags={board.tags || []}
                 commentCounts={commentCounts}
                 onOpenComments={(t) => setDrawerTask(t)}
                 onOpenDetail={(t) => setDetailTask(t)}
@@ -1037,6 +1043,7 @@ function Board({ currentUser, onLogout }) {
               users={users}
               categories={board.categories || []}
               categoryValue={categoryValue}
+              tags={board.tags || []}
               canEdit={canEdit}
               onClose={() => setDetailTask(null)}
               onRename={(name) => handleRenameTask(live.id, name)}
@@ -1045,6 +1052,7 @@ function Board({ currentUser, onLogout }) {
               onChangePriority={(p) => handleChangePriority(live.id, p)}
               onAssign={(adminId) => handleAssign(live.id, adminId)}
               onChangeDate={(d) => handleChangeDate(live.id, d)}
+              onChangeTag={(field, tagId) => handleChangeTaskTag(live.id, field, tagId)}
               onSetCategoryValue={handleSetCategoryValue}
             />
           );
@@ -1345,6 +1353,7 @@ function Board({ currentUser, onLogout }) {
               users={users}
               categories={board.categories || []}
               categoryValue={categoryValue}
+              tags={board.tags || []}
               canEdit={canEdit}
               onClose={() => setDetailTask(null)}
               onRename={(name) => handleRenameTask(live.id, name)}
@@ -1353,6 +1362,7 @@ function Board({ currentUser, onLogout }) {
               onChangePriority={(p) => handleChangePriority(live.id, p)}
               onAssign={(adminId) => handleAssign(live.id, adminId)}
               onChangeDate={(d) => handleChangeDate(live.id, d)}
+              onChangeTag={(field, tagId) => handleChangeTaskTag(live.id, field, tagId)}
               onSetCategoryValue={handleSetCategoryValue}
             />
           </div>

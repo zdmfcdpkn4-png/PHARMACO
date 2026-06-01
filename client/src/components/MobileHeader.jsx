@@ -15,9 +15,22 @@ export default function MobileHeader({
   statusFilter,
   onStatusFilter,
   users,
+  tags = [],
+  etapeFilter,
+  onEtapeFilter,
+  interventionFilter,
+  onInterventionFilter,
 }) {
   const [filtersOpen, setFiltersOpen] = useState(false);
-  const activeCount = [search.trim(), personFilter, statusFilter].filter(Boolean).length;
+  const etapeTags = tags.filter((t) => t.tag_type === 'etape');
+  const interventionTags = tags.filter((t) => t.tag_type === 'intervention');
+  const activeCount = [
+    search.trim(),
+    personFilter,
+    statusFilter,
+    etapeFilter,
+    interventionFilter,
+  ].filter(Boolean).length;
 
   return (
     <header className="sticky top-0 z-30 border-b border-gray-200 bg-white px-4 py-2.5">
@@ -104,6 +117,48 @@ export default function MobileHeader({
               ))}
             </div>
           </div>
+
+          {/* Étape */}
+          {etapeTags.length > 0 && (
+            <div>
+              <label className="mb-1 block text-xs font-semibold uppercase text-gray-400">
+                Étape
+              </label>
+              <div className="flex flex-wrap gap-2">
+                <Chip active={!etapeFilter} onClick={() => onEtapeFilter(null)}>
+                  Toutes
+                </Chip>
+                {etapeTags.map((t) => (
+                  <Chip key={t.id} active={etapeFilter === t.id} onClick={() => onEtapeFilter(t.id)}>
+                    {t.name}
+                  </Chip>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Type d'intervention */}
+          {interventionTags.length > 0 && (
+            <div>
+              <label className="mb-1 block text-xs font-semibold uppercase text-gray-400">
+                Type
+              </label>
+              <div className="flex flex-wrap gap-2">
+                <Chip active={!interventionFilter} onClick={() => onInterventionFilter(null)}>
+                  Tous
+                </Chip>
+                {interventionTags.map((t) => (
+                  <Chip
+                    key={t.id}
+                    active={interventionFilter === t.id}
+                    onClick={() => onInterventionFilter(t.id)}
+                  >
+                    {t.name}
+                  </Chip>
+                ))}
+              </div>
+            </div>
+          )}
 
           <button
             onClick={() => setFiltersOpen(false)}

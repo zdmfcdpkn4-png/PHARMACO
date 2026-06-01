@@ -10,6 +10,7 @@ export default function MobileBoard({
   board,
   users,
   filterFn,
+  tags = [],
   commentCounts,
   onOpenComments,
   onOpenDetail,
@@ -83,6 +84,7 @@ export default function MobileBoard({
                     key={task.id}
                     task={task}
                     groupColor={group.color}
+                    tags={tags}
                     commentCount={commentCounts[task.id] || 0}
                     selectionMode={selectionMode}
                     selected={selected.has(task.id)}

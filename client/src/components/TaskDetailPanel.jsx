@@ -13,6 +13,8 @@ import StatusBadge from './StatusBadge.jsx';
 import PriorityBadge from './PriorityBadge.jsx';
 import AdminCell from './AdminCell.jsx';
 import CustomCell from './CustomCell.jsx';
+import TagCell from './TagCell.jsx';
+import { Tag } from 'lucide-react';
 import { formatShortDate } from '../lib/constants.js';
 
 // Ligne d'attribut : icône + libellé à gauche, contrôle à droite.
@@ -34,6 +36,7 @@ export default function TaskDetailPanel({
   users,
   categories = [],
   categoryValue,
+  tags = [],
   canEdit = true,
   onClose,
   onRename,
@@ -42,6 +45,7 @@ export default function TaskDetailPanel({
   onChangePriority,
   onAssign,
   onChangeDate,
+  onChangeTag,
   onSetCategoryValue,
 }) {
   const [name, setName] = useState(task.name);
@@ -115,6 +119,24 @@ export default function TaskDetailPanel({
 
           <Field icon={ShieldAlert} label="Priorité">
             <PriorityBadge priority={task.priority} readOnly={!canEdit} onChange={onChangePriority} />
+          </Field>
+
+          <Field icon={Tag} label="Étape">
+            <TagCell
+              value={task.etape_tag_id}
+              tags={tags.filter((t) => t.tag_type === 'etape')}
+              canEdit={canEdit}
+              onChange={(id) => onChangeTag?.('etape_tag_id', id)}
+            />
+          </Field>
+
+          <Field icon={Tag} label="Type">
+            <TagCell
+              value={task.intervention_tag_id}
+              tags={tags.filter((t) => t.tag_type === 'intervention')}
+              canEdit={canEdit}
+              onChange={(id) => onChangeTag?.('intervention_tag_id', id)}
+            />
           </Field>
 
           <Field icon={Calendar} label="Échéance">
