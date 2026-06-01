@@ -26,8 +26,9 @@ INSERT INTO workspaces (name, description, created_by) VALUES
     ('Espace de travail principal', 'Espace de travail de démonstration PHARMACO', 1);
 
 -- --- Board ---------------------------------------------------------------
-INSERT INTO boards (workspace_id, name, description) VALUES
-    (1, 'Suivi', 'Tableau de bord de suivi du projet');
+-- created_by = 1 (Erwin) : propriétaire du tableau.
+INSERT INTO boards (workspace_id, name, description, created_by) VALUES
+    (1, 'Suivi', 'Tableau de bord de suivi du projet', 1);
 
 -- --- Groups --------------------------------------------------------------
 INSERT INTO groups (board_id, name, color, position) VALUES

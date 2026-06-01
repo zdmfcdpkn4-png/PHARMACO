@@ -10,6 +10,9 @@ import Avatar from './components/Avatar.jsx';
 import TeamWorkloadView from './components/TeamWorkloadView.jsx';
 import ReportingView from './components/ReportingView.jsx';
 import GanttChartView from './components/GanttChartView.jsx';
+import KanbanView from './components/KanbanView.jsx';
+import CalendarView from './components/CalendarView.jsx';
+import BoardTabs from './components/BoardTabs.jsx';
 import TaskDrawer from './components/TaskDrawer.jsx';
 import MobileNav from './components/MobileNav.jsx';
 import MobileHeader from './components/MobileHeader.jsx';
@@ -77,6 +80,12 @@ function Board({ currentUser, onLogout }) {
   // Drawer de tâche (discussion / historique) + compteurs de commentaires
   const [drawerTask, setDrawerTask] = useState(null);
   const [commentCounts, setCommentCounts] = useState({});
+
+  // Onglet de vue du tableau : 'table' | 'kanban' | 'calendar'
+  const [boardView, setBoardView] = useState('table');
+
+  // Droits : seul le propriétaire du tableau peut modifier.
+  const isOwner = !board || board.created_by == null || board.created_by === CURRENT_USER_ID;
 
   // -------- Chargement initial --------
   const loadAlerts = useCallback(async () => {
@@ -247,6 +256,20 @@ function Board({ currentUser, onLogout }) {
       return next;
     });
     return created;
+  };
+
+  // Création rapide d'une tâche à une date donnée (Calendrier).
+  const handleCreateTaskOnDate = async (dateKey) => {
+    const group = board?.groups?.[0];
+    if (!group) return;
+    const name = window.prompt('Nom de la nouvelle tâche :');
+    if (!name || !name.trim()) return;
+    await handleCreateTaskFull({
+      group_id: group.id,
+      name: name.trim(),
+      start_date: dateKey,
+      duedate: dateKey,
+    });
   };
 
   // Mise à jour des dates depuis le Gantt (déplacement / redimensionnement).
@@ -936,6 +959,11 @@ function Board({ currentUser, onLogout }) {
               onPrint={handlePrint}
             />
 
+            {/* Onglets de vue : Tableau / Kanban / Calendrier */}
+            <div className="no-print">
+              <BoardTabs active={boardView} onChange={setBoardView} />
+            </div>
+
             {/* Bandeau d'erreur transitoire */}
             {error && (
               <div className="no-print bg-red-50 px-6 py-2 text-sm text-status-blocked">{error}</div>
@@ -951,6 +979,7 @@ function Board({ currentUser, onLogout }) {
             </div>
 
             {/* Contenu scrollable */}
+            {boardView === 'table' && (
             <main className="print-area flex-1 overflow-auto px-6 py-5">
               <DragDropContext onDragEnd={handleDragEnd}>
                 <Droppable droppableId="board" type="GROUP">
@@ -995,14 +1024,40 @@ function Board({ currentUser, onLogout }) {
                 </Droppable>
               </DragDropContext>
 
-              <button
-                type="button"
-                onClick={handleAddGroup}
-                className="no-print mt-2 flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm text-gray-600 shadow-sm hover:border-primary hover:text-primary"
-              >
-                <Plus size={16} /> Ajouter un nouveau groupe
-              </button>
+              {isOwner && (
+                <button
+                  type="button"
+                  onClick={handleAddGroup}
+                  className="no-print mt-2 flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm text-gray-600 shadow-sm hover:border-primary hover:text-primary"
+                >
+                  <Plus size={16} /> Ajouter un nouveau groupe
+                </button>
+              )}
             </main>
+            )}
+
+            {boardView === 'kanban' && (
+              <KanbanView
+                board={board}
+                filterFn={filterFn}
+                canEdit={isOwner}
+                commentCounts={commentCounts}
+                onChangeStatus={handleChangeStatus}
+                onOpenTask={(t) => setDrawerTask(t)}
+                onAddTask={() => board.groups[0] && handleAddTask(board.groups[0].id, 'Nouvelle tâche')}
+              />
+            )}
+
+            {boardView === 'calendar' && (
+              <CalendarView
+                board={board}
+                filterFn={filterFn}
+                canEdit={isOwner}
+                onOpenTask={(t) => setDrawerTask(t)}
+                onChangeDate={handleChangeDate}
+                onAddTaskOnDate={handleCreateTaskOnDate}
+              />
+            )}
           </>
         )}
       </div>

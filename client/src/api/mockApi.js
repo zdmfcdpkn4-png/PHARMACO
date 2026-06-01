@@ -46,6 +46,7 @@ const board = {
   workspace_id: 1,
   name: 'Suivi',
   description: 'Tableau de bord de suivi du projet',
+  created_by: 1, // Erwin est propriétaire
   groups: [
     {
       id: 1,

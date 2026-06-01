@@ -102,14 +102,14 @@ export const getBoardFull = asyncHandler(async (req, res) => {
 });
 
 export const createBoard = asyncHandler(async (req, res) => {
-  const { workspace_id, name, description } = req.body;
+  const { workspace_id, name, description, created_by } = req.body;
   if (!workspace_id || !name) {
     return res.status(400).json({ error: 'workspace_id et name sont requis' });
   }
   const { rows } = await query(
-    `INSERT INTO boards (workspace_id, name, description)
-     VALUES ($1, $2, $3) RETURNING *`,
-    [workspace_id, name, description || null]
+    `INSERT INTO boards (workspace_id, name, description, created_by)
+     VALUES ($1, $2, $3, $4) RETURNING *`,
+    [workspace_id, name, description || null, created_by || null]
   );
   res.status(201).json(rows[0]);
 });

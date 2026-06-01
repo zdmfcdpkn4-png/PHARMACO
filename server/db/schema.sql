@@ -74,9 +74,13 @@ CREATE TABLE IF NOT EXISTS boards (
     workspace_id INTEGER      NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
     name         VARCHAR(160) NOT NULL,
     description  TEXT,
+    created_by   INTEGER      REFERENCES users(id) ON DELETE SET NULL,
     created_at   TIMESTAMPTZ  NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS idx_boards_workspace ON boards(workspace_id);
+
+-- Pour les bases déjà créées : ajoute la colonne propriétaire si absente.
+ALTER TABLE boards ADD COLUMN IF NOT EXISTS created_by INTEGER REFERENCES users(id) ON DELETE SET NULL;
 
 -- ---------------------------------------------------------------------
 --  Table : groups (sections pliables : "To-do", "Terminé", ...)
