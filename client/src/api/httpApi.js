@@ -69,6 +69,7 @@ export const httpApi = {
 
   getTeams: () => request('/teams'),
   createTeam: (data) => request('/teams', { method: 'POST', body: data }),
+  updateTeam: (id, patch) => request(`/teams/${id}`, { method: 'PATCH', body: patch }),
   deleteTeam: (id) => request(`/teams/${id}`, { method: 'DELETE' }),
   setTeamMembers: (id, members) =>
     request(`/teams/${id}/members`, { method: 'PUT', body: { members } }),

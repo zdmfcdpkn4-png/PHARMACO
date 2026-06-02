@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { BarChart3, Users, Target, Settings2, Plus, BookUser } from 'lucide-react';
+import { BarChart3, Users, Target, Settings2 } from 'lucide-react';
 import Avatar from './Avatar.jsx';
 import UserDirectory from './UserDirectory.jsx';
+import TeamDirectory from './TeamDirectory.jsx';
 import TeamManagementModal from './TeamManagementModal.jsx';
 
 // Vue de gestion d'une équipe selon la section sélectionnée (+ annuaire).
@@ -10,6 +11,8 @@ export default function TeamsView({
   users,
   teamSection,
   onAddTeam,
+  onUpdateTeam,
+  onDeleteTeam,
   onAddTeamMembers,
   onUpdateMemberRole,
   onRemoveTeamMember,
@@ -22,8 +25,6 @@ export default function TeamsView({
   onSetPassword,
 }) {
   const [managing, setManaging] = useState(null); // équipe en cours de gestion
-  const [creating, setCreating] = useState(false);
-  const [newName, setNewName] = useState('');
 
   // "directory" pseudo-section, sinon "teamId:section"
   const isDirectory = teamSection === 'directory';
@@ -44,48 +45,29 @@ export default function TeamsView({
     );
   }
 
+  // Aucune équipe sélectionnée : répertoire complet de gestion des équipes.
   if (!team) {
     return (
-      <div className="flex flex-1 flex-col items-center justify-center gap-4 bg-canvas text-gray-400">
-        <BookUser size={40} className="text-gray-300" />
-        <p>Sélectionnez une équipe et une section dans la barre latérale.</p>
-        {onAddTeam &&
-          (creating ? (
-            <div className="flex items-center gap-2">
-              <input
-                autoFocus
-                value={newName}
-                onChange={(e) => setNewName(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && newName.trim()) {
-                    onAddTeam(newName.trim());
-                    setNewName('');
-                    setCreating(false);
-                  }
-                }}
-                placeholder="Nom de l'équipe…"
-                className="rounded-md border border-gray-200 px-3 py-1.5 text-sm text-gray-700 outline-none focus:border-primary"
-              />
-              <button
-                onClick={() => {
-                  if (newName.trim()) onAddTeam(newName.trim());
-                  setNewName('');
-                  setCreating(false);
-                }}
-                className="rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-white"
-              >
-                Créer
-              </button>
-            </div>
-          ) : (
-            <button
-              onClick={() => setCreating(true)}
-              className="flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm text-gray-600 hover:border-primary hover:text-primary"
-            >
-              <Plus size={16} /> Créer une équipe
-            </button>
-          ))}
-      </div>
+      <>
+        <TeamDirectory
+          teams={teams}
+          canManage={canManageAgents}
+          onCreateTeam={onAddTeam}
+          onUpdateTeam={onUpdateTeam}
+          onDeleteTeam={onDeleteTeam}
+          onManageMembers={(t) => setManaging(t)}
+        />
+        {managing && (
+          <TeamManagementModal
+            team={managing}
+            users={users}
+            onClose={() => setManaging(null)}
+            onAddMembers={(ids) => onAddTeamMembers(managing.id, ids)}
+            onUpdateRole={(userId, role) => onUpdateMemberRole(managing.id, userId, role)}
+            onRemoveMember={(userId) => onRemoveTeamMember(managing.id, userId)}
+          />
+        )}
+      </>
     );
   }
 

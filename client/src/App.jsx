@@ -337,9 +337,30 @@ function Board({ currentUser, onLogout }) {
     }
   };
 
-  const handleAddTeam = async (name) => {
-    const created = await api.createTeam({ name });
+  const handleAddTeam = async (name, description) => {
+    const created = await api.createTeam({ name, description });
     setTeams((prev) => [...prev, created]);
+    return created;
+  };
+  const handleUpdateTeam = async (teamId, patch) => {
+    const updated = await api.updateTeam(teamId, patch);
+    setTeams((prev) =>
+      prev.map((t) => (t.id === teamId ? { ...t, ...updated } : t))
+    );
+    // Répercute le renommage sur les équipes impliquées du board courant.
+    setBoard((b) =>
+      b && b.teams
+        ? { ...b, teams: b.teams.map((t) => (t.id === teamId ? { ...t, ...updated } : t)) }
+        : b
+    );
+    return updated;
+  };
+  const handleDeleteTeam = async (teamId) => {
+    await api.deleteTeam(teamId);
+    setTeams((prev) => prev.filter((t) => t.id !== teamId));
+    setBoard((b) =>
+      b && b.teams ? { ...b, teams: b.teams.filter((t) => t.id !== teamId) } : b
+    );
   };
   const handleAddTeamMembers = async (teamId, userIds) => {
     const res = await api.addTeamMembers(teamId, userIds);
@@ -1281,6 +1302,8 @@ function Board({ currentUser, onLogout }) {
                   users={users}
                   teamSection={teamSection}
                   onAddTeam={handleAddTeam}
+                  onUpdateTeam={handleUpdateTeam}
+                  onDeleteTeam={handleDeleteTeam}
                   onAddTeamMembers={handleAddTeamMembers}
                   onUpdateMemberRole={handleUpdateMemberRole}
                   onRemoveTeamMember={handleRemoveTeamMember}
@@ -1500,6 +1523,8 @@ function Board({ currentUser, onLogout }) {
               users={users}
               teamSection={teamSection}
               onAddTeam={handleAddTeam}
+              onUpdateTeam={handleUpdateTeam}
+              onDeleteTeam={handleDeleteTeam}
               onAddTeamMembers={handleAddTeamMembers}
               onUpdateMemberRole={handleUpdateMemberRole}
               onRemoveTeamMember={handleRemoveTeamMember}

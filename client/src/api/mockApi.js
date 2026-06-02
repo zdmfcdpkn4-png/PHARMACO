@@ -507,9 +507,21 @@ export const mockApi = {
     teams.push(t);
     return clone(t);
   },
+  async updateTeam(id, { name, description }) {
+    await delay(40);
+    const t = teams.find((x) => x.id === id);
+    if (!t) throw new Error('Équipe introuvable');
+    if (name !== undefined && name !== null) t.name = name.trim();
+    if (description !== undefined) t.description = description;
+    return clone({ id: t.id, name: t.name, description: t.description });
+  },
   async deleteTeam(id) {
     await delay(40);
     teams = teams.filter((t) => t.id !== id);
+    // Retire l'équipe supprimée des projets qui l'utilisaient.
+    for (const b of boards) {
+      if (b._teamIds) b._teamIds = b._teamIds.filter((tid) => tid !== id);
+    }
   },
   async setTeamMembers(id, members) {
     await delay(50);
