@@ -15,6 +15,7 @@ import subtasksRouter from './routes/subtasks.js';
 import teamsRouter from './routes/teams.js';
 import shortcutsRouter from './routes/shortcuts.js';
 import { notFound, errorHandler } from './middleware/error.js';
+import { applySchema } from './db/migrate.js';
 
 dotenv.config();
 
@@ -50,8 +51,26 @@ app.use(notFound);
 app.use(errorHandler);
 
 const PORT = process.env.PORT || 4000;
-app.listen(PORT, () => {
-  console.log(`PHARMACO API en écoute sur http://localhost:${PORT}`);
-});
+
+// Migration idempotente au démarrage : amène une base existante au schéma
+// courant (nouvelles tables/colonnes) sans toucher aux données.
+// Désactivable avec RUN_MIGRATIONS=false. Une erreur ici n'empêche pas le
+// démarrage (le détail est journalisé pour diagnostic).
+const start = async () => {
+  if (process.env.RUN_MIGRATIONS !== 'false') {
+    try {
+      console.log('-> Vérification/migration du schéma (idempotent)...');
+      await applySchema();
+      console.log('OK Schéma à jour.');
+    } catch (err) {
+      console.error('AVERTISSEMENT : migration du schéma échouée :', err.message);
+    }
+  }
+  app.listen(PORT, () => {
+    console.log(`PHARMACO API en écoute sur http://localhost:${PORT}`);
+  });
+};
+
+start();
 
 export default app;
