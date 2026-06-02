@@ -1266,6 +1266,8 @@ function Board({ currentUser, onLogout }) {
                   onOpenProject={(id) => {
                     handleSelectProject(id);
                   }}
+                  unreadCounts={commentCounts}
+                  currentUserId={CURRENT_USER_ID}
                 />
               )}
               {view === 'gantt' && (
@@ -1509,6 +1511,8 @@ function Board({ currentUser, onLogout }) {
               boards={boards}
               loadFull={(id) => api.getBoard(id)}
               onOpenProject={handleSelectProject}
+              unreadCounts={commentCounts}
+              currentUserId={CURRENT_USER_ID}
             />
           </>
         ) : view === 'teams' ? (
