@@ -16,6 +16,7 @@ import teamsRouter from './routes/teams.js';
 import shortcutsRouter from './routes/shortcuts.js';
 import { notFound, errorHandler } from './middleware/error.js';
 import { authenticate } from './middleware/auth.js';
+import { assertSecureAuth } from './utils/authConfig.js';
 import { applySchema } from './db/migrate.js';
 
 dotenv.config();
@@ -61,6 +62,9 @@ const PORT = process.env.PORT || 4000;
 // Désactivable avec RUN_MIGRATIONS=false. Une erreur ici n'empêche pas le
 // démarrage (le détail est journalisé pour diagnostic).
 const start = async () => {
+  // Sécurité : refuse de démarrer en production avec un secret d'auth faible.
+  assertSecureAuth();
+
   if (process.env.RUN_MIGRATIONS !== 'false') {
     try {
       console.log('-> Vérification/migration du schéma (idempotent)...');

@@ -2,14 +2,13 @@ import crypto from 'node:crypto';
 import { query } from '../db/pool.js';
 import { asyncHandler } from '../middleware/error.js';
 import { verifyPassword, hashPassword } from '../utils/password.js';
+import { AUTH_SECRET } from '../utils/authConfig.js';
 
 // Authentification simple par e-mail + mot de passe.
 // Renvoie un jeton opaque (signé HMAC) encodant l'id utilisateur.
-const SECRET = process.env.AUTH_SECRET || 'pharmaco-dev-secret';
-
 function sign(userId) {
   const payload = `${userId}.${Date.now()}`;
-  const sig = crypto.createHmac('sha256', SECRET).update(payload).digest('hex');
+  const sig = crypto.createHmac('sha256', AUTH_SECRET).update(payload).digest('hex');
   return Buffer.from(`${payload}.${sig}`).toString('base64url');
 }
 

@@ -1,8 +1,6 @@
 import crypto from 'node:crypto';
 import { query } from '../db/pool.js';
-
-// Doit correspondre au secret utilisé pour signer les jetons au login.
-const SECRET = process.env.AUTH_SECRET || 'pharmaco-dev-secret';
+import { AUTH_SECRET } from '../utils/authConfig.js';
 
 // Vérifie un jeton signé HMAC (base64url de `${userId}.${ts}.${sig}`) et
 // renvoie l'id utilisateur s'il est authentique, sinon null.
@@ -13,7 +11,7 @@ function verifyToken(token) {
     if (parts.length !== 3) return null;
     const [userId, ts, sig] = parts;
     const expected = crypto
-      .createHmac('sha256', SECRET)
+      .createHmac('sha256', AUTH_SECRET)
       .update(`${userId}.${ts}`)
       .digest('hex');
     const a = Buffer.from(sig);
