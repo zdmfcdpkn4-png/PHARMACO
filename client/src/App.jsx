@@ -12,6 +12,7 @@ import ReportingView from './components/ReportingView.jsx';
 import GanttChartView from './components/GanttChartView.jsx';
 import DynamicTimeView from './components/DynamicTimeView.jsx';
 import TeamsView from './components/TeamsView.jsx';
+import TeamProjectView from './components/TeamProjectView.jsx';
 import KanbanView from './components/KanbanView.jsx';
 import CalendarView from './components/CalendarView.jsx';
 import BoardTabs from './components/BoardTabs.jsx';
@@ -95,7 +96,8 @@ function Board({ currentUser, onLogout }) {
   const [sidebarMode, setSidebarMode] = useState('projects'); // 'projects' | 'teams'
   const [teams, setTeams] = useState([]);
   const [shortcuts, setShortcuts] = useState([]);
-  const [teamSection, setTeamSection] = useState(null); // `${teamId}:${section}`
+  const [teamSection, setTeamSection] = useState(null); // `${teamId}:${section}` (gestion)
+  const [teamView, setTeamView] = useState(null); // `${teamId}:${section}` (équipe impliquée)
 
   // -------- Gestion fine des rôles --------
   // viewer : lecture seule. member / admin / propriétaire : édition.
@@ -245,9 +247,24 @@ function Board({ currentUser, onLogout }) {
     setTeamSection(`${teamId}:${section}`);
     setView('teams');
   };
+  // Vue contextuelle d'une équipe impliquée dans le projet (charge / répartition).
+  const handleSelectTeamView = (teamId, section) => {
+    setTeamView(`${teamId}:${section}`);
+    setView('team-project');
+  };
+  const handleOpenTeams = () => {
+    setTeamSection(null);
+    setView('teams');
+  };
   const handleOpenDirectory = () => {
     setTeamSection('directory');
     setView('teams');
+  };
+  // Définit les équipes associées au projet courant (table project_teams).
+  const handleSetBoardTeams = async (teamIds) => {
+    await api.setBoardTeams(board.id, teamIds);
+    const fresh = await api.getBoard(board.id);
+    setBoard(fresh);
   };
 
   // Rafraîchit users (pour les badges d'équipes de l'annuaire) + teams.
@@ -1006,28 +1023,36 @@ function Board({ currentUser, onLogout }) {
                 <X size={18} />
               </button>
               <Sidebar
-                boardName={board.name}
-                activeRail={activeRail}
-                onSelectRail={(rail) => setActiveRail(rail)}
+                workspaceName="Espace de travail principal"
+                projects={[{ id: board.id, name: board.name }]}
+                selectedProjectId={board.id}
+                onSelectProject={() => {
+                  setView('board');
+                  setMenuOpen(false);
+                }}
                 onNewBoard={handleAddGroup}
                 view={view}
                 onSelectView={(v) => {
                   setView(v);
                   setMenuOpen(false);
                 }}
-                mode={sidebarMode}
-                onChangeMode={setSidebarMode}
-                teams={teams}
-                teamSection={teamSection}
-                onSelectTeamSection={(id, s) => {
-                  handleSelectTeamSection(id, s);
+                involvedTeams={board.teams || []}
+                allTeams={teams}
+                onSetInvolvedTeams={handleSetBoardTeams}
+                teamView={teamView}
+                onSelectTeamView={(id, s) => {
+                  handleSelectTeamView(id, s);
+                  setMenuOpen(false);
+                }}
+                onOpenTeams={() => {
+                  handleOpenTeams();
                   setMenuOpen(false);
                 }}
                 onOpenDirectory={() => {
                   handleOpenDirectory();
                   setMenuOpen(false);
                 }}
-                onAddTeam={handleAddTeam}
+                onSelectRail={(rail) => setActiveRail(rail)}
                 shortcuts={shortcuts}
                 onAddShortcut={handleAddShortcut}
                 onDeleteShortcut={handleDeleteShortcut}
@@ -1125,6 +1150,10 @@ function Board({ currentUser, onLogout }) {
                   ? 'Reporting'
                   : view === 'teams'
                   ? 'Gestion des Équipes'
+                  : view === 'team-project'
+                  ? (teamView || '').endsWith(':distribution')
+                    ? 'Répartition des tâches'
+                    : "Charge de l'équipe"
                   : 'Charge de travail'}
               </h1>
             </div>
@@ -1147,6 +1176,16 @@ function Board({ currentUser, onLogout }) {
               )}
               {view === 'reporting' && <ReportingView board={board} users={users} />}
               {view === 'workload' && <TeamWorkloadView board={board} users={users} />}
+              {view === 'team-project' &&
+                (() => {
+                  const [tid, section] = (teamView || '').split(':');
+                  const team = (board.teams || []).find((t) => String(t.id) === tid);
+                  return team ? (
+                    <TeamProjectView board={board} team={team} section={section} />
+                  ) : (
+                    <div className="p-6 text-sm text-gray-400">Équipe introuvable.</div>
+                  );
+                })()}
               {view === 'teams' && (
                 <TeamsView
                   teams={teams}
@@ -1256,19 +1295,21 @@ function Board({ currentUser, onLogout }) {
     <div className="flex h-screen overflow-hidden bg-canvas">
       <div className="contents no-print">
         <Sidebar
-          boardName={board.name}
-          activeRail={activeRail}
-          onSelectRail={(rail) => setActiveRail(rail)}
+          workspaceName="Espace de travail principal"
+          projects={[{ id: board.id, name: board.name }]}
+          selectedProjectId={board.id}
+          onSelectProject={() => setView('board')}
           onNewBoard={handleAddGroup}
           view={view}
           onSelectView={setView}
-          mode={sidebarMode}
-          onChangeMode={setSidebarMode}
-          teams={teams}
-          teamSection={teamSection}
-          onSelectTeamSection={handleSelectTeamSection}
+          involvedTeams={board.teams || []}
+          allTeams={teams}
+          onSetInvolvedTeams={handleSetBoardTeams}
+          teamView={teamView}
+          onSelectTeamView={handleSelectTeamView}
+          onOpenTeams={handleOpenTeams}
           onOpenDirectory={handleOpenDirectory}
-          onAddTeam={handleAddTeam}
+          onSelectRail={(rail) => setActiveRail(rail)}
           shortcuts={shortcuts}
           onAddShortcut={handleAddShortcut}
           onDeleteShortcut={handleDeleteShortcut}
@@ -1400,6 +1441,32 @@ function Board({ currentUser, onLogout }) {
             )}
             <ReportingView board={board} users={users} />
           </>
+        ) : view === 'team-project' ? (
+          (() => {
+            const [tid, section] = (teamView || '').split(':');
+            const team = (board.teams || []).find((t) => String(t.id) === tid);
+            const title =
+              section === 'distribution'
+                ? 'Répartition des tâches'
+                : "Charge de travail de l'équipe";
+            return (
+              <>
+                <div className="border-b border-gray-200 bg-white px-6 pt-4">
+                  <h2 className="mb-3 flex items-center gap-2 text-2xl font-bold text-gray-800">
+                    {team ? `${team.name} · ${title}` : title}
+                  </h2>
+                  <p className="mb-3 -mt-1 text-sm text-gray-400">
+                    Projet « {board.name} »
+                  </p>
+                </div>
+                {team ? (
+                  <TeamProjectView board={board} team={team} section={section} />
+                ) : (
+                  <div className="p-6 text-sm text-gray-400">Équipe introuvable.</div>
+                )}
+              </>
+            );
+          })()
         ) : view === 'workload' ? (
           <>
             <div className="border-b border-gray-200 bg-white px-6 pt-4">

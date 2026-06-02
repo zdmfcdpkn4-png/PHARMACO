@@ -1,9 +1,9 @@
 import {
-  Layers,
+  Folder,
   Users,
-  Sparkles,
+  Zap,
   Heart,
-  Home,
+  BookUser,
   Table2,
   BarChart3,
   PieChart,
@@ -15,9 +15,7 @@ import {
   ChevronRight,
   ChevronLeft,
   PanelLeft,
-  Target,
   Trash2,
-  BookUser,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import Logo from './Logo.jsx';
@@ -41,24 +39,40 @@ function NavItem({ icon: Icon, label, active, onClick, indent = false }) {
   );
 }
 
-// Double barre latérale : rail d'icônes + panneau principal dynamique
-// (mode Projets ou Équipes) + section Raccourcis.
+// En-tête de section (petit libellé en capitales).
+function SectionLabel({ children, action }) {
+  return (
+    <div className="mb-1 mt-4 flex items-center justify-between px-1">
+      <span className="text-xs font-semibold uppercase tracking-wide text-gray-400">{children}</span>
+      {action}
+    </div>
+  );
+}
+
+// Double barre latérale :
+//  A. Rail d'icônes (extrême gauche) listant les PROJETS comme des espaces
+//     (façon Discord / Slack), + icônes globales en bas.
+//  B. Panneau principal = hiérarchie du projet sélectionné :
+//     « Vues du Projet » + « Équipes Impliquées » (accordéons) + « Raccourcis ».
 export default function Sidebar({
   workspaceName = 'Espace de travail principal',
-  boardName = 'Suivi',
-  activeRail = 'Espaces',
-  onSelectRail,
+  projects = [],
+  selectedProjectId,
+  onSelectProject,
   onNewBoard,
   view = 'board',
   onSelectView,
-  // Mode & données équipes / raccourcis
-  mode = 'projects',
-  onChangeMode,
-  teams = [],
-  teamSection,
-  onSelectTeamSection,
+  // Équipes impliquées dans le projet (table project_teams)
+  involvedTeams = [],
+  allTeams = [],
+  onSetInvolvedTeams,
+  teamView, // `${teamId}:${section}` actif
+  onSelectTeamView,
+  // Icônes globales
+  onOpenTeams,
   onOpenDirectory,
-  onAddTeam,
+  onSelectRail,
+  // Raccourcis
   shortcuts = [],
   onAddShortcut,
   onDeleteShortcut,
@@ -78,22 +92,27 @@ export default function Sidebar({
   const open = forceOpen || panelOpen;
 
   const [openTeams, setOpenTeams] = useState({});
+  const [teamsSectionOpen, setTeamsSectionOpen] = useState(true);
+  const [managingTeams, setManagingTeams] = useState(false);
   const [shortcutsOpen, setShortcutsOpen] = useState(true);
   const [pinning, setPinning] = useState(false);
   const [pinName, setPinName] = useState('');
 
-  // Bouton du rail (icône + label)
-  const RailBtn = ({ icon: Icon, label, active, onClick, badge }) => (
+  const selectedProject =
+    projects.find((p) => p.id === selectedProjectId) || projects[0] || { name: 'Projet' };
+
+  // Icône globale (en bas du rail)
+  const RailIcon = ({ icon: Icon, label, active, onClick }) => (
     <button
       type="button"
       onClick={onClick}
       title={label}
-      className={`flex w-full flex-col items-center gap-1 py-3 text-[11px] transition ${
+      className={`flex w-full flex-col items-center gap-1 py-2.5 text-[10px] transition ${
         active ? 'text-primary' : 'text-gray-500 hover:text-primary'
       }`}
     >
       <span className={`rounded-lg p-1.5 ${active ? 'bg-primary-light' : ''}`}>
-        <Icon size={20} />
+        <Icon size={19} />
       </span>
       <span className="leading-none">{label}</span>
     </button>
@@ -108,54 +127,90 @@ export default function Sidebar({
 
   return (
     <div className="flex h-full">
-      {/* === A. Rail d'icônes (extrême gauche) === */}
+      {/* === A. Rail d'icônes : les PROJETS comme des espaces === */}
       <nav className="flex w-16 shrink-0 flex-col items-center border-r border-gray-200 bg-white pt-3">
         <div className="mb-3" title="PHARMACO">
-          <Logo size={36} />
+          <Logo size={34} />
         </div>
 
-        {/* Bascule de mode Projets / Équipes */}
-        <RailBtn
-          icon={Layers}
-          label="Projets"
-          active={mode === 'projects'}
-          onClick={() => onChangeMode?.('projects')}
-        />
-        <RailBtn
-          icon={Users}
-          label="Équipes"
-          active={mode === 'teams'}
-          onClick={() => onChangeMode?.('teams')}
-        />
+        {/* Liste des projets (espaces) */}
+        <div className="flex w-full flex-col items-center gap-1.5 overflow-y-auto px-1">
+          {projects.map((p) => {
+            const active = p.id === selectedProject.id;
+            return (
+              <button
+                key={p.id}
+                type="button"
+                onClick={() => onSelectProject?.(p.id)}
+                title={p.name}
+                className={`group relative flex h-11 w-11 items-center justify-center rounded-2xl text-sm font-bold transition-all hover:rounded-xl ${
+                  active
+                    ? 'bg-primary text-white shadow-md'
+                    : 'bg-gray-100 text-gray-500 hover:bg-primary-light hover:text-primary'
+                }`}
+              >
+                {/* Liseré actif à gauche */}
+                <span
+                  className={`absolute -left-1 h-6 w-1 rounded-r-full bg-primary transition-all ${
+                    active ? 'opacity-100' : 'opacity-0 group-hover:opacity-50'
+                  }`}
+                />
+                {(p.name || '?').charAt(0).toUpperCase()}
+              </button>
+            );
+          })}
+
+          {/* Nouveau projet / tableau */}
+          <button
+            type="button"
+            onClick={() => onNewBoard?.()}
+            title="Nouveau tableau"
+            className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gray-50 text-gray-400 transition-all hover:rounded-xl hover:bg-primary-light hover:text-primary"
+          >
+            <Plus size={20} />
+          </button>
+        </div>
 
         <div className="my-2 h-px w-8 bg-gray-100" />
 
-        {/* Icônes globales */}
-        <RailBtn icon={Sparkles} label="Sidekick" onClick={() => onSelectRail?.('Sidekick')} />
-        <RailBtn icon={Heart} label="Favoris" onClick={() => onSelectRail?.('Favoris')} />
+        {/* === Icônes globales (en bas) === */}
+        <div className="mt-auto flex w-full flex-col items-center">
+          <RailIcon icon={Users} label="Équipes" onClick={() => onOpenTeams?.()} />
+          <RailIcon icon={BookUser} label="Annuaire" onClick={() => onOpenDirectory?.()} />
+          <RailIcon icon={Heart} label="Favoris" onClick={() => onSelectRail?.('Favoris')} />
 
-        {/* Réduction du panneau (en bas) */}
-        {!forceOpen && (
-          <button
-            type="button"
-            onClick={() => setPanelOpen((v) => !v)}
-            title={panelOpen ? 'Replier le panneau' : 'Déplier le panneau'}
-            className={`mt-auto mb-3 rounded-lg p-2 transition ${
-              panelOpen ? 'text-gray-400 hover:bg-gray-100' : 'bg-primary-light text-primary'
-            }`}
-          >
-            <PanelLeft size={18} />
-          </button>
-        )}
+          {/* Réduction du panneau */}
+          {!forceOpen && (
+            <button
+              type="button"
+              onClick={() => setPanelOpen((v) => !v)}
+              title={panelOpen ? 'Replier le panneau' : 'Déplier le panneau'}
+              className={`mb-3 mt-1 rounded-lg p-2 transition ${
+                panelOpen ? 'text-gray-400 hover:bg-gray-100' : 'bg-primary-light text-primary'
+              }`}
+            >
+              <PanelLeft size={18} />
+            </button>
+          )}
+        </div>
       </nav>
 
-      {/* === B. Panneau principal dynamique === */}
+      {/* === B. Panneau principal : hiérarchie du projet === */}
       {open && (
         <aside className="flex w-60 shrink-0 flex-col border-r border-gray-200 bg-white">
-          <div className="flex items-center justify-between px-4 py-3">
-            <span className="text-sm font-semibold text-gray-700">
-              {mode === 'teams' ? 'Gestion des Équipes' : 'Espace de travail'}
-            </span>
+          {/* En-tête : nom du projet sélectionné */}
+          <div className="flex items-center justify-between gap-2 border-b border-gray-100 px-4 py-3">
+            <div className="flex min-w-0 items-center gap-2">
+              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-primary-light text-primary">
+                <Folder size={16} />
+              </span>
+              <div className="min-w-0">
+                <div className="truncate text-sm font-semibold text-gray-800">
+                  {selectedProject.name}
+                </div>
+                <div className="truncate text-[11px] text-gray-400">{workspaceName}</div>
+              </div>
+            </div>
             {!forceOpen && (
               <button
                 type="button"
@@ -168,167 +223,163 @@ export default function Sidebar({
             )}
           </div>
 
-          {/* Contenu défilant + transition de mode */}
-          <div className="flex-1 overflow-auto">
-            <div key={mode} className="animate-[fadeIn_.2s_ease-out]">
-              {mode === 'projects' ? (
-                <div className="px-3">
-                  <div className="flex items-center justify-between gap-2 rounded-lg border border-gray-200 px-2 py-2">
-                    <div className="flex items-center gap-2 truncate">
-                      <span className="flex h-6 w-6 items-center justify-center rounded bg-primary-light text-xs font-bold text-primary">
-                        E
-                      </span>
-                      <span className="truncate text-sm text-gray-700">{workspaceName}</span>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => onNewBoard?.()}
-                      className="rounded p-1 hover:bg-gray-100"
-                      title="Nouveau tableau"
-                    >
-                      <Plus size={16} className="text-gray-500" />
-                    </button>
-                  </div>
+          {/* Contenu défilant */}
+          <div className="flex-1 overflow-auto px-3 pb-2">
+            {/* ---- Vues du Projet ---- */}
+            <SectionLabel>Vues du Projet</SectionLabel>
+            <ul className="space-y-0.5">
+              <li>
+                <NavItem
+                  icon={Table2}
+                  label="Tableau principal"
+                  active={view === 'board'}
+                  onClick={() => onSelectView?.('board')}
+                />
+              </li>
+              <li>
+                <NavItem
+                  icon={GanttChartSquare}
+                  label="Gantt / Chronogramme"
+                  active={view === 'gantt'}
+                  onClick={() => onSelectView?.('gantt')}
+                />
+              </li>
+              <li>
+                <NavItem
+                  icon={CalendarRange}
+                  label="Planning dynamique"
+                  active={view === 'timeline'}
+                  onClick={() => onSelectView?.('timeline')}
+                />
+              </li>
+              <li>
+                <NavItem
+                  icon={PieChart}
+                  label="Tableau de bord et reporting"
+                  active={view === 'reporting'}
+                  onClick={() => onSelectView?.('reporting')}
+                />
+              </li>
+            </ul>
 
-                  <div className="mt-4 px-1 text-xs font-semibold uppercase tracking-wide text-gray-400">
-                    Contenu
-                  </div>
-                  <ul className="mt-1 space-y-0.5">
-                    <li>
-                      <NavItem icon={Home} label="Accueil de l'espace" onClick={() => onSelectView?.('board')} />
-                    </li>
-                    <li>
-                      <NavItem
-                        icon={Table2}
-                        label={boardName}
-                        active={view === 'board'}
-                        onClick={() => onSelectView?.('board')}
-                      />
-                    </li>
-                    <li>
-                      <NavItem
-                        icon={GanttChartSquare}
-                        label="Gantt / Chronogramme"
-                        active={view === 'gantt'}
-                        onClick={() => onSelectView?.('gantt')}
-                      />
-                    </li>
-                    <li>
-                      <NavItem
-                        icon={CalendarRange}
-                        label="Planning dynamique"
-                        active={view === 'timeline'}
-                        onClick={() => onSelectView?.('timeline')}
-                      />
-                    </li>
-                    <li>
-                      <NavItem
-                        icon={BarChart3}
-                        label="Charge de travail"
-                        active={view === 'workload'}
-                        onClick={() => onSelectView?.('workload')}
-                      />
-                    </li>
-                    <li>
-                      <NavItem
-                        icon={PieChart}
-                        label="Tableau de bord et reporting"
-                        active={view === 'reporting'}
-                        onClick={() => onSelectView?.('reporting')}
-                      />
-                    </li>
-                  </ul>
+            {/* ---- Équipes Impliquées (accordéons) ---- */}
+            <SectionLabel
+              action={
+                <div className="flex items-center gap-0.5">
+                  {onSetInvolvedTeams && (
+                    <button
+                      onClick={() => setManagingTeams((v) => !v)}
+                      className={`rounded p-0.5 hover:bg-gray-100 ${
+                        managingTeams ? 'text-primary' : 'text-gray-400 hover:text-primary'
+                      }`}
+                      title="Associer des équipes au projet"
+                    >
+                      <Plus size={13} />
+                    </button>
+                  )}
+                  <button
+                    onClick={() => setTeamsSectionOpen((v) => !v)}
+                    className="rounded p-0.5 text-gray-400 hover:bg-gray-100"
+                    title={teamsSectionOpen ? 'Réduire' : 'Déployer'}
+                  >
+                    {teamsSectionOpen ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
+                  </button>
                 </div>
-              ) : (
-                /* ---- Mode Équipes ---- */
-                <div className="px-3">
-                  {/* Annuaire des agents */}
-                  <NavItem
-                    icon={BookUser}
-                    label="Annuaire des agents"
-                    active={teamSection === 'directory'}
-                    onClick={() => onOpenDirectory?.()}
-                  />
-                  <div className="mb-1 mt-3 flex items-center justify-between px-1">
-                    <span className="text-xs font-semibold uppercase tracking-wide text-gray-400">
-                      Équipes
-                    </span>
-                    {onAddTeam && (
+              }
+            >
+              Équipes Impliquées
+            </SectionLabel>
+
+            {managingTeams && (
+              <div className="mb-2 rounded-lg border border-gray-200 p-2">
+                <div className="mb-1.5 text-[11px] font-medium text-gray-500">
+                  Équipes associées à ce projet
+                </div>
+                <ul className="space-y-0.5">
+                  {allTeams.map((t) => {
+                    const checked = involvedTeams.some((it) => it.id === t.id);
+                    return (
+                      <li key={t.id}>
+                        <label className="flex cursor-pointer items-center gap-2 rounded-md px-1.5 py-1 text-sm text-gray-600 hover:bg-gray-50">
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={() => {
+                              const ids = involvedTeams.map((it) => it.id);
+                              const next = checked
+                                ? ids.filter((id) => id !== t.id)
+                                : [...ids, t.id];
+                              onSetInvolvedTeams(next);
+                            }}
+                            className="accent-primary"
+                          />
+                          <span className="truncate">{t.name}</span>
+                        </label>
+                      </li>
+                    );
+                  })}
+                  {allTeams.length === 0 && (
+                    <li className="px-1.5 py-1 text-xs text-gray-400">Aucune équipe disponible.</li>
+                  )}
+                </ul>
+              </div>
+            )}
+
+            {teamsSectionOpen && (
+              <ul className="space-y-0.5">
+                {involvedTeams.map((t) => {
+                  const expanded = !!openTeams[t.id];
+                  return (
+                    <li key={t.id}>
                       <button
-                        onClick={() => {
-                          const n = window.prompt("Nom de la nouvelle équipe :");
-                          if (n && n.trim()) onAddTeam(n.trim());
-                        }}
-                        title="Nouvelle équipe"
-                        className="rounded p-0.5 text-gray-400 hover:bg-gray-100 hover:text-primary"
+                        type="button"
+                        onClick={() => setOpenTeams((o) => ({ ...o, [t.id]: !o[t.id] }))}
+                        className="flex w-full items-center gap-2 rounded-md px-2 py-2 text-left text-sm font-medium text-gray-700 hover:bg-gray-100"
                       >
-                        <Plus size={14} />
+                        {expanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                        <Users size={15} className="text-primary" />
+                        <span className="flex-1 truncate">{t.name}</span>
+                        <div className="flex -space-x-1.5">
+                          {(t.members || []).slice(0, 3).map((m) => (
+                            <Avatar key={m.id} name={m.name} src={m.avatar_url} size={18} ring />
+                          ))}
+                        </div>
                       </button>
-                    )}
-                  </div>
-                  <ul className="space-y-0.5">
-                    {teams.map((t) => {
-                      const expanded = !!openTeams[t.id];
-                      return (
-                        <li key={t.id}>
-                          <button
-                            type="button"
-                            onClick={() => setOpenTeams((o) => ({ ...o, [t.id]: !o[t.id] }))}
-                            className="flex w-full items-center gap-2 rounded-md px-2 py-2 text-left text-sm font-medium text-gray-700 hover:bg-gray-100"
-                          >
-                            {expanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-                            <Users size={15} className="text-primary" />
-                            <span className="flex-1 truncate">{t.name}</span>
-                            <div className="flex -space-x-1.5">
-                              {(t.members || []).slice(0, 3).map((m) => (
-                                <Avatar key={m.id} name={m.name} src={m.avatar_url} size={18} ring />
-                              ))}
-                            </div>
-                          </button>
-                          {expanded && (
-                            <ul className="mb-1 mt-0.5 space-y-0.5 animate-[fadeIn_.15s_ease-out]">
-                              <li>
-                                <NavItem
-                                  indent
-                                  icon={BarChart3}
-                                  label="Charge de travail"
-                                  active={teamSection === `${t.id}:workload`}
-                                  onClick={() => onSelectTeamSection?.(t.id, 'workload')}
-                                />
-                              </li>
-                              <li>
-                                <NavItem
-                                  indent
-                                  icon={Users}
-                                  label="Membres & Rôles"
-                                  active={teamSection === `${t.id}:members`}
-                                  onClick={() => onSelectTeamSection?.(t.id, 'members')}
-                                />
-                              </li>
-                              <li>
-                                <NavItem
-                                  indent
-                                  icon={Target}
-                                  label="Objectifs de la période"
-                                  active={teamSection === `${t.id}:goals`}
-                                  onClick={() => onSelectTeamSection?.(t.id, 'goals')}
-                                />
-                              </li>
-                            </ul>
-                          )}
-                        </li>
-                      );
-                    })}
-                    {teams.length === 0 && (
-                      <li className="px-2 py-4 text-center text-xs text-gray-400">Aucune équipe</li>
-                    )}
-                  </ul>
-                </div>
-              )}
-            </div>
+                      {expanded && (
+                        <ul className="mb-1 mt-0.5 space-y-0.5 animate-[fadeIn_.15s_ease-out]">
+                          <li>
+                            <NavItem
+                              indent
+                              icon={BarChart3}
+                              label="Charge de travail de l'équipe"
+                              active={teamView === `${t.id}:workload`}
+                              onClick={() => onSelectTeamView?.(t.id, 'workload')}
+                            />
+                          </li>
+                          <li>
+                            <NavItem
+                              indent
+                              icon={PieChart}
+                              label="Répartition des tâches"
+                              active={teamView === `${t.id}:distribution`}
+                              onClick={() => onSelectTeamView?.(t.id, 'distribution')}
+                            />
+                          </li>
+                        </ul>
+                      )}
+                    </li>
+                  );
+                })}
+                {involvedTeams.length === 0 && (
+                  <li className="flex items-center gap-2 px-2 py-3 text-xs text-gray-400">
+                    <Users size={14} /> Aucune équipe associée à ce projet.
+                  </li>
+                )}
+              </ul>
+            )}
           </div>
 
-          {/* === Section Raccourcis (pliable, valable pour les 2 modes) === */}
+          {/* === Section Raccourcis (pliable) === */}
           <div className="border-t border-gray-100 px-3 py-2">
             <div className="flex items-center justify-between">
               <button
@@ -336,7 +387,7 @@ export default function Sidebar({
                 className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-gray-400 hover:text-gray-600"
               >
                 {shortcutsOpen ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
-                <LinkIcon size={13} /> Raccourcis
+                <Zap size={13} /> Raccourcis
               </button>
               <button
                 onClick={() => setPinning((v) => !v)}

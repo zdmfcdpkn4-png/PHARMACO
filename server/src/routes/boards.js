@@ -5,6 +5,7 @@ import {
   createBoard,
   updateBoard,
   deleteBoard,
+  setBoardTeams,
 } from '../controllers/boards.controller.js';
 import {
   listCategories,
@@ -20,6 +21,7 @@ router.get('/', listBoards);
 router.get('/:id', getBoardFull); // tableau complet (groupes + tâches)
 router.post('/', createBoard);
 router.patch('/:id', updateBoard);
+router.put('/:id/teams', setBoardTeams);
 router.delete('/:id', deleteBoard);
 
 // Catégories / colonnes personnalisées

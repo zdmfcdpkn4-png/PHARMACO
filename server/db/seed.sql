@@ -73,3 +73,8 @@ INSERT INTO team_members (team_id, user_id, role) VALUES
     (1, 2, 'membre'),
     (2, 3, 'responsable'),
     (2, 4, 'membre');
+
+-- --- Liaison équipes <-> projet (board "Suivi") --------------------------
+INSERT INTO project_teams (board_id, team_id) VALUES
+    (1, 1),
+    (1, 2);

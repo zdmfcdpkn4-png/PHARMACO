@@ -202,6 +202,29 @@ export const getBoardFull = asyncHandler(async (req, res) => {
     [boardId]
   );
 
+  // Équipes impliquées dans ce projet (avec leurs membres)
+  const projTeamsRes = await query(
+    `SELECT t.id, t.name, t.description
+     FROM project_teams pt JOIN teams t ON t.id = pt.team_id
+     WHERE pt.board_id = $1 ORDER BY t.name`,
+    [boardId]
+  );
+  let involvedTeams = projTeamsRes.rows;
+  if (involvedTeams.length) {
+    const mRes = await query(
+      `SELECT m.team_id, m.role, u.id, u.name, u.avatar_url
+       FROM team_members m JOIN users u ON u.id = m.user_id
+       WHERE m.team_id = ANY($1) ORDER BY u.name`,
+      [involvedTeams.map((t) => t.id)]
+    );
+    const byTeam = new Map();
+    for (const r of mRes.rows) {
+      if (!byTeam.has(r.team_id)) byTeam.set(r.team_id, []);
+      byTeam.get(r.team_id).push({ id: r.id, name: r.name, avatar_url: r.avatar_url, role: r.role });
+    }
+    involvedTeams = involvedTeams.map((t) => ({ ...t, members: byTeam.get(t.id) || [] }));
+  }
+
   res.json({
     ...boardRes.rows[0],
     groups,
@@ -209,6 +232,7 @@ export const getBoardFull = asyncHandler(async (req, res) => {
     categories: catsRes.rows,
     categoryValues: valsRes.rows,
     tags: tagsRes.rows,
+    teams: involvedTeams,
   });
 });
 
@@ -242,4 +266,18 @@ export const deleteBoard = asyncHandler(async (req, res) => {
   const { rowCount } = await query('DELETE FROM boards WHERE id = $1', [req.params.id]);
   if (!rowCount) return res.status(404).json({ error: 'Tableau introuvable' });
   res.status(204).end();
+});
+
+// Définit les équipes impliquées dans un projet. Body : { team_ids: [...] }
+export const setBoardTeams = asyncHandler(async (req, res) => {
+  const boardId = req.params.id;
+  const ids = Array.isArray(req.body.team_ids) ? req.body.team_ids : [];
+  await query('DELETE FROM project_teams WHERE board_id = $1', [boardId]);
+  for (const tid of ids) {
+    await query(
+      'INSERT INTO project_teams (board_id, team_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
+      [boardId, tid]
+    );
+  }
+  res.json({ ok: true });
 });

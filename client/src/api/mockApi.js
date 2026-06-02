@@ -123,6 +123,8 @@ let teams = [
   },
 ];
 let shortcuts = [];
+// Équipes impliquées dans le projet courant (table project_teams).
+let boardTeamIds = [1, 2];
 
 // Suivi lu/non-lu : { `${userId}:${taskId}`: ISO last_read_at }
 let commentReads = {};
@@ -272,7 +274,14 @@ export const mockApi = {
           s.admin = s.assignees[0] || null;
         }
       }
-    return clone({ ...board, dependencies });
+    const involvedTeams = teams.filter((t) => boardTeamIds.includes(t.id));
+    return clone({ ...board, dependencies, teams: involvedTeams });
+  },
+
+  async setBoardTeams(_id, teamIds) {
+    await delay(40);
+    boardTeamIds = Array.isArray(teamIds) ? [...teamIds] : [];
+    return { ok: true };
   },
 
   async setTaskAssignees(taskId, userIds) {

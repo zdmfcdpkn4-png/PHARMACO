@@ -268,6 +268,14 @@ CREATE TABLE IF NOT EXISTS sidebar_shortcuts (
 );
 CREATE INDEX IF NOT EXISTS idx_sidebar_shortcuts_user ON sidebar_shortcuts(user_id);
 
+-- Liaison équipes <-> projets (un projet implique plusieurs équipes).
+CREATE TABLE IF NOT EXISTS project_teams (
+    board_id INTEGER NOT NULL REFERENCES boards(id) ON DELETE CASCADE,
+    team_id  INTEGER NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
+    PRIMARY KEY (board_id, team_id)
+);
+CREATE INDEX IF NOT EXISTS idx_project_teams_board ON project_teams(board_id);
+
 -- ---------------------------------------------------------------------
 --  Table : task_comments (discussion contextuelle d'une tâche)
 -- ---------------------------------------------------------------------

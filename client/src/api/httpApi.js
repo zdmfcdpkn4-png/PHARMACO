@@ -29,6 +29,8 @@ export const httpApi = {
   updateUser: (id, patch) => request(`/users/${id}`, { method: 'PATCH', body: patch }),
   deleteUser: (id) => request(`/users/${id}`, { method: 'DELETE' }),
   getBoard: (id = 1) => request(`/boards/${id}`),
+  setBoardTeams: (id, team_ids) =>
+    request(`/boards/${id}/teams`, { method: 'PUT', body: { team_ids } }),
 
   createGroup: (data) => request('/groups', { method: 'POST', body: data }),
   updateGroup: (id, patch) => request(`/groups/${id}`, { method: 'PATCH', body: patch }),
