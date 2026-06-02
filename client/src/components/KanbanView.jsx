@@ -58,8 +58,11 @@ export default function KanbanView({
       </div>
       <div className="mt-2 flex items-center gap-2">
         <span
-          className="rounded-full px-2 py-0.5 text-[11px] font-bold text-white"
-          style={{ backgroundColor: PRIORITY_META[task.priority]?.bg || '#579bfc' }}
+          className="rounded-full px-2 py-0.5 text-[11px] font-bold"
+          style={{
+            backgroundColor: PRIORITY_META[task.priority]?.bg || '#005586',
+            color: PRIORITY_META[task.priority]?.text || '#fff',
+          }}
         >
           {PRIORITY_META[task.priority]?.label || 'P3'}
         </span>

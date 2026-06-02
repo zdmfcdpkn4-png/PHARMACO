@@ -24,10 +24,10 @@ export default {
           lilac: '#46b4b3',
         },
         status: {
-          progress: '#e8722e', // En cours -> orange
-          done: '#00c875', // Fait -> vert
-          blocked: '#e2445c', // Bloqué -> rouge
-          todo: '#c4c4c4', // À faire -> gris
+          progress: '#f4c137', // En cours -> jaune CHD
+          done: '#46b4b3', // Fait -> teal CHD
+          blocked: '#e82a63', // Bloqué -> rose CHD
+          todo: '#9aadbd', // À faire -> gris bleuté
         },
         group: {
           blue: '#005586',

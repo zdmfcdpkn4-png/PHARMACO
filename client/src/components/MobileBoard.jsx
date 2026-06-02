@@ -127,8 +127,8 @@ export default function MobileBoard({
                 else onChangeStatus(statusSheet.task.id, s);
                 setStatusSheet(null);
               }}
-              className="flex w-full items-center gap-2 rounded-lg px-3 py-3 text-left text-sm font-medium text-white"
-              style={{ backgroundColor: STATUS_META[s].bg }}
+              className="flex w-full items-center gap-2 rounded-lg px-3 py-3 text-left text-sm font-medium"
+              style={{ backgroundColor: STATUS_META[s].bg, color: STATUS_META[s].text || '#fff' }}
             >
               {s}
             </button>

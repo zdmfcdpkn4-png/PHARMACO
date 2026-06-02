@@ -24,8 +24,8 @@ export default function PriorityBadge({ priority, onChange, readOnly = false }) 
         disabled={readOnly}
         onClick={() => setOpen((v) => !v)}
         title={priority}
-        className="flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-bold text-white transition-opacity hover:opacity-90 disabled:cursor-default"
-        style={{ backgroundColor: meta.bg }}
+        className="flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-bold transition-opacity hover:opacity-90 disabled:cursor-default"
+        style={{ backgroundColor: meta.bg, color: meta.text || '#fff' }}
       >
         <Flag size={11} className="shrink-0" />
         {meta.label}
@@ -43,8 +43,8 @@ export default function PriorityBadge({ priority, onChange, readOnly = false }) 
                   setOpen(false);
                   if (p !== priority) onChange?.(p);
                 }}
-                className="mb-1 flex w-full items-center justify-between rounded-md px-2 py-1.5 text-xs font-semibold text-white last:mb-0 hover:opacity-90"
-                style={{ backgroundColor: m.bg }}
+                className="mb-1 flex w-full items-center justify-between rounded-md px-2 py-1.5 text-xs font-semibold last:mb-0 hover:opacity-90"
+                style={{ backgroundColor: m.bg, color: m.text || '#fff' }}
               >
                 <span className="flex items-center gap-1.5">
                   <Flag size={11} /> {m.label} — {m.full}

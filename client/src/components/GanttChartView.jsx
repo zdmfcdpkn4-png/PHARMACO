@@ -514,6 +514,7 @@ function GanttLane({
 }) {
   const g = previewGeo || geo;
   const color = STATUS_META[task.status]?.bg || group.color;
+  const textColor = STATUS_META[task.status]?.text || '#fff';
   return (
     <div
       className="relative border-t border-gray-50"
@@ -523,8 +524,9 @@ function GanttLane({
       {g && (
         <div
           data-task-id={task.id}
-          className="group/bar absolute top-1/2 flex -translate-y-1/2 items-center rounded-md text-[11px] font-medium text-white shadow-sm ring-1 ring-black/5"
+          className="group/bar absolute top-1/2 flex -translate-y-1/2 items-center rounded-md text-[11px] font-medium shadow-sm ring-1 ring-black/5"
           style={{
+            color: textColor,
             left: g.left,
             width: Math.max(g.width, 12),
             height: rowH - 14,

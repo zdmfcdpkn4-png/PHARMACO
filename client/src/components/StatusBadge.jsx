@@ -23,8 +23,8 @@ export default function StatusBadge({ status, onChange, readOnly = false }) {
         type="button"
         disabled={readOnly}
         onClick={() => setOpen((v) => !v)}
-        className="flex h-full min-h-[36px] w-full items-center justify-center gap-1.5 px-2 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:cursor-default"
-        style={{ backgroundColor: meta.bg }}
+        className="flex h-full min-h-[36px] w-full items-center justify-center gap-1.5 px-2 text-sm font-medium transition-opacity hover:opacity-90 disabled:cursor-default"
+        style={{ backgroundColor: meta.bg, color: meta.text || '#fff' }}
       >
         {status === 'Bloqué' && <AlertCircle size={14} className="shrink-0" />}
         <span className="truncate">{meta.label}</span>
@@ -42,8 +42,8 @@ export default function StatusBadge({ status, onChange, readOnly = false }) {
                   setOpen(false);
                   if (s !== status) onChange?.(s);
                 }}
-                className="mb-1 flex w-full items-center justify-between rounded-md px-2 py-1.5 text-sm font-medium text-white last:mb-0 hover:opacity-90"
-                style={{ backgroundColor: m.bg }}
+                className="mb-1 flex w-full items-center justify-between rounded-md px-2 py-1.5 text-sm font-medium last:mb-0 hover:opacity-90"
+                style={{ backgroundColor: m.bg, color: m.text || '#fff' }}
               >
                 <span className="flex items-center gap-1.5">
                   {s === 'Bloqué' && <AlertCircle size={13} />}

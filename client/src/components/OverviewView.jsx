@@ -401,8 +401,11 @@ export default function OverviewView({
                     return (
                       <span
                         key={s}
-                        className="rounded-full px-2 py-0.5 text-[11px] font-medium text-white"
-                        style={{ backgroundColor: STATUS_META[s]?.bg || '#c4c4c4' }}
+                        className="rounded-full px-2 py-0.5 text-[11px] font-medium"
+                        style={{
+                          backgroundColor: STATUS_META[s]?.bg || '#9aadbd',
+                          color: STATUS_META[s]?.text || '#fff',
+                        }}
                       >
                         {s} · {n}
                       </span>

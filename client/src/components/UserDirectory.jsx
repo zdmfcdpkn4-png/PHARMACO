@@ -1,13 +1,17 @@
 import { Search, UserPlus, Pencil, KeyRound, Trash2, X, Loader2, Check, ListChecks } from 'lucide-react';
 import { useState } from 'react';
 import Avatar from './Avatar.jsx';
-import PharmacoAvatar, { AVATAR_PRESET_COUNT } from './PharmacoAvatar.jsx';
+import PharmacoAvatar, { AVATAR_PRESET_COUNT, AVATAR_ICON_KEYS } from './PharmacoAvatar.jsx';
 
 const ROLE_LABELS = { admin: 'Admin', member: 'Membre', viewer: 'Observateur' };
 
-// Sélecteur d'avatar : « Initiales » + les avatars PHARMACO (charte CHD).
+// Sélecteur d'avatar : « Initiales », avatars à initiales, et avatars à motif
+// (icône pharmacie/santé au centre) — tous dans la charte CHD.
 function AvatarPicker({ name, value, onChange }) {
-  const presets = Array.from({ length: AVATAR_PRESET_COUNT }, (_, i) => `pharmaco:${i}`);
+  const initialPresets = Array.from({ length: AVATAR_PRESET_COUNT }, (_, i) => `pharmaco:${i}`);
+  // Un motif par icône, avec une palette CHD qui tourne.
+  const iconPresets = AVATAR_ICON_KEYS.map((key, i) => `pharmaco:${i % AVATAR_PRESET_COUNT}:${key}`);
+
   const Option = ({ selected, onClick, children, title }) => (
     <button
       type="button"
@@ -20,21 +24,37 @@ function AvatarPicker({ name, value, onChange }) {
       {children}
     </button>
   );
+
   return (
-    <div className="flex flex-wrap gap-1.5">
-      <Option selected={!value} onClick={() => onChange(null)} title="Initiales">
-        <span
-          className="flex h-9 w-9 items-center justify-center rounded-full text-xs font-semibold text-white"
-          style={{ backgroundColor: '#9aadbd' }}
-        >
-          {(name || '?').slice(0, 1).toUpperCase()}
-        </span>
-      </Option>
-      {presets.map((p, i) => (
-        <Option key={p} selected={value === p} onClick={() => onChange(p)} title={`Avatar ${i + 1}`}>
-          <PharmacoAvatar variant={i} name={name} size={36} ring={false} />
-        </Option>
-      ))}
+    <div className="space-y-2">
+      <div>
+        <div className="mb-1 text-[11px] font-medium text-gray-400">Initiales</div>
+        <div className="flex flex-wrap gap-1.5">
+          <Option selected={!value} onClick={() => onChange(null)} title="Initiales simples">
+            <span
+              className="flex h-9 w-9 items-center justify-center rounded-full text-xs font-semibold text-white"
+              style={{ backgroundColor: '#9aadbd' }}
+            >
+              {(name || '?').slice(0, 1).toUpperCase()}
+            </span>
+          </Option>
+          {initialPresets.map((p, i) => (
+            <Option key={p} selected={value === p} onClick={() => onChange(p)} title={`Avatar ${i + 1}`}>
+              <PharmacoAvatar variant={i} name={name} size={36} ring={false} />
+            </Option>
+          ))}
+        </div>
+      </div>
+      <div>
+        <div className="mb-1 text-[11px] font-medium text-gray-400">Motifs</div>
+        <div className="flex flex-wrap gap-1.5">
+          {iconPresets.map((p, i) => (
+            <Option key={p} selected={value === p} onClick={() => onChange(p)} title={`Motif ${i + 1}`}>
+              <PharmacoAvatar variant={i % AVATAR_PRESET_COUNT} icon={AVATAR_ICON_KEYS[i]} size={36} ring={false} />
+            </Option>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }

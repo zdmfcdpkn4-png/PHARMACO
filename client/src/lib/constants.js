@@ -2,20 +2,23 @@
 // Les couleurs correspondent à la palette Monday.com.
 export const STATUSES = ['À faire', 'En cours', 'Fait', 'Bloqué'];
 
+// Couleurs alignées sur la charte CHD (bleu #005586, rose #E82A63,
+// teal #46B4B3, jaune #F4C137). `text` garantit la lisibilité (texte foncé
+// sur le jaune clair).
 export const STATUS_META = {
-  'À faire': { label: 'À faire', bg: '#c4c4c4', text: '#ffffff' },
-  'En cours': { label: 'En cours', bg: '#fdab3d', text: '#ffffff' },
-  Fait: { label: 'Fait', bg: '#00c875', text: '#ffffff' },
-  Bloqué: { label: 'Bloqué', bg: '#e2445c', text: '#ffffff' },
+  'À faire': { label: 'À faire', bg: '#9aadbd', text: '#ffffff' }, // gris bleuté
+  'En cours': { label: 'En cours', bg: '#f4c137', text: '#4a3a00' }, // jaune CHD
+  Fait: { label: 'Fait', bg: '#46b4b3', text: '#ffffff' }, // teal CHD
+  Bloqué: { label: 'Bloqué', bg: '#e82a63', text: '#ffffff' }, // rose CHD
 };
 
 // Référentiel des priorités : libellé court, couleur, et ordre de tri.
 export const PRIORITIES = ['P1 - Urgent', 'P2 - Élevé', 'P3 - Normal'];
 
 export const PRIORITY_META = {
-  'P1 - Urgent': { label: 'P1', full: 'Urgent', bg: '#e2445c', order: 0 }, // rouge vif
-  'P2 - Élevé': { label: 'P2', full: 'Élevé', bg: '#fdab3d', order: 1 }, // orange
-  'P3 - Normal': { label: 'P3', full: 'Normal', bg: '#579bfc', order: 2 }, // bleu
+  'P1 - Urgent': { label: 'P1', full: 'Urgent', bg: '#e82a63', text: '#ffffff', order: 0 }, // rose CHD
+  'P2 - Élevé': { label: 'P2', full: 'Élevé', bg: '#f4c137', text: '#4a3a00', order: 1 }, // jaune CHD
+  'P3 - Normal': { label: 'P3', full: 'Normal', bg: '#005586', text: '#ffffff', order: 2 }, // bleu CHD
 };
 
 // Palette de couleurs proposée pour les groupes.

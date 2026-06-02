@@ -122,8 +122,11 @@ export default function AgentView({ agent, boards, loadFull, onBack, onOpenProje
         <Folder size={12} /> {t._boardName}
       </span>
       <span
-        className="rounded-full px-2 py-0.5 text-[11px] font-medium text-white"
-        style={{ backgroundColor: STATUS_META[t.status]?.bg || '#c4c4c4' }}
+        className="rounded-full px-2 py-0.5 text-[11px] font-medium"
+        style={{
+          backgroundColor: STATUS_META[t.status]?.bg || '#9aadbd',
+          color: STATUS_META[t.status]?.text || '#fff',
+        }}
       >
         {t.status}
       </span>

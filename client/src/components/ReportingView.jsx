@@ -471,8 +471,11 @@ export default function ReportingView({ board, users = [] }) {
             <h3 className="flex items-center gap-2 text-sm font-semibold text-gray-700">
               Tâches au statut
               <span
-                className="rounded-full px-2.5 py-0.5 text-xs font-semibold text-white"
-                style={{ backgroundColor: STATUS_META[selectedStatus].bg }}
+                className="rounded-full px-2.5 py-0.5 text-xs font-semibold"
+                style={{
+                  backgroundColor: STATUS_META[selectedStatus].bg,
+                  color: STATUS_META[selectedStatus].text || '#fff',
+                }}
               >
                 {selectedStatus}
               </span>
@@ -499,8 +502,11 @@ export default function ReportingView({ board, users = [] }) {
                   />
                   <span className="flex-1 truncate text-sm text-gray-800">{t.name}</span>
                   <span
-                    className="rounded-full px-2 py-0.5 text-[11px] font-bold text-white"
-                    style={{ backgroundColor: PRIORITY_META[t.priority]?.bg || '#579bfc' }}
+                    className="rounded-full px-2 py-0.5 text-[11px] font-bold"
+                    style={{
+                      backgroundColor: PRIORITY_META[t.priority]?.bg || '#005586',
+                      color: PRIORITY_META[t.priority]?.text || '#fff',
+                    }}
                   >
                     {PRIORITY_META[t.priority]?.label || 'P3'}
                   </span>

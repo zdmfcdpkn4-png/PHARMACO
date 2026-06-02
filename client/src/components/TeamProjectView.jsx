@@ -107,8 +107,11 @@ export default function TeamProjectView({ board, team, section = 'workload' }) {
                   >
                     {n > 0 ? (
                       <span
-                        className="flex h-7 min-w-7 items-center justify-center rounded-full px-2 text-xs font-semibold text-white"
-                        style={{ backgroundColor: STATUS_META[s]?.bg || '#c4c4c4' }}
+                        className="flex h-7 min-w-7 items-center justify-center rounded-full px-2 text-xs font-semibold"
+                        style={{
+                          backgroundColor: STATUS_META[s]?.bg || '#9aadbd',
+                          color: STATUS_META[s]?.text || '#fff',
+                        }}
                       >
                         {n}
                       </span>

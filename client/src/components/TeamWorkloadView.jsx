@@ -372,8 +372,11 @@ export default function TeamWorkloadView({ board, users }) {
                         <div
                           key={t.id}
                           title={`${t.name} — ${t.status}`}
-                          className="truncate rounded px-1.5 py-0.5 text-[11px] font-medium text-white"
-                          style={{ backgroundColor: STATUS_META[t.status]?.bg || '#c4c4c4' }}
+                          className="truncate rounded px-1.5 py-0.5 text-[11px] font-medium"
+                          style={{
+                            backgroundColor: STATUS_META[t.status]?.bg || '#9aadbd',
+                            color: STATUS_META[t.status]?.text || '#fff',
+                          }}
                         >
                           {t.name}
                         </div>
