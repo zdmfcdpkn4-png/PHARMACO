@@ -13,6 +13,10 @@ import {
   FileText,
   Printer,
   Tag,
+  Pencil,
+  Palette,
+  Archive,
+  Trash2,
 } from 'lucide-react';
 import { STATUSES } from '../lib/constants.js';
 
@@ -40,6 +44,14 @@ export default function BoardHeader({
   onEtapeFilter,
   interventionFilter,
   onInterventionFilter,
+  // Projet : apparence + cycle de vie
+  boardColor,
+  boardIcon,
+  canManage = false,
+  isAdmin = false,
+  onCustomizeProject,
+  onArchiveProject,
+  onDeleteProject,
 }) {
   const etapeTags = tags.filter((t) => t.tag_type === 'etape');
   const interventionTags = tags.filter((t) => t.tag_type === 'intervention');
@@ -47,6 +59,8 @@ export default function BoardHeader({
   const [draft, setDraft] = useState(title);
   const [exportOpen, setExportOpen] = useState(false);
   const exportRef = useRef(null);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef(null);
 
   useEffect(() => {
     if (!exportOpen) return;
@@ -56,6 +70,15 @@ export default function BoardHeader({
     document.addEventListener('mousedown', onClick);
     return () => document.removeEventListener('mousedown', onClick);
   }, [exportOpen]);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    const onClick = (e) => {
+      if (menuRef.current && !menuRef.current.contains(e.target)) setMenuOpen(false);
+    };
+    document.addEventListener('mousedown', onClick);
+    return () => document.removeEventListener('mousedown', onClick);
+  }, [menuOpen]);
 
   return (
     <div className="no-print border-b border-gray-200 bg-white px-6 pt-4">
@@ -75,14 +98,80 @@ export default function BoardHeader({
           className="mb-3 rounded border border-primary px-2 py-1 text-2xl font-bold text-gray-800 outline-none"
         />
       ) : (
-        <button
-          type="button"
-          onClick={() => setEditing(true)}
-          className="mb-3 flex items-center gap-2 text-2xl font-bold text-gray-800 hover:text-primary"
-        >
-          {title}
-          <ChevronDown size={18} className="text-gray-400" />
-        </button>
+        <div className="relative mb-3 inline-block" ref={menuRef}>
+          <button
+            type="button"
+            onClick={() => setMenuOpen((v) => !v)}
+            className="flex items-center gap-2 text-2xl font-bold text-gray-800 hover:text-primary"
+          >
+            {boardColor && (
+              <span
+                className="flex h-8 w-8 items-center justify-center rounded-lg text-base text-white"
+                style={{ backgroundColor: boardColor }}
+              >
+                {boardIcon || (title || '?').charAt(0).toUpperCase()}
+              </span>
+            )}
+            {title}
+            <ChevronDown size={18} className="text-gray-400" />
+          </button>
+
+          {menuOpen && (
+            <div className="absolute left-0 top-full z-30 mt-1 w-60 overflow-hidden rounded-lg border border-gray-200 bg-white p-1 shadow-xl">
+              <button
+                type="button"
+                onClick={() => {
+                  setMenuOpen(false);
+                  setEditing(true);
+                }}
+                className="flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-left text-sm text-gray-700 hover:bg-gray-100"
+              >
+                <Pencil size={15} className="text-gray-400" /> Renommer
+              </button>
+              {canManage && onCustomizeProject && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMenuOpen(false);
+                    onCustomizeProject();
+                  }}
+                  className="flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-left text-sm text-gray-700 hover:bg-gray-100"
+                >
+                  <Palette size={15} className="text-primary" /> Personnaliser (couleur & vignette)
+                </button>
+              )}
+              {isAdmin && onArchiveProject && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMenuOpen(false);
+                    onArchiveProject();
+                  }}
+                  className="flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-left text-sm text-gray-700 hover:bg-gray-100"
+                >
+                  <Archive size={15} className="text-brand-orange" /> Archiver le projet
+                </button>
+              )}
+              {isAdmin && onDeleteProject && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMenuOpen(false);
+                    onDeleteProject();
+                  }}
+                  className="flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-left text-sm text-status-blocked hover:bg-red-50"
+                >
+                  <Trash2 size={15} /> Supprimer le projet
+                </button>
+              )}
+              {!isAdmin && (
+                <div className="px-2.5 py-1.5 text-[11px] text-gray-400">
+                  Archivage / suppression réservés aux administrateurs.
+                </div>
+              )}
+            </div>
+          )}
+        </div>
       )}
 
       {/* Barre d'outils */}

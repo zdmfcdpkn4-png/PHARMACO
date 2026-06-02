@@ -18,6 +18,7 @@ import AgentView from './components/AgentView.jsx';
 import KanbanView from './components/KanbanView.jsx';
 import CalendarView from './components/CalendarView.jsx';
 import BoardTabs from './components/BoardTabs.jsx';
+import ProjectModal from './components/ProjectModal.jsx';
 import TaskDrawer from './components/TaskDrawer.jsx';
 import TaskDetailPanel from './components/TaskDetailPanel.jsx';
 import MobileNav from './components/MobileNav.jsx';
@@ -92,7 +93,9 @@ function Board({ currentUser, onLogout, onUpdateCurrentUser }) {
   const CURRENT_USER_ID = currentUser.id;
   const isMobile = useIsMobile();
   const [board, setBoard] = useState(null);
-  const [boards, setBoards] = useState([]); // liste des projets (métadonnées)
+  const [boards, setBoards] = useState([]); // liste des projets actifs (métadonnées)
+  const [archivedBoards, setArchivedBoards] = useState([]); // projets archivés
+  const [projectModal, setProjectModal] = useState(null); // { mode, project }
   const [currentBoardId, setCurrentBoardId] = useState(null);
   // Largeurs de colonnes redimensionnables (persistées par projet).
   const {
@@ -148,9 +151,9 @@ function Board({ currentUser, onLogout, onUpdateCurrentUser }) {
   // Création de structure (groupes, colonnes) : propriétaire ou admin seulement.
   const canManageBoard = isOwner || isAdmin;
 
-  // Suppression d'une tâche : propriétaire, admin, admin assigné, ou tâche vide.
-  const canDeleteTask = (task) =>
-    !isViewer && (isOwner || isAdmin || !task.admin || task.admin.id === CURRENT_USER_ID);
+  // Suppression (tâches, groupes, projets) réservée au rôle administrateur.
+  // eslint-disable-next-line no-unused-vars
+  const canDeleteTask = (_task) => isAdmin;
 
   // -------- Chargement initial --------
   const loadAlerts = useCallback(async () => {
@@ -177,8 +180,10 @@ function Board({ currentUser, onLogout, onUpdateCurrentUser }) {
   useEffect(() => {
     (async () => {
       try {
-        const list = await api.getBoards().catch(() => []);
-        const firstId = list[0]?.id || 1;
+        const all = await api.getBoards({ include_archived: true }).catch(() => []);
+        const list = all.filter((b) => !b.archived);
+        setArchivedBoards(all.filter((b) => b.archived));
+        const firstId = list[0]?.id || all[0]?.id || 1;
         const [b, u] = await Promise.all([api.getBoard(firstId), api.getUsers()]);
         setBoards(list.length ? list : [{ id: b.id, name: b.name, description: b.description }]);
         setCurrentBoardId(b.id);
@@ -356,26 +361,83 @@ function Board({ currentUser, onLogout, onUpdateCurrentUser }) {
     }
   };
 
-  // Crée un nouveau projet (board) et l'ouvre.
-  const handleNewProject = async () => {
-    const name = window.prompt('Nom du nouveau projet :');
-    if (!name || !name.trim()) return;
-    try {
+  // Recharge la liste des projets actifs + archivés.
+  const refreshBoards = async () => {
+    const all = await api.getBoards({ include_archived: true }).catch(() => null);
+    if (!all) return;
+    setBoards(all.filter((b) => !b.archived));
+    setArchivedBoards(all.filter((b) => b.archived));
+  };
+
+  // Ouvre la modale de création de projet.
+  const handleNewProject = () => setProjectModal({ mode: 'create', project: null });
+  // Ouvre la modale de personnalisation du projet courant.
+  const handleCustomizeProject = (project) =>
+    setProjectModal({ mode: 'edit', project: project || board });
+
+  // Création ou personnalisation (nom / couleur / vignette).
+  const handleSubmitProject = async ({ name, color, icon }) => {
+    if (projectModal?.mode === 'edit') {
+      const id = projectModal.project.id;
+      const updated = await api.updateBoard(id, { name, color, icon });
+      await refreshBoards();
+      if (id === currentBoardId) setBoard((b) => (b ? { ...b, ...updated } : b));
+    } else {
       const created = await api.createBoard({
-        name: name.trim(),
+        name,
+        color,
+        icon,
         workspace_id: board?.workspace_id || 1,
         created_by: CURRENT_USER_ID,
       });
-      const list = await api.getBoards().catch(() => null);
-      if (list) setBoards(list);
-      else setBoards((prev) => [...prev, created]);
+      await refreshBoards();
       const b = await api.getBoard(created.id);
       setBoard(b);
       setCurrentBoardId(created.id);
       setView('board');
+    }
+  };
+
+  // Archive / désarchive un projet (admin).
+  const handleArchiveProject = async (id, archived = true) => {
+    try {
+      await api.updateBoard(id, { archived });
+      await refreshBoards();
+      // Si on archive le projet courant, bascule sur un autre projet actif.
+      if (archived && id === currentBoardId) {
+        const next = (await api.getBoards().catch(() => [])).find((b) => b.id !== id);
+        if (next) {
+          const b = await api.getBoard(next.id);
+          setBoard(b);
+          setCurrentBoardId(next.id);
+        }
+        setView('overview');
+      }
     } catch (e) {
-      setError(e.message || 'Impossible de créer le projet');
+      setError(e.message || "Impossible d'archiver le projet");
       setTimeout(() => setError(null), 3000);
+    }
+  };
+
+  // Supprime définitivement un projet (admin uniquement).
+  const handleDeleteProject = async (id) => {
+    if (!confirm('Supprimer définitivement ce projet et toutes ses tâches ? Action irréversible.'))
+      return;
+    try {
+      await api.deleteBoard(id);
+      await refreshBoards();
+      if (id === currentBoardId) {
+        const next = (await api.getBoards().catch(() => [])).find((b) => b.id !== id);
+        if (next) {
+          const b = await api.getBoard(next.id);
+          setBoard(b);
+          setCurrentBoardId(next.id);
+        }
+        setView('overview');
+      }
+    } catch (e) {
+      setError(e.message || 'Suppression impossible (réservée aux administrateurs)');
+      setTimeout(() => setError(null), 3500);
     }
   };
   const handleOpenDirectory = () => {
@@ -1244,6 +1306,10 @@ function Board({ currentUser, onLogout, onUpdateCurrentUser }) {
                   handleNewProject();
                   setMenuOpen(false);
                 }}
+                archivedProjects={archivedBoards}
+                onRestoreProject={(id) => handleArchiveProject(id, false)}
+                onDeleteProject={handleDeleteProject}
+                isAdmin={isAdmin}
                 view={view}
                 onSelectView={(v) => {
                   setView(v);
@@ -1557,6 +1623,14 @@ function Board({ currentUser, onLogout, onUpdateCurrentUser }) {
             />
           );
         })()}
+        {projectModal && (
+          <ProjectModal
+            mode={projectModal.mode}
+            project={projectModal.project}
+            onClose={() => setProjectModal(null)}
+            onSubmit={handleSubmitProject}
+          />
+        )}
       </div>
     );
   }
@@ -1570,6 +1644,10 @@ function Board({ currentUser, onLogout, onUpdateCurrentUser }) {
           selectedProjectId={currentBoardId ?? board.id}
           onSelectProject={handleSelectProject}
           onNewBoard={handleNewProject}
+          archivedProjects={archivedBoards}
+          onRestoreProject={(id) => handleArchiveProject(id, false)}
+          onDeleteProject={handleDeleteProject}
+          isAdmin={isAdmin}
           view={view}
           onSelectView={setView}
           involvedTeams={board.teams || []}
@@ -1799,7 +1877,17 @@ function Board({ currentUser, onLogout, onUpdateCurrentUser }) {
           <>
             <BoardHeader
               title={board.name}
-              onRenameBoard={(name) => setBoard((b) => ({ ...b, name }))}
+              boardColor={board.color}
+              boardIcon={board.icon}
+              canManage={canManageBoard}
+              isAdmin={isAdmin}
+              onCustomizeProject={() => handleCustomizeProject(board)}
+              onArchiveProject={() => handleArchiveProject(board.id, true)}
+              onDeleteProject={() => handleDeleteProject(board.id)}
+              onRenameBoard={(name) => {
+                setBoard((b) => ({ ...b, name }));
+                api.updateBoard(board.id, { name }).then(refreshBoards).catch(() => {});
+              }}
               search={search}
               onSearch={setSearch}
               personFilter={personFilter}
@@ -1880,6 +1968,7 @@ function Board({ currentUser, onLogout, onUpdateCurrentUser }) {
                               onOpenDetail={(t) => setDetailTask(t)}
                               canEdit={canEdit}
                               canManage={canManageBoard}
+                              canDeleteGroup={isAdmin}
                               canDeleteTask={canDeleteTask}
                               categories={board.categories || []}
                               categoryValue={categoryValue}
@@ -1994,6 +2083,14 @@ function Board({ currentUser, onLogout, onUpdateCurrentUser }) {
           </div>
         );
       })()}
+      {projectModal && (
+        <ProjectModal
+          mode={projectModal.mode}
+          project={projectModal.project}
+          onClose={() => setProjectModal(null)}
+          onSubmit={handleSubmitProject}
+        />
+      )}
     </div>
   );
 }

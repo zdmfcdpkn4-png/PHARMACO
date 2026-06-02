@@ -14,6 +14,7 @@ import {
   setCategoryValue,
 } from '../controllers/categories.controller.js';
 import { listTags, createTag, deleteTag } from '../controllers/tags.controller.js';
+import { requireAdmin } from '../middleware/auth.js';
 
 const router = Router();
 
@@ -22,7 +23,7 @@ router.get('/:id', getBoardFull); // tableau complet (groupes + tâches)
 router.post('/', createBoard);
 router.patch('/:id', updateBoard);
 router.put('/:id/teams', setBoardTeams);
-router.delete('/:id', deleteBoard);
+router.delete('/:id', requireAdmin, deleteBoard); // suppression projet : admin uniquement
 
 // Catégories / colonnes personnalisées
 router.get('/:boardId/categories', listCategories);

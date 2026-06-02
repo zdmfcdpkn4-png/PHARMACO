@@ -18,6 +18,8 @@ import {
   ChevronLeft,
   PanelLeft,
   Trash2,
+  Archive,
+  RotateCcw,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import Logo from './Logo.jsx';
@@ -62,6 +64,10 @@ export default function Sidebar({
   selectedProjectId,
   onSelectProject,
   onNewBoard,
+  archivedProjects = [],
+  onRestoreProject,
+  onDeleteProject,
+  isAdmin = false,
   view = 'board',
   onSelectView,
   // Équipes impliquées dans le projet (table project_teams)
@@ -99,6 +105,7 @@ export default function Sidebar({
   const open = forceOpen || panelOpen;
 
   const [openTeams, setOpenTeams] = useState({});
+  const [archivedOpen, setArchivedOpen] = useState(false);
   const [teamsSectionOpen, setTeamsSectionOpen] = useState(true);
   const [managingTeams, setManagingTeams] = useState(false);
   const [agentsSectionOpen, setAgentsSectionOpen] = useState(true);
@@ -175,16 +182,16 @@ export default function Sidebar({
         <div className="flex w-full flex-col items-center gap-1.5 overflow-y-auto px-1">
           {projects.map((p) => {
             const active = view !== 'overview' && p.id === selectedProject.id;
+            const color = p.color || '#005586';
             return (
               <button
                 key={p.id}
                 type="button"
                 onClick={() => onSelectProject?.(p.id)}
                 title={p.name}
-                className={`group relative flex h-11 w-11 items-center justify-center rounded-2xl text-sm font-bold transition-all hover:rounded-xl ${
-                  active
-                    ? 'bg-primary text-white shadow-md'
-                    : 'bg-gray-100 text-gray-500 hover:bg-primary-light hover:text-primary'
+                style={{ backgroundColor: color }}
+                className={`group relative flex h-11 w-11 items-center justify-center rounded-2xl text-sm font-bold text-white transition-all hover:rounded-xl ${
+                  active ? 'shadow-md ring-2 ring-primary/40 ring-offset-1' : 'opacity-75 hover:opacity-100'
                 }`}
               >
                 {/* Liseré actif à gauche */}
@@ -193,7 +200,11 @@ export default function Sidebar({
                     active ? 'opacity-100' : 'opacity-0 group-hover:opacity-50'
                   }`}
                 />
-                {(p.name || '?').charAt(0).toUpperCase()}
+                {p.icon ? (
+                  <span className="text-lg leading-none">{p.icon}</span>
+                ) : (
+                  (p.name || '?').charAt(0).toUpperCase()
+                )}
               </button>
             );
           })}
@@ -202,11 +213,69 @@ export default function Sidebar({
           <button
             type="button"
             onClick={() => onNewBoard?.()}
-            title="Nouveau tableau"
+            title="Nouveau projet"
             className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gray-50 text-gray-400 transition-all hover:rounded-xl hover:bg-primary-light hover:text-primary"
           >
             <Plus size={20} />
           </button>
+
+          {/* Projets archivés (repli/restauration) */}
+          {archivedProjects.length > 0 && (
+            <div className="relative w-full">
+              <button
+                type="button"
+                onClick={() => setArchivedOpen((v) => !v)}
+                title="Projets archivés"
+                className="flex h-9 w-11 items-center justify-center rounded-xl text-gray-400 transition hover:bg-gray-100 hover:text-gray-600"
+              >
+                <Archive size={17} />
+                <span className="absolute -right-0 -top-0 flex h-4 min-w-4 items-center justify-center rounded-full bg-gray-300 px-1 text-[10px] font-bold text-white">
+                  {archivedProjects.length}
+                </span>
+              </button>
+              {archivedOpen && (
+                <div className="absolute left-12 top-0 z-40 w-60 rounded-lg border border-gray-200 bg-white p-2 shadow-xl">
+                  <div className="mb-1 px-1 text-[11px] font-semibold uppercase tracking-wide text-gray-400">
+                    Projets archivés
+                  </div>
+                  <ul className="max-h-64 space-y-0.5 overflow-auto">
+                    {archivedProjects.map((p) => (
+                      <li
+                        key={p.id}
+                        className="group/arch flex items-center gap-2 rounded-md px-1.5 py-1 hover:bg-gray-50"
+                      >
+                        <span
+                          className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-xs text-white"
+                          style={{ backgroundColor: p.color || '#9aadbd' }}
+                        >
+                          {p.icon || (p.name || '?').charAt(0).toUpperCase()}
+                        </span>
+                        <span className="min-w-0 flex-1 truncate text-sm text-gray-600">{p.name}</span>
+                        <button
+                          type="button"
+                          onClick={() => onRestoreProject?.(p.id)}
+                          title="Restaurer"
+                          className="rounded p-1 text-gray-400 hover:bg-gray-200 hover:text-primary"
+                        >
+                          <RotateCcw size={14} />
+                        </button>
+                        {isAdmin && (
+                          <button
+                            type="button"
+                            onClick={() => onDeleteProject?.(p.id)}
+                            title="Supprimer définitivement"
+                            className="rounded p-1 text-gray-400 hover:bg-gray-200 hover:text-status-blocked"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         <div className="my-2 h-px w-8 bg-gray-100" />

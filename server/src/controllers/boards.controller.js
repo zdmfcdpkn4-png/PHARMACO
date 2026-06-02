@@ -2,17 +2,19 @@ import { query } from '../db/pool.js';
 import { asyncHandler } from '../middleware/error.js';
 
 export const listBoards = asyncHandler(async (req, res) => {
-  const { workspace_id } = req.query;
+  const { workspace_id, include_archived } = req.query;
   const params = [];
-  let where = '';
+  const clauses = [];
   if (workspace_id) {
     params.push(workspace_id);
-    where = 'WHERE workspace_id = $1';
+    clauses.push(`workspace_id = $${params.length}`);
   }
-  const { rows } = await query(
-    `SELECT * FROM boards ${where} ORDER BY id`,
-    params
-  );
+  // Par défaut, on masque les projets archivés (sauf include_archived=true).
+  if (include_archived !== 'true' && include_archived !== '1') {
+    clauses.push('archived = false');
+  }
+  const where = clauses.length ? `WHERE ${clauses.join(' AND ')}` : '';
+  const { rows } = await query(`SELECT * FROM boards ${where} ORDER BY id`, params);
   res.json(rows);
 });
 
@@ -237,26 +239,43 @@ export const getBoardFull = asyncHandler(async (req, res) => {
 });
 
 export const createBoard = asyncHandler(async (req, res) => {
-  const { workspace_id, name, description, created_by } = req.body;
+  const { workspace_id, name, description, created_by, color, icon } = req.body;
   if (!workspace_id || !name) {
     return res.status(400).json({ error: 'workspace_id et name sont requis' });
   }
   const { rows } = await query(
-    `INSERT INTO boards (workspace_id, name, description, created_by)
-     VALUES ($1, $2, $3, $4) RETURNING *`,
-    [workspace_id, name, description || null, created_by || null]
+    `INSERT INTO boards (workspace_id, name, description, created_by, color, icon)
+     VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
+    [workspace_id, name, description || null, created_by || null, color || null, icon || null]
   );
   res.status(201).json(rows[0]);
 });
 
 export const updateBoard = asyncHandler(async (req, res) => {
-  const { name, description } = req.body;
+  const { name, description, color, icon, archived } = req.body;
+  // color/icon : présents (chaîne ou null) -> remplacent ; archived : booléen.
+  const setColor = color !== undefined;
+  const setIcon = icon !== undefined;
+  const setArchived = archived !== undefined;
   const { rows } = await query(
     `UPDATE boards
-     SET name = COALESCE($1, name),
-         description = COALESCE($2, description)
-     WHERE id = $3 RETURNING *`,
-    [name ?? null, description ?? null, req.params.id]
+     SET name        = COALESCE($1, name),
+         description = COALESCE($2, description),
+         color       = CASE WHEN $3 THEN $4 ELSE color END,
+         icon        = CASE WHEN $5 THEN $6 ELSE icon END,
+         archived    = CASE WHEN $7 THEN $8 ELSE archived END
+     WHERE id = $9 RETURNING *`,
+    [
+      name ?? null,
+      description ?? null,
+      setColor,
+      color ?? null,
+      setIcon,
+      icon ?? null,
+      setArchived,
+      archived === true,
+      req.params.id,
+    ]
   );
   if (!rows.length) return res.status(404).json({ error: 'Tableau introuvable' });
   res.json(rows[0]);

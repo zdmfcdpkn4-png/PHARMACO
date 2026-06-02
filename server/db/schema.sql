@@ -82,6 +82,10 @@ CREATE TABLE IF NOT EXISTS boards (
     created_at   TIMESTAMPTZ  NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS idx_boards_workspace ON boards(workspace_id);
+-- Personnalisation & cycle de vie des projets.
+ALTER TABLE boards ADD COLUMN IF NOT EXISTS color VARCHAR(9);
+ALTER TABLE boards ADD COLUMN IF NOT EXISTS icon VARCHAR(16);
+ALTER TABLE boards ADD COLUMN IF NOT EXISTS archived BOOLEAN NOT NULL DEFAULT false;
 
 -- Pour les bases déjà créées : ajoute la colonne propriétaire si absente.
 ALTER TABLE boards ADD COLUMN IF NOT EXISTS created_by INTEGER REFERENCES users(id) ON DELETE SET NULL;

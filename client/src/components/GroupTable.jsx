@@ -81,6 +81,7 @@ export default function GroupTable({
   onDeleteSubtask,
   onRenameGroup,
   onDeleteGroup,
+  canDeleteGroup = false,
   getColWidth = () => 150,
   onResizeCol,
   onResetCol,
@@ -169,8 +170,8 @@ export default function GroupTable({
         <button
           type="button"
           onClick={() => onDeleteGroup()}
-          title="Supprimer le groupe"
-          className={`no-print ml-2 text-gray-300 hover:text-status-blocked ${canManage ? '' : 'hidden'}`}
+          title="Supprimer le groupe (admin)"
+          className={`no-print ml-2 text-gray-300 hover:text-status-blocked ${canDeleteGroup ? '' : 'hidden'}`}
         >
           <Trash2 size={15} />
         </button>

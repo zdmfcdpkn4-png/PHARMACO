@@ -47,6 +47,9 @@ const board1 = {
   workspace_id: 1,
   name: 'Suivi',
   description: 'Tableau de bord de suivi du projet',
+  color: '#005586',
+  icon: '📋',
+  archived: false,
   _teamIds: [1, 2],
   created_by: 1, // Erwin est propriétaire
   categories: [],
@@ -96,6 +99,8 @@ const board2 = {
   workspace_id: 1,
   name: 'Approvisionnement',
   description: 'Gestion des commandes et des stocks',
+  color: '#46b4b3',
+  icon: '📦',
   created_by: 1,
   _teamIds: [2],
   categories: [],
@@ -309,15 +314,20 @@ export const mockApi = {
     );
   },
 
-  async getBoards() {
+  async getBoards({ include_archived = false } = {}) {
     await delay(40);
-    return boards.map((b) => ({
-      id: b.id,
-      workspace_id: b.workspace_id,
-      name: b.name,
-      description: b.description,
-      created_by: b.created_by,
-    }));
+    return boards
+      .filter((b) => include_archived || !b.archived)
+      .map((b) => ({
+        id: b.id,
+        workspace_id: b.workspace_id,
+        name: b.name,
+        description: b.description,
+        created_by: b.created_by,
+        color: b.color || null,
+        icon: b.icon || null,
+        archived: !!b.archived,
+      }));
   },
 
   async getBoard(id) {
@@ -342,7 +352,7 @@ export const mockApi = {
     return clone({ ...board, dependencies, teams: involvedTeams });
   },
 
-  async createBoard({ name, description, workspace_id = 1, created_by = 1 }) {
+  async createBoard({ name, description, workspace_id = 1, created_by = 1, color = null, icon = null }) {
     await delay(60);
     const nb = {
       id: nextBoardId++,
@@ -350,6 +360,9 @@ export const mockApi = {
       name: (name || 'Nouveau projet').trim(),
       description: description || null,
       created_by,
+      color,
+      icon,
+      archived: false,
       _teamIds: [],
       categories: [],
       categoryValues: [],
@@ -361,7 +374,46 @@ export const mockApi = {
     };
     nb.groups.forEach((g) => (g.board_id = nb.id));
     boards.push(nb);
-    return { id: nb.id, workspace_id, name: nb.name, description: nb.description, created_by };
+    return {
+      id: nb.id,
+      workspace_id,
+      name: nb.name,
+      description: nb.description,
+      created_by,
+      color,
+      icon,
+      archived: false,
+    };
+  },
+
+  async updateBoard(id, patch = {}) {
+    await delay(50);
+    const target = boards.find((b) => b.id === Number(id));
+    if (!target) throw new Error('Tableau introuvable');
+    if (patch.name !== undefined) target.name = patch.name;
+    if (patch.description !== undefined) target.description = patch.description;
+    if (patch.color !== undefined) target.color = patch.color || null;
+    if (patch.icon !== undefined) target.icon = patch.icon || null;
+    if (patch.archived !== undefined) target.archived = !!patch.archived;
+    return {
+      id: target.id,
+      workspace_id: target.workspace_id,
+      name: target.name,
+      description: target.description,
+      created_by: target.created_by,
+      color: target.color || null,
+      icon: target.icon || null,
+      archived: !!target.archived,
+    };
+  },
+
+  async deleteBoard(id) {
+    await delay(50);
+    const idx = boards.findIndex((b) => b.id === Number(id));
+    if (idx === -1) throw new Error('Tableau introuvable');
+    boards.splice(idx, 1);
+    if (board && board.id === Number(id)) board = boards[0] || null;
+    return { ok: true };
   },
 
   async setBoardTeams(id, teamIds) {

@@ -13,6 +13,10 @@ import {
   Megaphone,
   Flag,
   CheckCheck,
+  ChevronDown,
+  ChevronRight,
+  ChevronsDownUp,
+  ChevronsUpDown,
 } from 'lucide-react';
 import Avatar from './Avatar.jsx';
 import { STATUS_META } from '../lib/constants.js';
@@ -116,6 +120,8 @@ export default function OverviewView({
   const [loading, setLoading] = useState(true);
   const [highlights, setHighlights] = useState([]);
   const [unreadOnly, setUnreadOnly] = useState(false);
+  const [collapsedCards, setCollapsedCards] = useState({}); // { [boardId]: true }
+  const toggleCard = (id) => setCollapsedCards((c) => ({ ...c, [id]: !c[id] }));
 
   useEffect(() => {
     let cancelled = false;
@@ -393,34 +399,91 @@ export default function OverviewView({
       </div>
 
       {/* Grille des projets */}
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-        {cards.map(({ meta, stats }) => (
+      <div className="mb-2 flex items-center justify-between">
+        <h3 className="text-sm font-semibold text-gray-600">Projets ({cards.length})</h3>
+        <div className="flex items-center gap-1">
           <button
-            key={meta.id}
             type="button"
-            onClick={() => onOpenProject(meta.id)}
-            className="group flex flex-col rounded-xl border border-gray-200 bg-white p-4 text-left shadow-sm transition hover:border-primary hover:shadow-md"
+            onClick={() => setCollapsedCards(Object.fromEntries(cards.map((c) => [c.meta.id, true])))}
+            className="flex items-center gap-1 rounded-md px-2 py-1 text-xs text-gray-500 hover:bg-gray-100"
           >
-            <div className="mb-2 flex items-start justify-between gap-2">
-              <div className="flex min-w-0 items-center gap-2">
-                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary-light text-primary">
-                  <Folder size={18} />
+            <ChevronsDownUp size={14} /> Tout réduire
+          </button>
+          <button
+            type="button"
+            onClick={() => setCollapsedCards({})}
+            className="flex items-center gap-1 rounded-md px-2 py-1 text-xs text-gray-500 hover:bg-gray-100"
+          >
+            <ChevronsUpDown size={14} /> Tout développer
+          </button>
+        </div>
+      </div>
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+        {cards.map(({ meta, stats }) => {
+          const collapsed = !!collapsedCards[meta.id];
+          const color = meta.color || '#005586';
+          return (
+          <div
+            key={meta.id}
+            className="group flex flex-col rounded-xl border border-gray-200 bg-white p-4 text-left shadow-sm transition hover:border-primary hover:shadow-md"
+            style={{ borderTop: `3px solid ${color}` }}
+          >
+            <div className="flex items-start justify-between gap-2">
+              <button
+                type="button"
+                onClick={() => onOpenProject(meta.id)}
+                className="flex min-w-0 flex-1 items-center gap-2 text-left"
+              >
+                <span
+                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-base text-white"
+                  style={{ backgroundColor: color }}
+                >
+                  {meta.icon || <Folder size={18} />}
                 </span>
                 <div className="min-w-0">
-                  <div className="truncate font-semibold text-gray-800">{meta.name}</div>
+                  <div className="truncate font-semibold text-gray-800 group-hover:text-primary">
+                    {meta.name}
+                  </div>
                   {meta.description && (
                     <div className="truncate text-xs text-gray-400">{meta.description}</div>
                   )}
                 </div>
-              </div>
-              <ArrowRight
-                size={16}
-                className="mt-1 shrink-0 text-gray-300 transition group-hover:translate-x-0.5 group-hover:text-primary"
-              />
+              </button>
+              <button
+                type="button"
+                onClick={() => toggleCard(meta.id)}
+                title={collapsed ? 'Développer' : 'Réduire'}
+                className="shrink-0 rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-primary"
+              >
+                {collapsed ? <ChevronRight size={18} /> : <ChevronDown size={18} />}
+              </button>
             </div>
 
-            {stats ? (
-              <>
+            {/* Résumé compact (mode réduit) */}
+            {collapsed && stats && (
+              <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-gray-500">
+                <span className="font-medium text-gray-700">{stats.pct}%</span>
+                <span>{stats.total} tâche(s)</span>
+                {stats.urgent > 0 && (
+                  <span className="flex items-center gap-0.5 text-brand-rose">
+                    <Flame size={12} /> {stats.urgent}
+                  </span>
+                )}
+                {stats.overdue > 0 && (
+                  <span className="flex items-center gap-0.5 text-orange-600">
+                    <AlarmClock size={12} /> {stats.overdue}
+                  </span>
+                )}
+                {stats.unreadMessages > 0 && (
+                  <span className="flex items-center gap-0.5 text-primary">
+                    <MessageSquare size={12} /> {stats.unreadMessages}
+                  </span>
+                )}
+              </div>
+            )}
+
+            {!collapsed && stats ? (
+              <><div className="mt-2" />
                 {/* Barre de progression */}
                 <div className="mb-1 mt-2 flex items-center justify-between text-xs text-gray-500">
                   <span>{stats.total} tâche(s)</span>
@@ -506,13 +569,14 @@ export default function OverviewView({
                   )}
                 </div>
               </>
-            ) : (
+            ) : !collapsed ? (
               <div className="py-6 text-center text-xs text-gray-300">
                 {loading ? 'Chargement…' : 'Statistiques indisponibles'}
               </div>
-            )}
-          </button>
-        ))}
+            ) : null}
+          </div>
+          );
+        })}
       </div>
     </div>
   );
