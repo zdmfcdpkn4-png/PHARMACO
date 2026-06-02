@@ -26,6 +26,10 @@ services:
           property: connectionString
       - key: PGSSL
         value: "true"
+      # Secret de signature des jetons (HMAC) : auto-généré par Render.
+      # Obligatoire en production : sans lui, le serveur refuse de démarrer.
+      - key: AUTH_SECRET
+        generateValue: true
       - key: CLIENT_ORIGIN
         # URL complète du frontend, ex : https://pharmaco-web.onrender.com
         # (à renseigner dans le dashboard après le 1er déploiement ;
