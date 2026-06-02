@@ -1,12 +1,13 @@
 import { useState } from 'react';
-import { Plus, SlidersHorizontal, Search } from 'lucide-react';
+import { Plus, SlidersHorizontal, Search, Menu } from 'lucide-react';
 import BottomSheet from './BottomSheet.jsx';
 import Logo from './Logo.jsx';
 import { STATUSES } from '../lib/constants.js';
 
-// En-tête mobile : logo + titre, bouton ajouter, entonnoir de filtres (bottom sheet).
+// En-tête mobile : burger + logo + titre, bouton ajouter, entonnoir de filtres.
 export default function MobileHeader({
   title,
+  onOpenMenu,
   onAddTask,
   search,
   onSearch,
@@ -35,6 +36,13 @@ export default function MobileHeader({
   return (
     <header className="sticky top-0 z-30 border-b border-gray-200 bg-white px-4 py-2.5">
       <div className="flex items-center gap-2">
+        <button
+          onClick={onOpenMenu}
+          className="rounded-lg p-1.5 text-gray-600 hover:bg-gray-100"
+          title="Menu"
+        >
+          <Menu size={20} />
+        </button>
         <Logo size={28} />
         <h1 className="flex-1 truncate text-lg font-bold text-gray-800">{title}</h1>
 

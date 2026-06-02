@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Bell, Plus, LogOut } from 'lucide-react';
+import { Bell, Plus, LogOut, Menu, X } from 'lucide-react';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import Sidebar from './components/Sidebar.jsx';
 import RailPanel from './components/RailPanel.jsx';
@@ -66,6 +66,7 @@ function Board({ currentUser, onLogout }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [profileOpen, setProfileOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false); // sidebar coulissante (mobile)
 
   // Filtres / recherche
   const [search, setSearch] = useState('');
@@ -955,10 +956,56 @@ function Board({ currentUser, onLogout }) {
   if (isMobile) {
     return (
       <div className="flex h-screen flex-col overflow-hidden bg-canvas">
+        {/* Sidebar coulissante (burger) : 85% de largeur + overlay */}
+        {menuOpen && (
+          <div className="fixed inset-0 z-[70] flex">
+            <div
+              className="absolute inset-0 bg-black/30 animate-[fadeIn_.15s_ease-out]"
+              onClick={() => setMenuOpen(false)}
+            />
+            <div className="relative h-full w-[85%] max-w-sm animate-[slideInLeft_.2s_ease-out] bg-white shadow-2xl">
+              <button
+                onClick={() => setMenuOpen(false)}
+                className="absolute right-2 top-2 z-10 rounded-md p-1.5 text-gray-400 hover:bg-gray-100"
+              >
+                <X size={18} />
+              </button>
+              <Sidebar
+                boardName={board.name}
+                activeRail={activeRail}
+                onSelectRail={(rail) => setActiveRail(rail)}
+                onNewBoard={handleAddGroup}
+                view={view}
+                onSelectView={(v) => {
+                  setView(v);
+                  setMenuOpen(false);
+                }}
+                mode={sidebarMode}
+                onChangeMode={setSidebarMode}
+                teams={teams}
+                teamSection={teamSection}
+                onSelectTeamSection={(id, s) => {
+                  handleSelectTeamSection(id, s);
+                  setMenuOpen(false);
+                }}
+                shortcuts={shortcuts}
+                onAddShortcut={handleAddShortcut}
+                onDeleteShortcut={handleDeleteShortcut}
+                onOpenShortcut={(sc) => {
+                  handleOpenShortcut(sc);
+                  setMenuOpen(false);
+                }}
+                forceOpen
+              />
+            </div>
+          </div>
+        )}
+
         {view === 'board' ? (
           <>
             <MobileHeader
               title={board.name}
+              onOpenMenu={() => setMenuOpen(true)}
               onAddTask={() => board.groups[0] && handleAddTask(board.groups[0].id, 'Nouvelle tâche')}
               search={search}
               onSearch={setSearch}
@@ -1021,7 +1068,14 @@ function Board({ currentUser, onLogout }) {
           </>
         ) : (
           <div className="flex flex-1 flex-col overflow-hidden">
-            <div className="sticky top-0 z-30 border-b border-gray-200 bg-white px-4 py-3">
+            <div className="sticky top-0 z-30 flex items-center gap-2 border-b border-gray-200 bg-white px-4 py-3">
+              <button
+                onClick={() => setMenuOpen(true)}
+                className="rounded-lg p-1.5 text-gray-600 hover:bg-gray-100"
+                title="Menu"
+              >
+                <Menu size={20} />
+              </button>
               <h1 className="text-lg font-bold text-gray-800">
                 {view === 'gantt'
                   ? 'Gantt / Chronogramme'
@@ -1029,6 +1083,8 @@ function Board({ currentUser, onLogout }) {
                   ? 'Planning dynamique'
                   : view === 'reporting'
                   ? 'Reporting'
+                  : view === 'teams'
+                  ? 'Gestion des Équipes'
                   : 'Charge de travail'}
               </h1>
             </div>
