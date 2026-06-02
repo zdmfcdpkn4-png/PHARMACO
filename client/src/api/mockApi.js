@@ -41,11 +41,12 @@ let alerts = [
 ];
 
 // État du board "Suivi" (reproduit la maquette)
-const board = {
+const board1 = {
   id: 1,
   workspace_id: 1,
   name: 'Suivi',
   description: 'Tableau de bord de suivi du projet',
+  _teamIds: [1, 2],
   created_by: 1, // Erwin est propriétaire
   categories: [],
   categoryValues: [],
@@ -88,6 +89,51 @@ const board = {
   ],
 };
 
+// Second projet de démonstration (pour illustrer le multi-projets).
+const board2 = {
+  id: 2,
+  workspace_id: 1,
+  name: 'Approvisionnement',
+  description: 'Gestion des commandes et des stocks',
+  created_by: 1,
+  _teamIds: [2],
+  categories: [],
+  categoryValues: [],
+  tags: [
+    { id: 751, board_id: 2, name: 'Commande', color: '#0073ea', tag_type: 'etape' },
+    { id: 752, board_id: 2, name: 'Réception', color: '#00c875', tag_type: 'etape' },
+    { id: 753, board_id: 2, name: 'Urgent fournisseur', color: '#e2445c', tag_type: 'intervention' },
+  ],
+  groups: [
+    {
+      id: 21,
+      board_id: 2,
+      name: 'À commander',
+      color: '#fdab3d',
+      position: 0,
+      tasks: [
+        { id: 211, group_id: 21, name: 'Commande antibiotiques', position: 0, status: 'À faire', priority: 'P2 - Élevé', start_date: weekday(0), duedate: weekday(3), created_at: daysAgo(4), admin: adminShape(3), assignees: [adminShape(3)], etape_tag_id: 751, intervention_tag_id: null, subtasks: [] },
+        { id: 212, group_id: 21, name: 'Inventaire mensuel', position: 1, status: 'En cours', priority: 'P3 - Normal', start_date: weekday(1), duedate: weekday(4), created_at: daysAgo(3), admin: adminShape(4), assignees: [adminShape(4)], etape_tag_id: null, intervention_tag_id: 753, subtasks: [] },
+      ],
+    },
+    {
+      id: 22,
+      board_id: 2,
+      name: 'Reçu',
+      color: '#00c875',
+      position: 1,
+      tasks: [
+        { id: 221, group_id: 22, name: 'Réception solutés', position: 0, status: 'Fait', priority: 'P3 - Normal', start_date: weekday(-2), duedate: weekday(0), created_at: daysAgo(6), admin: adminShape(3), assignees: [adminShape(3)], etape_tag_id: 752, intervention_tag_id: null, subtasks: [] },
+      ],
+    },
+  ],
+};
+
+// Registre des projets + pointeur sur le projet actif (modifié par getBoard).
+const boards = [board1, board2];
+let board = board1;
+let nextBoardId = 3;
+
 // Discussion & journal d'activité en mémoire
 let comments = [
   { id: 700, task_id: 13, content: 'En attente du réapprovisionnement fournisseur.', user: adminShape(1), created_at: daysAgo(2) },
@@ -123,8 +169,6 @@ let teams = [
   },
 ];
 let shortcuts = [];
-// Équipes impliquées dans le projet courant (table project_teams).
-let boardTeamIds = [1, 2];
 
 // Suivi lu/non-lu : { `${userId}:${taskId}`: ISO last_read_at }
 let commentReads = {};
@@ -261,8 +305,24 @@ export const mockApi = {
     );
   },
 
-  async getBoard(/* id */) {
+  async getBoards() {
+    await delay(40);
+    return boards.map((b) => ({
+      id: b.id,
+      workspace_id: b.workspace_id,
+      name: b.name,
+      description: b.description,
+      created_by: b.created_by,
+    }));
+  },
+
+  async getBoard(id) {
     await delay();
+    // Sélectionne le projet demandé (pointeur actif pour les mutations).
+    if (id != null) {
+      const found = boards.find((b) => b.id === Number(id));
+      if (found) board = found;
+    }
     // Garantit subtasks + assignees (dérivés de admin si absents)
     for (const g of board.groups)
       for (const t of g.tasks) {
@@ -274,13 +334,36 @@ export const mockApi = {
           s.admin = s.assignees[0] || null;
         }
       }
-    const involvedTeams = teams.filter((t) => boardTeamIds.includes(t.id));
+    const involvedTeams = teams.filter((t) => (board._teamIds || []).includes(t.id));
     return clone({ ...board, dependencies, teams: involvedTeams });
   },
 
-  async setBoardTeams(_id, teamIds) {
+  async createBoard({ name, description, workspace_id = 1, created_by = 1 }) {
+    await delay(60);
+    const nb = {
+      id: nextBoardId++,
+      workspace_id,
+      name: (name || 'Nouveau projet').trim(),
+      description: description || null,
+      created_by,
+      _teamIds: [],
+      categories: [],
+      categoryValues: [],
+      tags: [],
+      groups: [
+        { id: uid(), board_id: 0, name: 'À faire', color: '#579bfc', position: 0, tasks: [] },
+        { id: uid(), board_id: 0, name: 'Terminé', color: '#00c875', position: 1, tasks: [] },
+      ],
+    };
+    nb.groups.forEach((g) => (g.board_id = nb.id));
+    boards.push(nb);
+    return { id: nb.id, workspace_id, name: nb.name, description: nb.description, created_by };
+  },
+
+  async setBoardTeams(id, teamIds) {
     await delay(40);
-    boardTeamIds = Array.isArray(teamIds) ? [...teamIds] : [];
+    const target = boards.find((b) => b.id === Number(id)) || board;
+    target._teamIds = Array.isArray(teamIds) ? [...teamIds] : [];
     return { ok: true };
   },
 

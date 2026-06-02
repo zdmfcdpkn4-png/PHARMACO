@@ -13,6 +13,7 @@ import GanttChartView from './components/GanttChartView.jsx';
 import DynamicTimeView from './components/DynamicTimeView.jsx';
 import TeamsView from './components/TeamsView.jsx';
 import TeamProjectView from './components/TeamProjectView.jsx';
+import OverviewView from './components/OverviewView.jsx';
 import KanbanView from './components/KanbanView.jsx';
 import CalendarView from './components/CalendarView.jsx';
 import BoardTabs from './components/BoardTabs.jsx';
@@ -28,6 +29,12 @@ import { api, IS_MOCK } from './api/index.js';
 import { GROUP_COLORS, STATUS_META, PRIORITY_META } from './lib/constants.js';
 
 const AUTH_KEY = 'pharmaco_auth';
+
+// Palette de couleurs cyclique pour les étiquettes créées à la volée.
+const TAG_PALETTE = [
+  '#579bfc', '#00c875', '#e2445c', '#fdab3d',
+  '#a25ddc', '#00c2e0', '#ff5ac4', '#784bd1',
+];
 
 // Composant racine : gère l'authentification puis rend le tableau.
 export default function App() {
@@ -62,6 +69,8 @@ function Board({ currentUser, onLogout }) {
   const CURRENT_USER_ID = currentUser.id;
   const isMobile = useIsMobile();
   const [board, setBoard] = useState(null);
+  const [boards, setBoards] = useState([]); // liste des projets (métadonnées)
+  const [currentBoardId, setCurrentBoardId] = useState(null);
   const [users, setUsers] = useState([]);
   const [alerts, setAlerts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -138,7 +147,11 @@ function Board({ currentUser, onLogout }) {
   useEffect(() => {
     (async () => {
       try {
-        const [b, u] = await Promise.all([api.getBoard(1), api.getUsers()]);
+        const list = await api.getBoards().catch(() => []);
+        const firstId = list[0]?.id || 1;
+        const [b, u] = await Promise.all([api.getBoard(firstId), api.getUsers()]);
+        setBoards(list.length ? list : [{ id: b.id, name: b.name, description: b.description }]);
+        setCurrentBoardId(b.id);
         setBoard(b);
         setUsers(u);
         await loadAlerts();
@@ -256,6 +269,52 @@ function Board({ currentUser, onLogout }) {
     setTeamSection(null);
     setView('teams');
   };
+  const handleOpenOverview = () => {
+    setView('overview');
+  };
+
+  // -------- Multi-projets (un board par projet) --------
+  // Bascule vers un autre projet : recharge le tableau complet correspondant.
+  const handleSelectProject = async (id) => {
+    // Depuis la vue d'ensemble, on recharge toujours (cohérence du board actif).
+    if (id === currentBoardId && view !== 'overview') {
+      setView('board');
+      return;
+    }
+    try {
+      const b = await api.getBoard(id);
+      setBoard(b);
+      setCurrentBoardId(id);
+      setTeamView(null);
+      setView('board');
+    } catch (e) {
+      setError(e.message || 'Impossible de charger le projet');
+      setTimeout(() => setError(null), 3000);
+    }
+  };
+
+  // Crée un nouveau projet (board) et l'ouvre.
+  const handleNewProject = async () => {
+    const name = window.prompt('Nom du nouveau projet :');
+    if (!name || !name.trim()) return;
+    try {
+      const created = await api.createBoard({
+        name: name.trim(),
+        workspace_id: board?.workspace_id || 1,
+        created_by: CURRENT_USER_ID,
+      });
+      const list = await api.getBoards().catch(() => null);
+      if (list) setBoards(list);
+      else setBoards((prev) => [...prev, created]);
+      const b = await api.getBoard(created.id);
+      setBoard(b);
+      setCurrentBoardId(created.id);
+      setView('board');
+    } catch (e) {
+      setError(e.message || 'Impossible de créer le projet');
+      setTimeout(() => setError(null), 3000);
+    }
+  };
   const handleOpenDirectory = () => {
     setTeamSection('directory');
     setView('teams');
@@ -302,6 +361,13 @@ function Board({ currentUser, onLogout }) {
   const handleCreateTag = async (name, color, tag_type) => {
     const created = await api.createTag(board.id, { name, color, tag_type });
     setBoard((b) => ({ ...b, tags: [...(b.tags || []), created] }));
+    return created;
+  };
+  // Création rapide d'une étiquette depuis la fiche de tâche (couleur auto).
+  const handleCreateTagInline = (tag_type, name) => {
+    const count = (board.tags || []).filter((t) => t.tag_type === tag_type).length;
+    const color = TAG_PALETTE[count % TAG_PALETTE.length];
+    return handleCreateTag(name, color, tag_type);
   };
   const handleDeleteTag = async (tagId) => {
     setBoard((b) => ({ ...b, tags: (b.tags || []).filter((t) => t.id !== tagId) }));
@@ -1024,13 +1090,16 @@ function Board({ currentUser, onLogout }) {
               </button>
               <Sidebar
                 workspaceName="Espace de travail principal"
-                projects={[{ id: board.id, name: board.name }]}
-                selectedProjectId={board.id}
-                onSelectProject={() => {
-                  setView('board');
+                projects={boards.length ? boards : [{ id: board.id, name: board.name }]}
+                selectedProjectId={currentBoardId ?? board.id}
+                onSelectProject={(id) => {
+                  handleSelectProject(id);
                   setMenuOpen(false);
                 }}
-                onNewBoard={handleAddGroup}
+                onNewBoard={() => {
+                  handleNewProject();
+                  setMenuOpen(false);
+                }}
                 view={view}
                 onSelectView={(v) => {
                   setView(v);
@@ -1042,6 +1111,10 @@ function Board({ currentUser, onLogout }) {
                 teamView={teamView}
                 onSelectTeamView={(id, s) => {
                   handleSelectTeamView(id, s);
+                  setMenuOpen(false);
+                }}
+                onOpenOverview={() => {
+                  handleOpenOverview();
                   setMenuOpen(false);
                 }}
                 onOpenTeams={() => {
@@ -1142,7 +1215,9 @@ function Board({ currentUser, onLogout }) {
                 <Menu size={20} />
               </button>
               <h1 className="text-lg font-bold text-gray-800">
-                {view === 'gantt'
+                {view === 'overview'
+                  ? "Vue d'ensemble"
+                  : view === 'gantt'
                   ? 'Gantt / Chronogramme'
                   : view === 'timeline'
                   ? 'Planning dynamique'
@@ -1158,6 +1233,15 @@ function Board({ currentUser, onLogout }) {
               </h1>
             </div>
             <div className="flex flex-1 flex-col overflow-auto pb-20">
+              {view === 'overview' && (
+                <OverviewView
+                  boards={boards}
+                  loadFull={(id) => api.getBoard(id)}
+                  onOpenProject={(id) => {
+                    handleSelectProject(id);
+                  }}
+                />
+              )}
               {view === 'gantt' && (
                 <GanttChartView
                   board={board}
@@ -1283,6 +1367,7 @@ function Board({ currentUser, onLogout }) {
               onSetAssignees={(ids) => handleSetTaskAssignees(live.id, ids)}
               onChangeDate={(d) => handleChangeDate(live.id, d)}
               onChangeTag={(field, tagId) => handleChangeTaskTag(live.id, field, tagId)}
+              onCreateTag={handleCreateTagInline}
               onSetCategoryValue={handleSetCategoryValue}
             />
           );
@@ -1296,10 +1381,10 @@ function Board({ currentUser, onLogout }) {
       <div className="contents no-print">
         <Sidebar
           workspaceName="Espace de travail principal"
-          projects={[{ id: board.id, name: board.name }]}
-          selectedProjectId={board.id}
-          onSelectProject={() => setView('board')}
-          onNewBoard={handleAddGroup}
+          projects={boards.length ? boards : [{ id: board.id, name: board.name }]}
+          selectedProjectId={currentBoardId ?? board.id}
+          onSelectProject={handleSelectProject}
+          onNewBoard={handleNewProject}
           view={view}
           onSelectView={setView}
           involvedTeams={board.teams || []}
@@ -1307,6 +1392,7 @@ function Board({ currentUser, onLogout }) {
           onSetInvolvedTeams={handleSetBoardTeams}
           teamView={teamView}
           onSelectTeamView={handleSelectTeamView}
+          onOpenOverview={handleOpenOverview}
           onOpenTeams={handleOpenTeams}
           onOpenDirectory={handleOpenDirectory}
           onSelectRail={(rail) => setActiveRail(rail)}
@@ -1378,7 +1464,20 @@ function Board({ currentUser, onLogout }) {
           </div>
         </div>
 
-        {view === 'teams' ? (
+        {view === 'overview' ? (
+          <>
+            <div className="border-b border-gray-200 bg-white px-6 pt-4">
+              <h2 className="mb-3 flex items-center gap-2 text-2xl font-bold text-gray-800">
+                Vue d'ensemble des projets
+              </h2>
+            </div>
+            <OverviewView
+              boards={boards}
+              loadFull={(id) => api.getBoard(id)}
+              onOpenProject={handleSelectProject}
+            />
+          </>
+        ) : view === 'teams' ? (
           <>
             <div className="border-b border-gray-200 bg-white px-6 pt-4">
               <h2 className="mb-3 flex items-center gap-2 text-2xl font-bold text-gray-800">
@@ -1668,6 +1767,7 @@ function Board({ currentUser, onLogout }) {
               onSetAssignees={(ids) => handleSetTaskAssignees(live.id, ids)}
               onChangeDate={(d) => handleChangeDate(live.id, d)}
               onChangeTag={(field, tagId) => handleChangeTaskTag(live.id, field, tagId)}
+              onCreateTag={handleCreateTagInline}
               onSetCategoryValue={handleSetCategoryValue}
             />
           </div>

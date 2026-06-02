@@ -33,8 +33,11 @@ export function TagPill({ tag, onRemove }) {
 }
 
 // Cellule d'étiquette : affiche la pilule + popover de sélection au clic.
-export default function TagCell({ value, tags, canEdit = true, onChange, placeholder = 'Définir' }) {
+// Si `onCreate` est fourni, on peut créer une nouvelle étiquette à la volée.
+export default function TagCell({ value, tags, canEdit = true, onChange, onCreate, placeholder = 'Définir' }) {
   const [open, setOpen] = useState(false);
+  const [newName, setNewName] = useState('');
+  const [creating, setCreating] = useState(false);
   const ref = useRef(null);
   const selected = tags.find((t) => t.id === value) || null;
 
@@ -46,6 +49,20 @@ export default function TagCell({ value, tags, canEdit = true, onChange, placeho
     document.addEventListener('mousedown', onClick);
     return () => document.removeEventListener('mousedown', onClick);
   }, [open]);
+
+  const submitNew = async () => {
+    const n = newName.trim();
+    if (!n || creating || !onCreate) return;
+    setCreating(true);
+    try {
+      const created = await onCreate(n);
+      if (created && created.id != null) onChange(created.id);
+      setNewName('');
+      setOpen(false);
+    } finally {
+      setCreating(false);
+    }
+  };
 
   return (
     <div className="relative flex items-center justify-center" ref={ref}>
@@ -66,9 +83,14 @@ export default function TagCell({ value, tags, canEdit = true, onChange, placeho
 
       {open && canEdit && (
         <div className="absolute left-1/2 top-full z-30 mt-1 max-h-64 w-52 -translate-x-1/2 overflow-auto rounded-lg border border-gray-200 bg-white p-1.5 shadow-xl">
-          {tags.length === 0 && (
+          {tags.length === 0 && !onCreate && (
             <div className="px-2 py-3 text-center text-xs text-gray-400">
               Aucune étiquette. Créez-en dans la config du tableau.
+            </div>
+          )}
+          {tags.length === 0 && onCreate && (
+            <div className="px-2 pb-1 pt-2 text-center text-[11px] text-gray-400">
+              Aucune étiquette. Créez-en une ci-dessous.
             </div>
           )}
           {tags.map((t) => {
@@ -98,6 +120,31 @@ export default function TagCell({ value, tags, canEdit = true, onChange, placeho
             >
               <X size={12} /> Retirer l'étiquette
             </button>
+          )}
+
+          {onCreate && (
+            <div className="mt-1 flex items-center gap-1 border-t border-gray-100 pt-1.5">
+              <input
+                value={newName}
+                onChange={(e) => setNewName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    submitNew();
+                  }
+                }}
+                placeholder="Nouvelle étiquette…"
+                className="min-w-0 flex-1 rounded-md border border-gray-200 px-2 py-1 text-xs outline-none focus:border-primary"
+              />
+              <button
+                onClick={submitNew}
+                disabled={!newName.trim() || creating}
+                title="Créer et appliquer"
+                className="shrink-0 rounded-md bg-primary p-1.5 text-white disabled:opacity-40"
+              >
+                <Plus size={13} />
+              </button>
+            </div>
           )}
         </div>
       )}

@@ -47,6 +47,7 @@ export default function TaskDetailPanel({
   onSetAssignees,
   onChangeDate,
   onChangeTag,
+  onCreateTag,
   onSetCategoryValue,
 }) {
   const [name, setName] = useState(task.name);
@@ -137,6 +138,7 @@ export default function TaskDetailPanel({
               tags={tags.filter((t) => t.tag_type === 'etape')}
               canEdit={canEdit}
               onChange={(id) => onChangeTag?.('etape_tag_id', id)}
+              onCreate={canEdit && onCreateTag ? (name) => onCreateTag('etape', name) : undefined}
             />
           </Field>
 
@@ -146,6 +148,9 @@ export default function TaskDetailPanel({
               tags={tags.filter((t) => t.tag_type === 'intervention')}
               canEdit={canEdit}
               onChange={(id) => onChangeTag?.('intervention_tag_id', id)}
+              onCreate={
+                canEdit && onCreateTag ? (name) => onCreateTag('intervention', name) : undefined
+              }
             />
           </Field>
 

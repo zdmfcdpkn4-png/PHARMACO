@@ -3,6 +3,7 @@ import {
   Users,
   Zap,
   Heart,
+  LayoutDashboard,
   BookUser,
   Table2,
   BarChart3,
@@ -69,6 +70,7 @@ export default function Sidebar({
   teamView, // `${teamId}:${section}` actif
   onSelectTeamView,
   // Icônes globales
+  onOpenOverview,
   onOpenTeams,
   onOpenDirectory,
   onSelectRail,
@@ -133,10 +135,25 @@ export default function Sidebar({
           <Logo size={34} />
         </div>
 
+        {/* Vue d'ensemble (tous les projets) */}
+        <button
+          type="button"
+          onClick={() => onOpenOverview?.()}
+          title="Vue d'ensemble"
+          className={`mb-1 flex h-11 w-11 items-center justify-center rounded-2xl transition-all hover:rounded-xl ${
+            view === 'overview'
+              ? 'bg-primary text-white shadow-md'
+              : 'bg-gray-100 text-gray-500 hover:bg-primary-light hover:text-primary'
+          }`}
+        >
+          <LayoutDashboard size={20} />
+        </button>
+        <div className="my-1.5 h-px w-8 bg-gray-100" />
+
         {/* Liste des projets (espaces) */}
         <div className="flex w-full flex-col items-center gap-1.5 overflow-y-auto px-1">
           {projects.map((p) => {
-            const active = p.id === selectedProject.id;
+            const active = view !== 'overview' && p.id === selectedProject.id;
             return (
               <button
                 key={p.id}
