@@ -26,6 +26,7 @@ import MobileBoard from './components/MobileBoard.jsx';
 import BottomSheet from './components/BottomSheet.jsx';
 import Login from './components/Login.jsx';
 import useIsMobile from './lib/useIsMobile.js';
+import { useColumnWidths } from './lib/useColumnWidths.js';
 import { api, IS_MOCK } from './api/index.js';
 import { GROUP_COLORS, STATUS_META, PRIORITY_META } from './lib/constants.js';
 
@@ -93,6 +94,8 @@ function Board({ currentUser, onLogout, onUpdateCurrentUser }) {
   const [board, setBoard] = useState(null);
   const [boards, setBoards] = useState([]); // liste des projets (métadonnées)
   const [currentBoardId, setCurrentBoardId] = useState(null);
+  // Largeurs de colonnes redimensionnables (persistées par projet).
+  const { getWidth: getColWidth, setWidth: setColWidth } = useColumnWidths(currentBoardId);
   const [users, setUsers] = useState([]);
   const [alerts, setAlerts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -1208,6 +1211,10 @@ function Board({ currentUser, onLogout, onUpdateCurrentUser }) {
                   handleSelectTeamView(id, s);
                   setMenuOpen(false);
                 }}
+                onOpenAgent={(a) => {
+                  handleOpenAgent(a);
+                  setMenuOpen(false);
+                }}
                 onOpenOverview={() => {
                   handleOpenOverview();
                   setMenuOpen(false);
@@ -1523,6 +1530,7 @@ function Board({ currentUser, onLogout, onUpdateCurrentUser }) {
           onSetInvolvedTeams={handleSetBoardTeams}
           teamView={teamView}
           onSelectTeamView={handleSelectTeamView}
+          onOpenAgent={handleOpenAgent}
           onOpenOverview={handleOpenOverview}
           onOpenMyTasks={() => handleOpenAgent(currentUser)}
           onOpenTeams={handleOpenTeams}
@@ -1837,6 +1845,8 @@ function Board({ currentUser, onLogout, onUpdateCurrentUser }) {
                               onDeleteSubtask={handleDeleteSubtask}
                               onRenameGroup={(name) => handleRenameGroup(group.id, name)}
                               onDeleteGroup={() => handleDeleteGroup(group.id)}
+                              getColWidth={getColWidth}
+                              onResizeCol={setColWidth}
                             />
                           )}
                         </Draggable>

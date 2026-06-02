@@ -6,6 +6,36 @@ import SubtaskList from './SubtaskList.jsx';
 import GroupSummary from './GroupSummary.jsx';
 import AddColumnButton from './AddColumnButton.jsx';
 import TagCell from './TagCell.jsx';
+import { minColWidth } from '../lib/constants.js';
+
+// Poignée de redimensionnement (bord droit d'une colonne).
+function ColResizer({ colKey, getWidth, onResize }) {
+  const onDown = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const startX = e.clientX;
+    const startW = getWidth(colKey);
+    const min = minColWidth(colKey);
+    const move = (ev) => onResize(colKey, Math.max(min, startW + (ev.clientX - startX)));
+    const up = () => {
+      document.removeEventListener('mousemove', move);
+      document.removeEventListener('mouseup', up);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    };
+    document.addEventListener('mousemove', move);
+    document.addEventListener('mouseup', up);
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+  };
+  return (
+    <span
+      onMouseDown={onDown}
+      title="Redimensionner la colonne"
+      className="no-print absolute right-0 top-0 z-10 h-full w-1.5 cursor-col-resize hover:bg-primary/40"
+    />
+  );
+}
 
 // Section pliable contenant l'en-tête de colonnes, les tâches et le résumé.
 export default function GroupTable({
@@ -45,7 +75,14 @@ export default function GroupTable({
   onDeleteSubtask,
   onRenameGroup,
   onDeleteGroup,
+  getColWidth = () => 150,
+  onResizeCol,
 }) {
+  // Style d'une cellule à largeur fixe (redimensionnable).
+  const cw = (key) => {
+    const w = getColWidth(key);
+    return { width: w, minWidth: w, maxWidth: w };
+  };
   const [collapsed, setCollapsed] = useState(false);
   const [expanded, setExpanded] = useState({}); // sous-items développés par task id
   const [adding, setAdding] = useState(false);
@@ -132,34 +169,57 @@ export default function GroupTable({
       </div>
 
       {!collapsed && (
-        <div className="overflow-hidden rounded-lg border border-gray-200 shadow-sm">
+        <div className="overflow-x-auto rounded-lg border border-gray-200 shadow-sm">
           {/* En-tête de colonnes */}
-          <div className="flex items-stretch border-b border-gray-200 bg-white text-xs font-medium uppercase tracking-wide text-gray-500">
+          <div className="flex min-w-max items-stretch border-b border-gray-200 bg-white text-xs font-medium uppercase tracking-wide text-gray-500">
             <div className="w-1 shrink-0" style={{ backgroundColor: group.color }} />
             <div className="w-6 shrink-0" />
             <div className="w-10 shrink-0" />
-            <div className="flex-1 py-2.5 pl-2">Tâche</div>
-            <div className="w-28 shrink-0 border-l border-gray-100 py-2.5 text-center">Priorité</div>
-            <div className="w-32 shrink-0 border-l border-gray-100 py-2.5 text-center">Admin</div>
-            <div className="w-40 shrink-0 border-l border-gray-100 py-2.5 text-center">Statut</div>
-            <div className="w-36 shrink-0 border-l border-gray-100 py-2.5 text-center">Échéance</div>
-            <div className="w-40 shrink-0 border-l border-gray-100 py-2.5 text-center">Étape</div>
-            <div className="w-40 shrink-0 border-l border-gray-100 py-2.5 text-center">Type</div>
+            <div className="relative shrink-0 py-2.5 pl-2" style={cw('task')}>
+              Tâche
+              <ColResizer colKey="task" getWidth={getColWidth} onResize={onResizeCol} />
+            </div>
+            <div className="relative shrink-0 border-l border-gray-100 py-2.5 text-center" style={cw('priority')}>
+              Priorité
+              <ColResizer colKey="priority" getWidth={getColWidth} onResize={onResizeCol} />
+            </div>
+            <div className="relative shrink-0 border-l border-gray-100 py-2.5 text-center" style={cw('admin')}>
+              Admin
+              <ColResizer colKey="admin" getWidth={getColWidth} onResize={onResizeCol} />
+            </div>
+            <div className="relative shrink-0 border-l border-gray-100 py-2.5 text-center" style={cw('status')}>
+              Statut
+              <ColResizer colKey="status" getWidth={getColWidth} onResize={onResizeCol} />
+            </div>
+            <div className="relative shrink-0 border-l border-gray-100 py-2.5 text-center" style={cw('duedate')}>
+              Échéance
+              <ColResizer colKey="duedate" getWidth={getColWidth} onResize={onResizeCol} />
+            </div>
+            <div className="relative shrink-0 border-l border-gray-100 py-2.5 text-center" style={cw('etape')}>
+              Étape
+              <ColResizer colKey="etape" getWidth={getColWidth} onResize={onResizeCol} />
+            </div>
+            <div className="relative shrink-0 border-l border-gray-100 py-2.5 text-center" style={cw('intervention')}>
+              Type
+              <ColResizer colKey="intervention" getWidth={getColWidth} onResize={onResizeCol} />
+            </div>
             {categories.map((c) => (
               <div
                 key={c.id}
-                className="group/col relative w-36 shrink-0 border-l border-gray-100 py-2.5 text-center"
+                className="group/col relative shrink-0 border-l border-gray-100 py-2.5 text-center"
+                style={cw(`cat-${c.id}`)}
               >
                 {c.name}
                 {canManage && (
                   <button
                     onClick={() => onDeleteCategory?.(c.id)}
                     title="Supprimer la colonne"
-                    className="absolute right-1 top-2 text-gray-300 opacity-0 transition hover:text-status-blocked group-hover/col:opacity-100"
+                    className="absolute right-2 top-2 text-gray-300 opacity-0 transition hover:text-status-blocked group-hover/col:opacity-100"
                   >
                     ✕
                   </button>
                 )}
+                <ColResizer colKey={`cat-${c.id}`} getWidth={getColWidth} onResize={onResizeCol} />
               </div>
             ))}
             <div className="w-10 shrink-0 border-l border-gray-100" />
@@ -217,6 +277,7 @@ export default function GroupTable({
                           onSetCategoryValue={onSetCategoryValue}
                           tags={tags}
                           onChangeTag={(field, tagId) => onChangeTaskTag?.(task.id, field, tagId)}
+                          getColWidth={getColWidth}
                         />
                         {expanded[task.id] && (
                           <SubtaskList
@@ -242,7 +303,7 @@ export default function GroupTable({
           </Droppable>
 
           {/* Ajouter une tâche */}
-          <div className={`no-print flex items-stretch border-b border-gray-100 bg-white ${canEdit ? '' : 'hidden'}`}>
+          <div className={`no-print flex min-w-max items-stretch border-b border-gray-100 bg-white ${canEdit ? '' : 'hidden'}`}>
             <div className="w-1 shrink-0" style={{ backgroundColor: group.color }} />
             <div className="w-6 shrink-0" />
             <div className="w-10 shrink-0" />

@@ -22,8 +22,7 @@ export const PRIORITY_META = {
 };
 
 // Palette de couleurs proposée pour les groupes.
-export const GROUP_COLORS = [
-  '#579bfc',
+export const GROUP_COLORS = [  '#579bfc',
   '#00c875',
   '#fdab3d',
   '#e2445c',
@@ -103,3 +102,21 @@ export function colorFromString(str = '') {
   }
   return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
 }
+
+// ---- Largeurs des colonnes du tableau (redimensionnables) ----
+// Largeurs par défaut (px). La colonne « Tâche » est large pour la lisibilité.
+export const DEFAULT_COL_WIDTHS = {
+  task: 320,
+  priority: 112,
+  admin: 128,
+  status: 160,
+  duedate: 140,
+  etape: 160,
+  intervention: 160,
+  category: 150, // défaut des colonnes personnalisées (clé "cat-<id>")
+};
+
+// Largeur minimale d'une colonne lors du redimensionnement.
+export const MIN_COL_WIDTH = { task: 180, _default: 80 };
+
+export const minColWidth = (key) => MIN_COL_WIDTH[key] ?? MIN_COL_WIDTH._default;

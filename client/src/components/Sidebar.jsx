@@ -70,6 +70,8 @@ export default function Sidebar({
   onSetInvolvedTeams,
   teamView, // `${teamId}:${section}` actif
   onSelectTeamView,
+  // Agents impliqués (dérivés des équipes du projet)
+  onOpenAgent,
   // Icônes globales
   onOpenOverview,
   onOpenMyTasks,
@@ -98,6 +100,19 @@ export default function Sidebar({
   const [openTeams, setOpenTeams] = useState({});
   const [teamsSectionOpen, setTeamsSectionOpen] = useState(true);
   const [managingTeams, setManagingTeams] = useState(false);
+  const [agentsSectionOpen, setAgentsSectionOpen] = useState(true);
+  const [openAgents, setOpenAgents] = useState({});
+
+  // Agents impliqués = membres des équipes du projet, dédupliqués et triés.
+  const involvedAgents = (() => {
+    const map = new Map();
+    for (const t of involvedTeams) {
+      for (const m of t.members || []) {
+        if (!map.has(m.id)) map.set(m.id, m);
+      }
+    }
+    return [...map.values()].sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+  })();
   const [shortcutsOpen, setShortcutsOpen] = useState(true);
   const [pinning, setPinning] = useState(false);
   const [pinName, setPinName] = useState('');
@@ -398,6 +413,59 @@ export default function Sidebar({
                 {involvedTeams.length === 0 && (
                   <li className="flex items-center gap-2 px-2 py-3 text-xs text-gray-400">
                     <Users size={14} /> Aucune équipe associée à ce projet.
+                  </li>
+                )}
+              </ul>
+            )}
+
+            {/* ---- Agents Impliqués (accordéons, dérivés des équipes) ---- */}
+            <SectionLabel
+              action={
+                <button
+                  onClick={() => setAgentsSectionOpen((v) => !v)}
+                  className="rounded p-0.5 text-gray-400 hover:bg-gray-100"
+                  title={agentsSectionOpen ? 'Réduire' : 'Déployer'}
+                >
+                  {agentsSectionOpen ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
+                </button>
+              }
+            >
+              Agents Impliqués
+            </SectionLabel>
+
+            {agentsSectionOpen && (
+              <ul className="space-y-0.5">
+                {involvedAgents.map((a) => {
+                  const expanded = !!openAgents[a.id];
+                  return (
+                    <li key={a.id}>
+                      <button
+                        type="button"
+                        onClick={() => setOpenAgents((o) => ({ ...o, [a.id]: !o[a.id] }))}
+                        className="flex w-full items-center gap-2 rounded-md px-2 py-2 text-left text-sm font-medium text-gray-700 hover:bg-gray-100"
+                      >
+                        {expanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                        <Avatar name={a.name} src={a.avatar_url} size={20} ring={false} />
+                        <span className="flex-1 truncate">{a.name}</span>
+                      </button>
+                      {expanded && (
+                        <ul className="mb-1 mt-0.5 space-y-0.5 animate-[fadeIn_.15s_ease-out]">
+                          <li>
+                            <NavItem
+                              indent
+                              icon={ClipboardList}
+                              label="Tâches affectées & priorités"
+                              onClick={() => onOpenAgent?.(a)}
+                            />
+                          </li>
+                        </ul>
+                      )}
+                    </li>
+                  );
+                })}
+                {involvedAgents.length === 0 && (
+                  <li className="flex items-center gap-2 px-2 py-3 text-xs text-gray-400">
+                    <BookUser size={14} /> Aucun agent (associez d'abord une équipe).
                   </li>
                 )}
               </ul>

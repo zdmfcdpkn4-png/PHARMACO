@@ -36,10 +36,17 @@ export default function TaskRow({
   onSetCategoryValue,
   tags = [],
   onChangeTag,
+  getColWidth = () => 150,
 }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(task.name);
   const inputRef = useRef(null);
+
+  // Style d'une cellule à largeur fixe (alignée sur l'en-tête).
+  const cw = (key) => {
+    const w = getColWidth(key);
+    return { width: w, minWidth: w, maxWidth: w };
+  };
 
   useEffect(() => {
     if (editing) inputRef.current?.focus();
@@ -56,7 +63,7 @@ export default function TaskRow({
 
   return (
     <div
-      className={`group flex items-stretch border-b border-gray-100 bg-white text-sm transition-shadow hover:bg-gray-50 ${
+      className={`group flex min-w-max items-stretch border-b border-gray-100 bg-white text-sm transition-shadow hover:bg-gray-50 ${
         isDragging ? 'rotate-[1.5deg] rounded-lg shadow-2xl ring-1 ring-primary/30' : ''
       }`}
     >
@@ -89,7 +96,7 @@ export default function TaskRow({
       </div>
 
       {/* Nom de la tâche (éditable au clic) */}
-      <div className="flex min-w-0 flex-1 items-center py-2 pr-3">
+      <div className="flex shrink-0 items-center py-2 pr-3" style={cw('task')}>
         {editing ? (
           <input
             ref={inputRef}
@@ -161,12 +168,12 @@ export default function TaskRow({
       </div>
 
       {/* Priorité */}
-      <div className="flex w-28 shrink-0 items-center justify-center border-l border-gray-100">
+      <div className="flex shrink-0 items-center justify-center border-l border-gray-100" style={cw('priority')}>
         <PriorityBadge priority={task.priority} onChange={onChangePriority} />
       </div>
 
       {/* Admin */}
-      <div className="flex w-32 shrink-0 items-center justify-center border-l border-gray-100">
+      <div className="flex shrink-0 items-center justify-center border-l border-gray-100" style={cw('admin')}>
         <AdminCell
           admin={task.admin}
           assignees={task.assignees}
@@ -176,12 +183,12 @@ export default function TaskRow({
       </div>
 
       {/* Statut */}
-      <div className="flex w-40 shrink-0 items-stretch border-l border-gray-100">
+      <div className="flex shrink-0 items-stretch border-l border-gray-100" style={cw('status')}>
         <StatusBadge status={task.status} onChange={onChangeStatus} />
       </div>
 
       {/* Échéance */}
-      <div className="relative flex w-36 shrink-0 items-center justify-center border-l border-gray-100">
+      <div className="relative flex shrink-0 items-center justify-center border-l border-gray-100" style={cw('duedate')}>
         <label className="flex cursor-pointer items-center gap-1 text-gray-600">
           <span className={task.status === 'Fait' ? 'text-gray-400 line-through' : ''}>
             {formatShortDate(task.duedate) || '—'}
@@ -196,14 +203,14 @@ export default function TaskRow({
       </div>
 
       {/* Étiquettes : Étape / Type */}
-      <div className="flex w-40 shrink-0 items-center justify-center border-l border-gray-100">
+      <div className="flex shrink-0 items-center justify-center border-l border-gray-100" style={cw('etape')}>
         <TagCell
           value={task.etape_tag_id}
           tags={tags.filter((t) => t.tag_type === 'etape')}
           onChange={(id) => onChangeTag?.('etape_tag_id', id)}
         />
       </div>
-      <div className="flex w-40 shrink-0 items-center justify-center border-l border-gray-100">
+      <div className="flex shrink-0 items-center justify-center border-l border-gray-100" style={cw('intervention')}>
         <TagCell
           value={task.intervention_tag_id}
           tags={tags.filter((t) => t.tag_type === 'intervention')}
@@ -215,7 +222,8 @@ export default function TaskRow({
       {categories.map((c) => (
         <div
           key={c.id}
-          className="flex w-36 shrink-0 items-center justify-center border-l border-gray-100"
+          className="flex shrink-0 items-center justify-center border-l border-gray-100"
+          style={cw(`cat-${c.id}`)}
         >
           <CustomCell
             category={c}
