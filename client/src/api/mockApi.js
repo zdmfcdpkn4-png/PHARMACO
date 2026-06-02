@@ -136,8 +136,10 @@ let nextBoardId = 3;
 
 // Discussion & journal d'activité en mémoire
 let comments = [
-  { id: 700, task_id: 13, content: 'En attente du réapprovisionnement fournisseur.', user: adminShape(1), created_at: daysAgo(2) },
-  { id: 701, task_id: 13, content: 'Relance envoyée ce matin.', user: adminShape(2), created_at: daysAgo(1) },
+  { id: 700, task_id: 13, content: 'En attente du réapprovisionnement fournisseur.', user: adminShape(1), created_at: daysAgo(2), recipient: null, priority: false },
+  { id: 701, task_id: 13, content: 'Relance envoyée ce matin.', user: adminShape(2), created_at: daysAgo(1), recipient: null, priority: false },
+  // Message prioritaire ciblé vers Erwin (id 1) -> visible sur la vue d'ensemble.
+  { id: 702, task_id: 13, content: 'Blocage critique : décision attendue avant ce soir.', user: adminShape(2), created_at: daysAgo(0), recipient: { id: 1, name: 'Erwin Raingeard' }, priority: true },
 ];
 let activity = [
   { id: 800, task_id: 13, action_type: 'status', old_value: 'En cours', new_value: 'Bloqué', user: adminShape(1), created_at: daysAgo(2) },
@@ -747,17 +749,39 @@ export const mockApi = {
     );
   },
 
-  async addComment(taskId, { user_id, content }) {
+  async addComment(taskId, { user_id, content, recipient_id, priority }) {
     await delay(60);
     const text = content.trim();
+    const recipientUser = recipient_id ? users.find((u) => u.id === recipient_id) : null;
     const c = {
       id: uid(),
       task_id: taskId,
       content: text,
       user: user_id ? adminShape(user_id) : null,
+      recipient: recipientUser ? { id: recipientUser.id, name: recipientUser.name } : null,
+      priority: priority === true,
       created_at: new Date().toISOString(),
     };
     comments.push(c);
+    // Alerte au destinataire ciblé (hors auteur).
+    if (recipientUser && recipientUser.id !== user_id) {
+      const authorName = user_id ? adminShape(user_id)?.name : 'Quelqu’un';
+      const taskName =
+        boards.flatMap((b) => b.groups).flatMap((g) => g.tasks).find((t) => t.id === taskId)?.name ||
+        'une tâche';
+      const prefix = priority === true ? '📌 Message prioritaire' : '✉️ Message';
+      alerts = [
+        {
+          id: uid(),
+          user_id: recipientUser.id,
+          message: `${prefix} de ${authorName} sur « ${taskName} » : ${text.slice(0, 80)}`,
+          type: 'mention',
+          is_read: false,
+          created_at: new Date().toISOString(),
+        },
+        ...alerts,
+      ];
+    }
     // L'auteur a lu sa propre discussion
     if (user_id) commentReads[readKey(user_id, taskId)] = new Date().toISOString();
 
@@ -803,6 +827,46 @@ export const mockApi = {
       }
     }
     return counts;
+  },
+
+  // Messages prioritaires OU ciblés vers l'utilisateur (hors les siens),
+  // avec le contexte tâche/projet, pour la vue d'ensemble.
+  async getCommentHighlights(userId) {
+    await delay(40);
+    const findCtx = (taskId) => {
+      for (const b of boards) {
+        for (const g of b.groups) {
+          const t = g.tasks.find((x) => x.id === taskId);
+          if (t) return { task_name: t.name, board_id: b.id, board_name: b.name };
+        }
+      }
+      return { task_name: 'Tâche', board_id: null, board_name: '' };
+    };
+    return clone(
+      comments
+        .filter(
+          (c) => (c.priority || c.recipient?.id === userId) && c.user?.id !== userId
+        )
+        .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+        .slice(0, 50)
+        .map((c) => {
+          const ctx = findCtx(c.task_id);
+          const last = commentReads[readKey(userId, c.task_id)];
+          return {
+            id: c.id,
+            task_id: c.task_id,
+            task_name: ctx.task_name,
+            board_id: ctx.board_id,
+            board_name: ctx.board_name,
+            content: c.content,
+            created_at: c.created_at,
+            priority: !!c.priority,
+            recipient: c.recipient || null,
+            user: c.user || null,
+            is_read: !!last && new Date(last) >= new Date(c.created_at),
+          };
+        })
+    );
   },
 
   async getActivity(taskId) {

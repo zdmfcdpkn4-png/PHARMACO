@@ -10,6 +10,7 @@ import {
   createComment,
   listActivity,
   unreadCounts,
+  highlightComments,
   markRead,
 } from '../controllers/comments.controller.js';
 import { listSubtasks, createSubtask } from '../controllers/subtasks.controller.js';
@@ -20,6 +21,7 @@ const router = Router();
 router.post('/', createTask);
 router.put('/reorder', reorderTasks); // avant /:id pour éviter le conflit de route
 router.get('/comments/unread', unreadCounts); // compteurs non-lus par tâche
+router.get('/comments/highlights', highlightComments); // messages prioritaires / ciblés
 
 // Discussion & historique d'une tâche
 router.get('/:taskId/comments', listComments);

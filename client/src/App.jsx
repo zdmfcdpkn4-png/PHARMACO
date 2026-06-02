@@ -1285,6 +1285,7 @@ function Board({ currentUser, onLogout }) {
                   }}
                   unreadCounts={commentCounts}
                   currentUserId={CURRENT_USER_ID}
+                  loadHighlights={() => api.getCommentHighlights(CURRENT_USER_ID)}
                 />
               )}
               {view === 'agent' && (
@@ -1559,6 +1560,7 @@ function Board({ currentUser, onLogout }) {
               onOpenProject={handleSelectProject}
               unreadCounts={commentCounts}
               currentUserId={CURRENT_USER_ID}
+              loadHighlights={() => api.getCommentHighlights(CURRENT_USER_ID)}
             />
           </>
         ) : view === 'teams' ? (

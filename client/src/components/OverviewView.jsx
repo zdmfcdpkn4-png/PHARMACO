@@ -10,12 +10,25 @@ import {
   AlarmClock,
   MessageSquare,
   Reply,
+  Megaphone,
+  Flag,
 } from 'lucide-react';
 import Avatar from './Avatar.jsx';
 import { STATUS_META } from '../lib/constants.js';
 
 const STATUSES = ['À faire', 'En cours', 'Bloqué', 'Fait'];
 const todayKey = new Date().toISOString().slice(0, 10);
+
+// Horodatage relatif court.
+function timeAgo(iso) {
+  if (!iso) return '';
+  const diff = (Date.now() - new Date(iso).getTime()) / 1000;
+  if (diff < 60) return "à l'instant";
+  if (diff < 3600) return `il y a ${Math.floor(diff / 60)} min`;
+  if (diff < 86400) return `il y a ${Math.floor(diff / 3600)} h`;
+  if (diff < 172800) return 'hier';
+  return new Date(iso).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
+}
 
 // Petite pastille de synthèse (urgences, retards, discussions). Grisée à 0.
 function SynthChip({ icon: Icon, label, value, color }) {
@@ -94,9 +107,27 @@ export default function OverviewView({
   onOpenProject,
   unreadCounts = {},
   currentUserId,
+  loadHighlights,
 }) {
   const [fullById, setFullById] = useState({});
   const [loading, setLoading] = useState(true);
+  const [highlights, setHighlights] = useState([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      if (!loadHighlights) return;
+      try {
+        const h = await loadHighlights();
+        if (!cancelled) setHighlights(Array.isArray(h) ? h : []);
+      } catch {
+        /* non bloquant */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [loadHighlights]);
 
   useEffect(() => {
     let cancelled = false;
@@ -155,6 +186,35 @@ export default function OverviewView({
     };
   }, [cards, boards.length]);
 
+  // Tâches urgentes / en retard regroupées par agent (sur tous les projets).
+  const agentAlerts = useMemo(() => {
+    const map = new Map();
+    for (const b of boards) {
+      const full = fullById[b.id];
+      if (!full) continue;
+      for (const g of full.groups || []) {
+        for (const t of g.tasks) {
+          const open = t.status !== 'Fait';
+          const urgent = open && (t.priority || '').startsWith('P1');
+          const overdue = open && t.duedate && t.duedate.slice(0, 10) < todayKey;
+          if (!urgent && !overdue) continue;
+          const assignees = t.assignees && t.assignees.length ? t.assignees : t.admin ? [t.admin] : [];
+          const entry = { ...t, _boardId: b.id, _boardName: b.name };
+          const targets = assignees.length ? assignees : [{ id: 0, name: 'Non assignée' }];
+          for (const a of targets) {
+            if (!map.has(a.id)) map.set(a.id, { user: a, urgent: [], overdue: [] });
+            const e = map.get(a.id);
+            if (urgent) e.urgent.push(entry);
+            if (overdue) e.overdue.push(entry);
+          }
+        }
+      }
+    }
+    return [...map.values()].sort(
+      (a, b) => b.urgent.length + b.overdue.length - (a.urgent.length + a.overdue.length)
+    );
+  }, [boards, fullById]);
+
   const Stat = ({ icon: Icon, label, value, color }) => (
     <div className="flex min-w-[140px] flex-1 items-center gap-3 rounded-xl border border-gray-200 bg-white px-4 py-3">
       <span
@@ -174,12 +234,122 @@ export default function OverviewView({
     <div className="flex-1 overflow-auto p-6">
       {/* Récapitulatif global */}
       <div className="mb-6 flex flex-wrap gap-3">
-        <Stat icon={LayoutDashboard} label="Projets" value={totals.projects} color="#3b1f7a" />
-        <Stat icon={ListTodo} label="Tâches au total" value={totals.total} color="#579bfc" />
+        <Stat icon={LayoutDashboard} label="Projets" value={totals.projects} color="#005586" />
+        <Stat icon={ListTodo} label="Tâches au total" value={totals.total} color="#005586" />
         <Stat icon={CheckCircle2} label="Terminées" value={`${totals.done} (${totals.pct}%)`} color="#00c875" />
-        <Stat icon={Flame} label="Urgentes (P1)" value={totals.urgent} color="#e2445c" />
+        <Stat icon={Flame} label="Urgentes (P1)" value={totals.urgent} color="#e82a63" />
         <Stat icon={AlarmClock} label="En retard" value={totals.overdue} color="#e8722e" />
-        <Stat icon={MessageSquare} label="Messages non lus" value={totals.unreadMessages} color="#0073ea" />
+        <Stat icon={MessageSquare} label="Messages non lus" value={totals.unreadMessages} color="#005586" />
+      </div>
+
+      {/* Messages prioritaires/ciblés + Urgences par agent */}
+      <div className="mb-6 grid grid-cols-1 gap-4 lg:grid-cols-2">
+        {/* Messages mis en avant */}
+        <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
+          <div className="flex items-center gap-2 border-b border-gray-100 px-4 py-2.5 text-sm font-semibold text-gray-700">
+            <Megaphone size={16} className="text-brand-rose" /> Messages prioritaires & ciblés
+            {highlights.length > 0 && (
+              <span className="ml-auto rounded-full bg-brand-rose/15 px-2 py-0.5 text-xs font-medium text-brand-rose">
+                {highlights.length}
+              </span>
+            )}
+          </div>
+          <div className="max-h-72 overflow-auto">
+            {highlights.length === 0 ? (
+              <p className="px-4 py-8 text-center text-sm text-gray-400">
+                Aucun message prioritaire ou ciblé.
+              </p>
+            ) : (
+              highlights.map((m) => (
+                <button
+                  key={m.id}
+                  type="button"
+                  onClick={() => m.board_id && onOpenProject(m.board_id)}
+                  className={`flex w-full items-start gap-3 border-b border-gray-50 px-4 py-3 text-left last:border-b-0 hover:bg-gray-50 ${
+                    m.is_read ? '' : 'bg-brand-rose/[0.03]'
+                  }`}
+                >
+                  <Avatar name={m.user?.name || '?'} src={m.user?.avatar_url} size={32} ring={false} />
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-1.5 text-xs text-gray-400">
+                      <span className="font-medium text-gray-700">{m.user?.name || 'Inconnu'}</span>
+                      {m.priority && (
+                        <span className="flex items-center gap-0.5 rounded-full bg-brand-rose/15 px-1.5 py-0.5 font-medium text-brand-rose">
+                          <Flag size={9} /> Prioritaire
+                        </span>
+                      )}
+                      {m.recipient && (
+                        <span className="rounded-full bg-primary-light px-1.5 py-0.5 font-medium text-primary">
+                          → {m.recipient.name}
+                        </span>
+                      )}
+                      {!m.is_read && <span className="h-1.5 w-1.5 rounded-full bg-brand-rose" />}
+                      <span className="ml-auto">{timeAgo(m.created_at)}</span>
+                    </div>
+                    <div className="mt-0.5 truncate text-sm text-gray-800">{m.content}</div>
+                    <div className="mt-0.5 flex items-center gap-1 truncate text-[11px] text-gray-400">
+                      <Folder size={11} /> {m.board_name} · {m.task_name}
+                    </div>
+                  </div>
+                </button>
+              ))
+            )}
+          </div>
+        </div>
+
+        {/* Urgences / retards par agent */}
+        <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
+          <div className="flex items-center gap-2 border-b border-gray-100 px-4 py-2.5 text-sm font-semibold text-gray-700">
+            <AlarmClock size={16} className="text-brand-rose" /> Tâches urgentes & en retard par agent
+          </div>
+          <div className="max-h-72 overflow-auto">
+            {agentAlerts.length === 0 ? (
+              <p className="px-4 py-8 text-center text-sm text-gray-400">
+                {loading ? 'Chargement…' : 'Aucune tâche urgente ou en retard. 👌'}
+              </p>
+            ) : (
+              agentAlerts.map((a) => (
+                <div key={a.user.id} className="border-b border-gray-50 px-4 py-3 last:border-b-0">
+                  <div className="flex items-center gap-2">
+                    <Avatar name={a.user.name} src={a.user.avatar_url} size={30} ring={false} />
+                    <span className="flex-1 truncate text-sm font-medium text-gray-800">
+                      {a.user.name}
+                    </span>
+                    {a.urgent.length > 0 && (
+                      <span className="flex items-center gap-1 rounded-full bg-brand-rose/15 px-2 py-0.5 text-xs font-semibold text-brand-rose">
+                        <Flame size={11} /> {a.urgent.length}
+                      </span>
+                    )}
+                    {a.overdue.length > 0 && (
+                      <span className="flex items-center gap-1 rounded-full bg-orange-100 px-2 py-0.5 text-xs font-semibold text-orange-600">
+                        <AlarmClock size={11} /> {a.overdue.length}
+                      </span>
+                    )}
+                  </div>
+                  <div className="mt-1.5 flex flex-wrap gap-1.5 pl-9">
+                    {[...new Map([...a.urgent, ...a.overdue].map((t) => [`${t._boardId}-${t.id}`, t])).values()]
+                      .slice(0, 4)
+                      .map((t) => (
+                        <button
+                          key={`${t._boardId}-${t.id}`}
+                          type="button"
+                          onClick={() => onOpenProject(t._boardId)}
+                          title={`${t._boardName} · ${t.name}`}
+                          className="flex max-w-[160px] items-center gap-1 rounded-full border border-gray-200 px-2 py-0.5 text-[11px] text-gray-600 hover:border-primary hover:text-primary"
+                        >
+                          <span
+                            className="h-1.5 w-1.5 shrink-0 rounded-full"
+                            style={{ backgroundColor: STATUS_META[t.status]?.bg || '#c4c4c4' }}
+                          />
+                          <span className="truncate">{t.name}</span>
+                        </button>
+                      ))}
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
       </div>
 
       {/* Grille des projets */}

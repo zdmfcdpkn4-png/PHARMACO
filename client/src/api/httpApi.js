@@ -60,11 +60,16 @@ export const httpApi = {
   reorderTasks: (items) => request('/tasks/reorder', { method: 'PUT', body: { items } }),
   getComments: (taskId, user_id) =>
     request(`/tasks/${taskId}/comments${user_id ? `?user_id=${user_id}` : ''}`),
-  addComment: (taskId, { user_id, content }) =>
-    request(`/tasks/${taskId}/comments`, { method: 'POST', body: { user_id, content } }),
+  addComment: (taskId, { user_id, content, recipient_id, priority }) =>
+    request(`/tasks/${taskId}/comments`, {
+      method: 'POST',
+      body: { user_id, content, recipient_id, priority },
+    }),
   markCommentsRead: (taskId, user_id) =>
     request(`/tasks/${taskId}/comments/read`, { method: 'POST', body: { user_id } }),
   getUnreadCounts: (user_id) => request(`/tasks/comments/unread?user_id=${user_id}`),
+  getCommentHighlights: (user_id) =>
+    request(`/tasks/comments/highlights?user_id=${user_id}`),
   getActivity: (taskId) => request(`/tasks/${taskId}/activity`),
 
   createSubtask: (taskId, data) =>

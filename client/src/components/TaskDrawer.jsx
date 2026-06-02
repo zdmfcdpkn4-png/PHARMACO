@@ -90,6 +90,8 @@ export default function TaskDrawer({
   const [loading, setLoading] = useState(true);
   const [draft, setDraft] = useState('');
   const [sending, setSending] = useState(false);
+  const [recipientId, setRecipientId] = useState(null); // destinataire ciblé
+  const [priorityFlag, setPriorityFlag] = useState(false); // message prioritaire
   const [mentionQuery, setMentionQuery] = useState(null); // texte après @ en cours
   const scrollRef = useRef(null);
   const textareaRef = useRef(null);
@@ -160,9 +162,13 @@ export default function TaskDrawer({
       const created = await api.addComment(task.id, {
         user_id: currentUser.id,
         content,
+        recipient_id: recipientId || undefined,
+        priority: priorityFlag,
       });
       setComments((prev) => [...prev, created]);
       setDraft('');
+      setRecipientId(null);
+      setPriorityFlag(false);
       onCommentsCountChange?.(task.id, comments.length + 1);
     } finally {
       setSending(false);
@@ -277,8 +283,18 @@ export default function TaskDrawer({
                       ring={false}
                     />
                     <div className={`max-w-[75%] ${mine ? 'text-right' : ''}`}>
-                      <div className="mb-0.5 flex items-center gap-2 text-xs text-gray-400">
+                      <div className={`mb-0.5 flex flex-wrap items-center gap-1.5 text-xs text-gray-400 ${mine ? 'justify-end' : ''}`}>
                         <span className="font-medium text-gray-600">{c.user?.name || 'Inconnu'}</span>
+                        {c.priority && (
+                          <span className="flex items-center gap-0.5 rounded-full bg-brand-rose/15 px-1.5 py-0.5 font-medium text-brand-rose">
+                            <Flag size={10} /> Prioritaire
+                          </span>
+                        )}
+                        {c.recipient && (
+                          <span className="rounded-full bg-primary-light px-1.5 py-0.5 font-medium text-primary">
+                            → {c.recipient.name}
+                          </span>
+                        )}
                         <span>{timeAgo(c.created_at)}</span>
                       </div>
                       <div
@@ -297,6 +313,38 @@ export default function TaskDrawer({
             </div>
             {/* Saisie */}
             <form onSubmit={send} className="relative border-t border-gray-100 p-3">
+              {/* Options : destinataire ciblé + priorité */}
+              <div className="mb-2 flex items-center gap-2">
+                <label className="flex items-center gap-1 rounded-md border border-gray-200 px-2 py-1 text-xs text-gray-600">
+                  <UserCircle2 size={13} className="text-gray-400" />
+                  <select
+                    value={recipientId || ''}
+                    onChange={(e) => setRecipientId(e.target.value ? Number(e.target.value) : null)}
+                    className="max-w-[120px] cursor-pointer bg-transparent outline-none"
+                  >
+                    <option value="">À tous</option>
+                    {users
+                      .filter((u) => u.id !== currentUser.id)
+                      .map((u) => (
+                        <option key={u.id} value={u.id}>
+                          {u.name}
+                        </option>
+                      ))}
+                  </select>
+                </label>
+                <button
+                  type="button"
+                  onClick={() => setPriorityFlag((v) => !v)}
+                  title="Marquer comme prioritaire (visible sur la vue d'ensemble)"
+                  className={`flex items-center gap-1 rounded-md border px-2 py-1 text-xs transition ${
+                    priorityFlag
+                      ? 'border-brand-rose bg-brand-rose/10 text-brand-rose'
+                      : 'border-gray-200 text-gray-500 hover:bg-gray-100'
+                  }`}
+                >
+                  <Flag size={13} /> Prioritaire
+                </button>
+              </div>
               {/* Suggestions de @mention */}
               {mentionMatches.length > 0 && (
                 <div className="absolute bottom-full left-3 mb-1 w-56 overflow-hidden rounded-lg border border-gray-200 bg-white shadow-xl">

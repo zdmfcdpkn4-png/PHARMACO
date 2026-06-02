@@ -59,6 +59,10 @@ INSERT INTO task_comments (task_id, user_id, content) VALUES
     (3, 1, 'En attente du réapprovisionnement fournisseur.'),
     (3, 2, 'Relance envoyée ce matin.');
 
+-- Message prioritaire ciblé vers Erwin (id 1), visible sur la vue d'ensemble.
+INSERT INTO task_comments (task_id, user_id, content, recipient_id, priority) VALUES
+    (3, 2, 'Blocage critique : décision attendue avant ce soir.', 1, true);
+
 INSERT INTO activity_log (task_id, user_id, action_type, old_value, new_value) VALUES
     (3, 1, 'created', NULL, 'Tâche 3'),
     (3, 1, 'status', 'En cours', 'Bloqué');

@@ -287,6 +287,10 @@ CREATE TABLE IF NOT EXISTS task_comments (
     created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS idx_task_comments_task ON task_comments(task_id);
+-- Destinataire ciblé + message prioritaire (visibles sur la vue d'ensemble).
+ALTER TABLE task_comments ADD COLUMN IF NOT EXISTS recipient_id INTEGER REFERENCES users(id) ON DELETE SET NULL;
+ALTER TABLE task_comments ADD COLUMN IF NOT EXISTS priority BOOLEAN NOT NULL DEFAULT false;
+CREATE INDEX IF NOT EXISTS idx_task_comments_recipient ON task_comments(recipient_id);
 
 -- ---------------------------------------------------------------------
 --  Table : comment_reads (suivi lu / non-lu par utilisateur)
