@@ -4,6 +4,7 @@ import {
   Zap,
   Heart,
   LayoutDashboard,
+  ClipboardList,
   BookUser,
   Table2,
   BarChart3,
@@ -71,6 +72,7 @@ export default function Sidebar({
   onSelectTeamView,
   // Icônes globales
   onOpenOverview,
+  onOpenMyTasks,
   onOpenTeams,
   onOpenDirectory,
   onSelectRail,
@@ -192,6 +194,12 @@ export default function Sidebar({
 
         {/* === Icônes globales (en bas) === */}
         <div className="mt-auto flex w-full flex-col items-center">
+          <RailIcon
+            icon={ClipboardList}
+            label="Mes tâches"
+            active={view === 'agent'}
+            onClick={() => onOpenMyTasks?.()}
+          />
           <RailIcon icon={Users} label="Équipes" onClick={() => onOpenTeams?.()} />
           <RailIcon icon={BookUser} label="Annuaire" onClick={() => onOpenDirectory?.()} />
           <RailIcon icon={Heart} label="Favoris" onClick={() => onSelectRail?.('Favoris')} />

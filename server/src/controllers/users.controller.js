@@ -30,10 +30,12 @@ export const getUser = asyncHandler(async (req, res) => {
 });
 
 export const updateUser = asyncHandler(async (req, res) => {
-  const { name, email, role, password } = req.body;
+  const { name, email, role, password, avatar_url } = req.body;
   // password : chaîne -> (ré)initialise ; null -> supprime ; absent -> inchangé
   const setPasswordHash = password !== undefined;
   const password_hash = password ? hashPassword(password) : null;
+  // avatar_url : présent (chaîne ou null) -> remplace ; absent -> inchangé
+  const setAvatar = avatar_url !== undefined;
 
   try {
     const { rows } = await query(
@@ -41,10 +43,20 @@ export const updateUser = asyncHandler(async (req, res) => {
          name  = COALESCE($1, name),
          email = COALESCE($2, email),
          role  = COALESCE($3::user_role, role),
-         password_hash = CASE WHEN $4 THEN $5 ELSE password_hash END
-       WHERE id = $6
+         password_hash = CASE WHEN $4 THEN $5 ELSE password_hash END,
+         avatar_url = CASE WHEN $6 THEN $7 ELSE avatar_url END
+       WHERE id = $8
        RETURNING id, name, email, avatar_url, role, created_at`,
-      [name ?? null, email ?? null, role ?? null, setPasswordHash, password_hash, req.params.id]
+      [
+        name ?? null,
+        email ?? null,
+        role ?? null,
+        setPasswordHash,
+        password_hash,
+        setAvatar,
+        avatar_url ?? null,
+        req.params.id,
+      ]
     );
     if (!rows.length) return res.status(404).json({ error: 'Utilisateur introuvable' });
     res.json(rows[0]);

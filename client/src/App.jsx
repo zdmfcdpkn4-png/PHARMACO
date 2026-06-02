@@ -14,6 +14,7 @@ import DynamicTimeView from './components/DynamicTimeView.jsx';
 import TeamsView from './components/TeamsView.jsx';
 import TeamProjectView from './components/TeamProjectView.jsx';
 import OverviewView from './components/OverviewView.jsx';
+import AgentView from './components/AgentView.jsx';
 import KanbanView from './components/KanbanView.jsx';
 import CalendarView from './components/CalendarView.jsx';
 import BoardTabs from './components/BoardTabs.jsx';
@@ -107,6 +108,7 @@ function Board({ currentUser, onLogout }) {
   const [shortcuts, setShortcuts] = useState([]);
   const [teamSection, setTeamSection] = useState(null); // `${teamId}:${section}` (gestion)
   const [teamView, setTeamView] = useState(null); // `${teamId}:${section}` (équipe impliquée)
+  const [agentViewUser, setAgentViewUser] = useState(null); // agent visualisé (vue tâches)
 
   // -------- Gestion fine des rôles --------
   // viewer : lecture seule. member / admin / propriétaire : édition.
@@ -273,6 +275,11 @@ function Board({ currentUser, onLogout }) {
     setView('overview');
     // Rafraîchit les compteurs de messages non lus pour la synthèse.
     loadCommentCounts();
+  };
+  // Ouvre la vue agent (tâches affectées + classement des priorités).
+  const handleOpenAgent = (user) => {
+    setAgentViewUser(user);
+    setView('agent');
   };
 
   // -------- Multi-projets (un board par projet) --------
@@ -1145,6 +1152,10 @@ function Board({ currentUser, onLogout }) {
                   handleOpenOverview();
                   setMenuOpen(false);
                 }}
+                onOpenMyTasks={() => {
+                  handleOpenAgent(currentUser);
+                  setMenuOpen(false);
+                }}
                 onOpenTeams={() => {
                   handleOpenTeams();
                   setMenuOpen(false);
@@ -1245,6 +1256,8 @@ function Board({ currentUser, onLogout }) {
               <h1 className="text-lg font-bold text-gray-800">
                 {view === 'overview'
                   ? "Vue d'ensemble"
+                  : view === 'agent'
+                  ? "Tâches de l'agent"
                   : view === 'gantt'
                   ? 'Gantt / Chronogramme'
                   : view === 'timeline'
@@ -1272,6 +1285,15 @@ function Board({ currentUser, onLogout }) {
                   }}
                   unreadCounts={commentCounts}
                   currentUserId={CURRENT_USER_ID}
+                />
+              )}
+              {view === 'agent' && (
+                <AgentView
+                  agent={agentViewUser}
+                  boards={boards}
+                  loadFull={(id) => api.getBoard(id)}
+                  onBack={handleOpenDirectory}
+                  onOpenProject={(id) => handleSelectProject(id)}
                 />
               )}
               {view === 'gantt' && (
@@ -1319,6 +1341,10 @@ function Board({ currentUser, onLogout }) {
                   onUpdateUser={handleUpdateUser}
                   onDeleteUser={handleDeleteUser}
                   onSetPassword={handleSetPassword}
+                  onOpenAgent={(u) => {
+                    handleOpenAgent(u);
+                    setMenuOpen(false);
+                  }}
                 />
               )}
             </div>
@@ -1433,6 +1459,7 @@ function Board({ currentUser, onLogout }) {
           teamView={teamView}
           onSelectTeamView={handleSelectTeamView}
           onOpenOverview={handleOpenOverview}
+          onOpenMyTasks={() => handleOpenAgent(currentUser)}
           onOpenTeams={handleOpenTeams}
           onOpenDirectory={handleOpenDirectory}
           onSelectRail={(rail) => setActiveRail(rail)}
@@ -1504,7 +1531,22 @@ function Board({ currentUser, onLogout }) {
           </div>
         </div>
 
-        {view === 'overview' ? (
+        {view === 'agent' ? (
+          <>
+            <div className="border-b border-gray-200 bg-white px-6 pt-4">
+              <h2 className="mb-3 flex items-center gap-2 text-2xl font-bold text-gray-800">
+                Tâches de l'agent
+              </h2>
+            </div>
+            <AgentView
+              agent={agentViewUser}
+              boards={boards}
+              loadFull={(id) => api.getBoard(id)}
+              onBack={handleOpenDirectory}
+              onOpenProject={handleSelectProject}
+            />
+          </>
+        ) : view === 'overview' ? (
           <>
             <div className="border-b border-gray-200 bg-white px-6 pt-4">
               <h2 className="mb-3 flex items-center gap-2 text-2xl font-bold text-gray-800">
@@ -1542,6 +1584,7 @@ function Board({ currentUser, onLogout }) {
               onUpdateUser={handleUpdateUser}
               onDeleteUser={handleDeleteUser}
               onSetPassword={handleSetPassword}
+              onOpenAgent={handleOpenAgent}
             />
           </>
         ) : view === 'timeline' ? (

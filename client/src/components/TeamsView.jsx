@@ -23,6 +23,7 @@ export default function TeamsView({
   onUpdateUser,
   onDeleteUser,
   onSetPassword,
+  onOpenAgent,
 }) {
   const [managing, setManaging] = useState(null); // équipe en cours de gestion
 
@@ -41,6 +42,7 @@ export default function TeamsView({
         onUpdateUser={onUpdateUser}
         onDeleteUser={onDeleteUser}
         onSetPassword={onSetPassword}
+        onOpenAgent={onOpenAgent}
       />
     );
   }

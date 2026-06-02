@@ -1,8 +1,43 @@
-import { Search, UserPlus, Pencil, KeyRound, Trash2, X, Loader2, Check } from 'lucide-react';
+import { Search, UserPlus, Pencil, KeyRound, Trash2, X, Loader2, Check, ListChecks } from 'lucide-react';
 import { useState } from 'react';
 import Avatar from './Avatar.jsx';
+import PharmacoAvatar, { AVATAR_PRESET_COUNT } from './PharmacoAvatar.jsx';
 
 const ROLE_LABELS = { admin: 'Admin', member: 'Membre', viewer: 'Observateur' };
+
+// Sélecteur d'avatar : « Initiales » + les avatars PHARMACO (charte CHD).
+function AvatarPicker({ name, value, onChange }) {
+  const presets = Array.from({ length: AVATAR_PRESET_COUNT }, (_, i) => `pharmaco:${i}`);
+  const Option = ({ selected, onClick, children, title }) => (
+    <button
+      type="button"
+      onClick={onClick}
+      title={title}
+      className={`flex h-12 w-12 items-center justify-center rounded-full border-2 transition ${
+        selected ? 'border-primary' : 'border-transparent hover:border-gray-200'
+      }`}
+    >
+      {children}
+    </button>
+  );
+  return (
+    <div className="flex flex-wrap gap-1.5">
+      <Option selected={!value} onClick={() => onChange(null)} title="Initiales">
+        <span
+          className="flex h-9 w-9 items-center justify-center rounded-full text-xs font-semibold text-white"
+          style={{ backgroundColor: '#9aadbd' }}
+        >
+          {(name || '?').slice(0, 1).toUpperCase()}
+        </span>
+      </Option>
+      {presets.map((p, i) => (
+        <Option key={p} selected={value === p} onClick={() => onChange(p)} title={`Avatar ${i + 1}`}>
+          <PharmacoAvatar variant={i} name={name} size={36} ring={false} />
+        </Option>
+      ))}
+    </div>
+  );
+}
 
 // Modale d'ajout / modification d'un agent (nom, email, rôle, mot de passe).
 function AgentModal({ mode, user, onClose, onSubmit }) {
@@ -11,6 +46,7 @@ function AgentModal({ mode, user, onClose, onSubmit }) {
   const [email, setEmail] = useState(user?.email || '');
   const [role, setRole] = useState(user?.role || 'member');
   const [password, setPassword] = useState('');
+  const [avatar, setAvatar] = useState(user?.avatar_url || null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
 
@@ -24,6 +60,7 @@ function AgentModal({ mode, user, onClose, onSubmit }) {
         email: email.trim(),
         role,
         password: password.trim(),
+        avatar_url: avatar,
       });
       onClose();
     } catch (err) {
@@ -55,6 +92,11 @@ function AgentModal({ mode, user, onClose, onSubmit }) {
             required
             className="mb-3 w-full rounded-md border border-gray-200 px-3 py-2 text-sm outline-none focus:border-primary"
           />
+          <label className="mb-1 block text-xs font-medium text-gray-500">Avatar</label>
+          <div className="mb-3">
+            <AvatarPicker name={name} value={avatar} onChange={setAvatar} />
+          </div>
+
           <label className="mb-1 block text-xs font-medium text-gray-500">E-mail</label>
           <input
             type="email"
@@ -127,6 +169,7 @@ export default function UserDirectory({
   onUpdateUser,
   onDeleteUser,
   onSetPassword,
+  onOpenAgent,
 }) {
   const [q, setQ] = useState('');
   const [modal, setModal] = useState(null); // { mode: 'add' | 'edit', user }
@@ -145,12 +188,14 @@ export default function UserDirectory({
         email: data.email,
         role: data.role,
         password: data.password || undefined,
+        avatar_url: data.avatar_url || undefined,
       });
     } else {
       await onUpdateUser(modal.user.id, {
         name: data.name,
         email: data.email,
         role: data.role,
+        avatar_url: data.avatar_url ?? null,
       });
       if (data.password) await onSetPassword(modal.user.id, data.password);
     }
@@ -211,10 +256,15 @@ export default function UserDirectory({
             key={u.id}
             className="group flex items-center border-b border-gray-50 px-4 py-3 last:border-b-0 hover:bg-gray-50"
           >
-            <div className="flex flex-1 items-center gap-3">
+            <button
+              type="button"
+              onClick={() => onOpenAgent?.(u)}
+              title="Voir les tâches affectées"
+              className="flex flex-1 items-center gap-3 text-left"
+            >
               <Avatar name={u.name} src={u.avatar_url} size={34} ring={false} />
               <div className="min-w-0">
-                <div className="truncate text-sm font-medium text-gray-800">
+                <div className="truncate text-sm font-medium text-gray-800 group-hover:text-primary">
                   {u.name}
                   {u.id === currentUserId && (
                     <span className="ml-1.5 rounded bg-primary-light px-1.5 py-0.5 text-[10px] font-medium text-primary">
@@ -224,7 +274,7 @@ export default function UserDirectory({
                 </div>
                 <div className="truncate text-xs text-gray-400 sm:hidden">{u.email}</div>
               </div>
-            </div>
+            </button>
             <div className="hidden w-56 truncate text-sm text-gray-500 sm:block">{u.email}</div>
             <div className="w-28">
               <span className="rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-600">
@@ -245,6 +295,13 @@ export default function UserDirectory({
                 <span className="text-xs text-gray-300">Aucune équipe</span>
               )}
             </div>
+            <button
+              onClick={() => onOpenAgent?.(u)}
+              title="Voir les tâches affectées"
+              className="mr-1 shrink-0 rounded-md border border-gray-200 p-1.5 text-gray-500 hover:border-primary hover:text-primary"
+            >
+              <ListChecks size={15} />
+            </button>
             {canManage && (
               <div className="flex w-24 shrink-0 justify-end gap-0.5 opacity-0 transition group-hover:opacity-100">
                 <button

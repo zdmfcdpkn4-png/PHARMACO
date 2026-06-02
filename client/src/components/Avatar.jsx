@@ -1,11 +1,18 @@
 import { useState } from 'react';
 import { colorFromString, getInitials } from '../lib/constants.js';
+import PharmacoAvatar, { isPharmacoAvatar, pharmacoVariant } from './PharmacoAvatar.jsx';
 
-// Pastille d'avatar : utilise l'image si elle est fournie ET se charge,
-// sinon (ou en cas d'erreur réseau) affiche les initiales sur fond coloré
+// Pastille d'avatar : avatar PHARMACO généré (src "pharmaco:N"), sinon image
+// si elle est fournie ET se charge, sinon les initiales sur fond coloré
 // déterministe. Aucune dépendance réseau requise par défaut.
 export default function Avatar({ name = '', src = null, size = 32, ring = true }) {
   const [failed, setFailed] = useState(false);
+
+  // Avatar généré inspiré du logo (choisi par l'agent).
+  if (isPharmacoAvatar(src)) {
+    return <PharmacoAvatar variant={pharmacoVariant(src)} name={name} size={size} ring={ring} />;
+  }
+
   const showImage = src && !failed;
 
   const dimension = { width: size, height: size };

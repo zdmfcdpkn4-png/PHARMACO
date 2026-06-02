@@ -4,27 +4,33 @@ export default {
   theme: {
     extend: {
       colors: {
-        // ---- Charte graphique PHARMACO (dérivée du logo floral) ----
-        canvas: '#faf7fb', // fond très clair teinté lilas
+        // ---- Charte graphique CHD ----
+        // Majoritaires : bleu foncé #005586 et rose #E82A63.
+        // Accents (petites touches) : teal #46B4B3 et jaune #F4C137.
+        canvas: '#eef4f8', // fond très clair bleuté CHD
         primary: {
-          DEFAULT: '#3b1f7a', // violet profond (lettre P du logo)
-          hover: '#2e1860',
-          light: '#ece6f6',
+          DEFAULT: '#005586', // bleu CHD (couleur principale, onglets actifs)
+          hover: '#00415f',
+          light: '#e1edf3',
         },
         brand: {
-          purple: '#3b1f7a',
-          orange: '#e8722e', // orange (pétales + "pharmacotechnie")
-          yellow: '#f2c94c', // jaune
-          lilac: '#d9a7e0', // lilas
+          blue: '#005586',
+          rose: '#e82a63',
+          teal: '#46b4b3',
+          yellow: '#f4c137',
+          // Alias rétro-compatibles (anciennes références au logo)
+          purple: '#005586',
+          orange: '#e82a63',
+          lilac: '#46b4b3',
         },
         status: {
-          progress: '#e8722e', // En cours -> orange du logo
+          progress: '#e8722e', // En cours -> orange
           done: '#00c875', // Fait -> vert
           blocked: '#e2445c', // Bloqué -> rouge
           todo: '#c4c4c4', // À faire -> gris
         },
         group: {
-          blue: '#3b1f7a',
+          blue: '#005586',
           green: '#00c875',
         },
       },

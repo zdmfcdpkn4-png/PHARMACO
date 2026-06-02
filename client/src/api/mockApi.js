@@ -244,7 +244,7 @@ export const mockApi = {
     return { token: `mock-${user.id}`, user: clone(safe) };
   },
 
-  async createUser({ name, email, role, password }) {
+  async createUser({ name, email, role, password, avatar_url }) {
     await delay();
     if (!name || !email) throw new Error('name et email sont requis');
     if (users.some((u) => u.email.toLowerCase() === email.toLowerCase())) {
@@ -254,7 +254,7 @@ export const mockApi = {
       id: uid(),
       name,
       email,
-      avatar_url: null,
+      avatar_url: avatar_url || null,
       role: role || 'member',
       // En démo, on stocke le mot de passe en clair pour permettre le login.
       password: password || null,
@@ -277,6 +277,7 @@ export const mockApi = {
     if (patch.name !== undefined) u.name = patch.name;
     if (patch.email !== undefined) u.email = patch.email;
     if (patch.role !== undefined) u.role = patch.role;
+    if (patch.avatar_url !== undefined) u.avatar_url = patch.avatar_url || null;
     // password : chaîne -> (re)définit ; null -> supprime ; absent -> inchangé
     if (patch.password !== undefined) u.password = patch.password || null;
     const { password: _pw, ...safe } = u;
