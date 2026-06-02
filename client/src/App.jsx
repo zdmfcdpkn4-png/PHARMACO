@@ -61,12 +61,33 @@ export default function App() {
     localStorage.removeItem(AUTH_KEY);
   };
 
+  // Met à jour l'utilisateur connecté (ex. après modification de son profil /
+  // avatar) pour rafraîchir l'en-tête sans reconnexion.
+  const handleUpdateCurrentUser = (patch) => {
+    setAuth((prev) => {
+      if (!prev) return prev;
+      const next = { ...prev, user: { ...prev.user, ...patch } };
+      try {
+        localStorage.setItem(AUTH_KEY, JSON.stringify(next));
+      } catch {
+        /* ignore */
+      }
+      return next;
+    });
+  };
+
   if (!auth?.user) return <Login onAuth={handleAuth} />;
 
-  return <Board currentUser={auth.user} onLogout={handleLogout} />;
+  return (
+    <Board
+      currentUser={auth.user}
+      onLogout={handleLogout}
+      onUpdateCurrentUser={handleUpdateCurrentUser}
+    />
+  );
 }
 
-function Board({ currentUser, onLogout }) {
+function Board({ currentUser, onLogout, onUpdateCurrentUser }) {
   const CURRENT_USER_ID = currentUser.id;
   const isMobile = useIsMobile();
   const [board, setBoard] = useState(null);
@@ -280,6 +301,32 @@ function Board({ currentUser, onLogout }) {
   const handleOpenAgent = (user) => {
     setAgentViewUser(user);
     setView('agent');
+  };
+  // Ouvre directement la discussion d'une tâche depuis un message de la vue
+  // d'ensemble (charge le bon projet si nécessaire).
+  const handleOpenMessage = async (h) => {
+    try {
+      let b = board;
+      if (h.board_id && h.board_id !== currentBoardId) {
+        b = await api.getBoard(h.board_id);
+        setBoard(b);
+        setCurrentBoardId(h.board_id);
+      }
+      setView('board');
+      const task = (b?.groups || []).flatMap((g) => g.tasks).find((t) => t.id === h.task_id);
+      if (task) setDrawerTask(task);
+    } catch (e) {
+      setError(e.message || "Impossible d'ouvrir la discussion");
+      setTimeout(() => setError(null), 3000);
+    }
+  };
+  // Marque comme lues les discussions correspondant aux messages indiqués.
+  const handleMarkHighlightsRead = async (taskIds) => {
+    const ids = [...new Set(taskIds)];
+    await Promise.all(
+      ids.map((id) => api.markCommentsRead(id, CURRENT_USER_ID).catch(() => {}))
+    );
+    loadCommentCounts();
   };
 
   // -------- Multi-projets (un board par projet) --------
@@ -745,8 +792,8 @@ function Board({ currentUser, onLogout }) {
   };
 
   // -------- Membres / agents --------
-  const handleAddUser = async ({ name, email, role, password }) => {
-    const created = await api.createUser({ name, email, role, password });
+  const handleAddUser = async ({ name, email, role, password, avatar_url }) => {
+    const created = await api.createUser({ name, email, role, password, avatar_url });
     setUsers((prev) => [...prev, created].sort((a, b) => a.name.localeCompare(b.name)));
     return created;
   };
@@ -760,18 +807,31 @@ function Board({ currentUser, onLogout }) {
         .sort((a, b) => a.name.localeCompare(b.name))
     );
     // Répercute le changement de nom/avatar sur les tâches assignées
+    const shaped = { id: updated.id, name: updated.name, avatar_url: updated.avatar_url };
     setBoard((b) => {
       if (!b) return b;
       const next = structuredClone(b);
       for (const g of next.groups) {
         for (const t of g.tasks) {
-          if (t.admin?.id === id) {
-            t.admin = { id: updated.id, name: updated.name, avatar_url: updated.avatar_url };
+          if (t.admin?.id === id) t.admin = shaped;
+          if (t.assignees) t.assignees = t.assignees.map((a) => (a.id === id ? shaped : a));
+          for (const s of t.subtasks || []) {
+            if (s.admin?.id === id) s.admin = shaped;
+            if (s.assignees) s.assignees = s.assignees.map((a) => (a.id === id ? shaped : a));
           }
         }
       }
       return next;
     });
+    // Si l'utilisateur modifie son propre profil, rafraîchit l'en-tête.
+    if (id === CURRENT_USER_ID) {
+      onUpdateCurrentUser?.({
+        name: updated.name,
+        email: updated.email,
+        avatar_url: updated.avatar_url,
+        role: updated.role,
+      });
+    }
     return updated;
   };
 
@@ -1286,6 +1346,10 @@ function Board({ currentUser, onLogout }) {
                   unreadCounts={commentCounts}
                   currentUserId={CURRENT_USER_ID}
                   loadHighlights={() => api.getCommentHighlights(CURRENT_USER_ID)}
+                  onOpenMessage={(h) => {
+                    handleOpenMessage(h);
+                  }}
+                  onMarkAllRead={handleMarkHighlightsRead}
                 />
               )}
               {view === 'agent' && (
@@ -1561,6 +1625,8 @@ function Board({ currentUser, onLogout }) {
               unreadCounts={commentCounts}
               currentUserId={CURRENT_USER_ID}
               loadHighlights={() => api.getCommentHighlights(CURRENT_USER_ID)}
+              onOpenMessage={handleOpenMessage}
+              onMarkAllRead={handleMarkHighlightsRead}
             />
           </>
         ) : view === 'teams' ? (

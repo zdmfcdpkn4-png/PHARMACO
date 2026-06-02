@@ -12,6 +12,7 @@ import {
   Reply,
   Megaphone,
   Flag,
+  CheckCheck,
 } from 'lucide-react';
 import Avatar from './Avatar.jsx';
 import { STATUS_META } from '../lib/constants.js';
@@ -105,6 +106,8 @@ export default function OverviewView({
   boards,
   loadFull,
   onOpenProject,
+  onOpenMessage,
+  onMarkAllRead,
   unreadCounts = {},
   currentUserId,
   loadHighlights,
@@ -112,6 +115,7 @@ export default function OverviewView({
   const [fullById, setFullById] = useState({});
   const [loading, setLoading] = useState(true);
   const [highlights, setHighlights] = useState([]);
+  const [unreadOnly, setUnreadOnly] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -230,6 +234,20 @@ export default function OverviewView({
     </div>
   );
 
+  // Messages affichés selon le filtre + comptage des non lus.
+  const unreadHighlightCount = highlights.filter((m) => !m.is_read).length;
+  const shownHighlights = unreadOnly ? highlights.filter((m) => !m.is_read) : highlights;
+
+  const markAllRead = async () => {
+    const ids = highlights.filter((m) => !m.is_read).map((m) => m.task_id);
+    if (!ids.length) return;
+    try {
+      await onMarkAllRead?.(ids);
+    } finally {
+      setHighlights((prev) => prev.map((m) => ({ ...m, is_read: true })));
+    }
+  };
+
   return (
     <div className="flex-1 overflow-auto p-6">
       {/* Récapitulatif global */}
@@ -246,25 +264,47 @@ export default function OverviewView({
       <div className="mb-6 grid grid-cols-1 gap-4 lg:grid-cols-2">
         {/* Messages mis en avant */}
         <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
-          <div className="flex items-center gap-2 border-b border-gray-100 px-4 py-2.5 text-sm font-semibold text-gray-700">
+          <div className="flex flex-wrap items-center gap-2 border-b border-gray-100 px-4 py-2.5 text-sm font-semibold text-gray-700">
             <Megaphone size={16} className="text-brand-rose" /> Messages prioritaires & ciblés
-            {highlights.length > 0 && (
-              <span className="ml-auto rounded-full bg-brand-rose/15 px-2 py-0.5 text-xs font-medium text-brand-rose">
-                {highlights.length}
+            {unreadHighlightCount > 0 && (
+              <span className="rounded-full bg-brand-rose/15 px-2 py-0.5 text-xs font-medium text-brand-rose">
+                {unreadHighlightCount} non lu{unreadHighlightCount > 1 ? 's' : ''}
               </span>
             )}
+            <div className="ml-auto flex items-center gap-1">
+              <button
+                type="button"
+                onClick={() => setUnreadOnly((v) => !v)}
+                className={`rounded-md px-2 py-1 text-xs font-medium transition ${
+                  unreadOnly ? 'bg-primary-light text-primary' : 'text-gray-500 hover:bg-gray-100'
+                }`}
+              >
+                Non lus
+              </button>
+              <button
+                type="button"
+                onClick={markAllRead}
+                disabled={unreadHighlightCount === 0}
+                title="Tout marquer comme lu"
+                className="flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-gray-500 hover:bg-gray-100 disabled:opacity-40"
+              >
+                <CheckCheck size={14} /> Tout lu
+              </button>
+            </div>
           </div>
           <div className="max-h-72 overflow-auto">
-            {highlights.length === 0 ? (
+            {shownHighlights.length === 0 ? (
               <p className="px-4 py-8 text-center text-sm text-gray-400">
-                Aucun message prioritaire ou ciblé.
+                {unreadOnly && highlights.length > 0
+                  ? 'Aucun message non lu. 👌'
+                  : 'Aucun message prioritaire ou ciblé.'}
               </p>
             ) : (
-              highlights.map((m) => (
+              shownHighlights.map((m) => (
                 <button
                   key={m.id}
                   type="button"
-                  onClick={() => m.board_id && onOpenProject(m.board_id)}
+                  onClick={() => onOpenMessage?.(m)}
                   className={`flex w-full items-start gap-3 border-b border-gray-50 px-4 py-3 text-left last:border-b-0 hover:bg-gray-50 ${
                     m.is_read ? '' : 'bg-brand-rose/[0.03]'
                   }`}

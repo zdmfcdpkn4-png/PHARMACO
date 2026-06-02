@@ -38,6 +38,7 @@ const adminShape = (id) => {
 
 let alerts = [
   { id: 900, user_id: 1, message: 'La tâche « Tâche 3 » est passée au statut Bloqué.', type: 'blocked', is_read: false, created_at: new Date().toISOString() },
+  { id: 901, user_id: 1, message: '📌 Message prioritaire de Alice Martin sur « Tâche 3 » : Blocage critique : décision attendue avant ce soir.', type: 'critical', is_read: false, created_at: new Date().toISOString() },
 ];
 
 // État du board "Suivi" (reproduit la maquette)
@@ -800,6 +801,27 @@ export const mockApi = {
             user_id: u.id,
             message: `💬 ${authorName} vous a mentionné sur « ${taskName} » : ${text.slice(0, 80)}`,
             type: 'mention',
+            is_read: false,
+            created_at: new Date().toISOString(),
+          },
+          ...alerts,
+        ];
+      }
+    }
+
+    // Message prioritaire -> notifie aussi les assigné(e)s de la tâche (cloche).
+    if (priority === true) {
+      const task = boards.flatMap((b) => b.groups).flatMap((g) => g.tasks).find((t) => t.id === taskId);
+      const alerted = new Set([user_id, recipientUser?.id, ...mentioned]);
+      for (const a of task?.assignees || []) {
+        if (alerted.has(a.id)) continue;
+        alerted.add(a.id);
+        alerts = [
+          {
+            id: uid(),
+            user_id: a.id,
+            message: `📌 Message prioritaire de ${authorName} sur « ${taskName} » : ${text.slice(0, 80)}`,
+            type: 'critical',
             is_read: false,
             created_at: new Date().toISOString(),
           },

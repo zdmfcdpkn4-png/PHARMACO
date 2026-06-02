@@ -52,7 +52,8 @@ INSERT INTO task_columns (task_id, admin_id, status, duedate) VALUES
 
 -- --- Alertes (la tâche bloquée génère une alerte) ------------------------
 INSERT INTO alerts (user_id, message, type) VALUES
-    (1, 'La tâche « Tâche 3 » est passée au statut Bloqué.', 'blocked');
+    (1, 'La tâche « Tâche 3 » est passée au statut Bloqué.', 'blocked'),
+    (1, '📌 Message prioritaire de Alice Martin sur « Tâche 3 » : Blocage critique : décision attendue avant ce soir.', 'critical');
 
 -- --- Discussion & historique de démo (tâche 3 bloquée) -------------------
 INSERT INTO task_comments (task_id, user_id, content) VALUES

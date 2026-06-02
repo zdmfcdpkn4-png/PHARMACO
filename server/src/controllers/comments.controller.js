@@ -181,17 +181,42 @@ export const createComment = asyncHandler(async (req, res) => {
       );
     }
 
+    // Suivi des destinataires déjà alertés (évite les doublons).
+    const alerted = new Set(mentioned.map((m) => m.id));
+    if (user_id) alerted.add(user_id);
+
     // Destinataire ciblé -> alerte dédiée (sauf s'il s'agit de l'auteur).
     let recipient = null;
     if (c.recipient_id) {
       const r = await client.query('SELECT id, name FROM users WHERE id = $1', [c.recipient_id]);
       recipient = r.rows[0] || null;
-      if (recipient && recipient.id !== user_id && !mentioned.some((m) => m.id === recipient.id)) {
+      if (recipient && !alerted.has(recipient.id)) {
         const prefix = isPriority ? '📌 Message prioritaire' : '✉️ Message';
         await client.query(
           `INSERT INTO alerts (user_id, message, type)
-           VALUES ($1, $2, 'mention')`,
+           VALUES ($1, $2, 'critical')`,
           [recipient.id, `${prefix} de ${authorName} sur « ${taskName} » : ${text.slice(0, 80)}`]
+        );
+        alerted.add(recipient.id);
+      }
+    }
+
+    // Message prioritaire -> notifie aussi les assigné(e)s de la tâche (cloche).
+    if (isPriority) {
+      const assignees = await client.query(
+        'SELECT user_id FROM task_assignments WHERE task_id = $1',
+        [taskId]
+      );
+      for (const row of assignees.rows) {
+        if (alerted.has(row.user_id)) continue;
+        alerted.add(row.user_id);
+        await client.query(
+          `INSERT INTO alerts (user_id, message, type)
+           VALUES ($1, $2, 'critical')`,
+          [
+            row.user_id,
+            `📌 Message prioritaire de ${authorName} sur « ${taskName} » : ${text.slice(0, 80)}`,
+          ]
         );
       }
     }
