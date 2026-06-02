@@ -13,6 +13,13 @@ export default function TeamsView({
   onAddTeamMembers,
   onUpdateMemberRole,
   onRemoveTeamMember,
+  // Gestion des agents (administrateur)
+  canManageAgents = false,
+  currentUserId,
+  onAddUser,
+  onUpdateUser,
+  onDeleteUser,
+  onSetPassword,
 }) {
   const [managing, setManaging] = useState(null); // équipe en cours de gestion
   const [creating, setCreating] = useState(false);
@@ -24,7 +31,17 @@ export default function TeamsView({
   const team = teams.find((t) => String(t.id) === teamId);
 
   if (isDirectory) {
-    return <UserDirectory users={users} />;
+    return (
+      <UserDirectory
+        users={users}
+        canManage={canManageAgents}
+        currentUserId={currentUserId}
+        onAddUser={onAddUser}
+        onUpdateUser={onUpdateUser}
+        onDeleteUser={onDeleteUser}
+        onSetPassword={onSetPassword}
+      />
+    );
   }
 
   if (!team) {

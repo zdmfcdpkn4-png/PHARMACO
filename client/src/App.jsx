@@ -722,7 +722,10 @@ function Board({ currentUser, onLogout }) {
   const handleUpdateUser = async (id, patch) => {
     const updated = await api.updateUser(id, patch);
     setUsers((prev) =>
-      prev.map((u) => (u.id === id ? updated : u)).sort((a, b) => a.name.localeCompare(b.name))
+      prev
+        // Conserve les équipes dérivées (non renvoyées par updateUser).
+        .map((u) => (u.id === id ? { ...updated, teams: updated.teams ?? u.teams } : u))
+        .sort((a, b) => a.name.localeCompare(b.name))
     );
     // Répercute le changement de nom/avatar sur les tâches assignées
     setBoard((b) => {
@@ -1224,7 +1227,9 @@ function Board({ currentUser, onLogout }) {
                   : view === 'reporting'
                   ? 'Reporting'
                   : view === 'teams'
-                  ? 'Gestion des Équipes'
+                  ? teamSection === 'directory'
+                    ? 'Annuaire des agents'
+                    : 'Gestion des Équipes'
                   : view === 'team-project'
                   ? (teamView || '').endsWith(':distribution')
                     ? 'Répartition des tâches'
@@ -1279,6 +1284,12 @@ function Board({ currentUser, onLogout }) {
                   onAddTeamMembers={handleAddTeamMembers}
                   onUpdateMemberRole={handleUpdateMemberRole}
                   onRemoveTeamMember={handleRemoveTeamMember}
+                  canManageAgents={isAdmin}
+                  currentUserId={CURRENT_USER_ID}
+                  onAddUser={handleAddUser}
+                  onUpdateUser={handleUpdateUser}
+                  onDeleteUser={handleDeleteUser}
+                  onSetPassword={handleSetPassword}
                 />
               )}
             </div>
@@ -1481,7 +1492,7 @@ function Board({ currentUser, onLogout }) {
           <>
             <div className="border-b border-gray-200 bg-white px-6 pt-4">
               <h2 className="mb-3 flex items-center gap-2 text-2xl font-bold text-gray-800">
-                Gestion des Équipes
+                {teamSection === 'directory' ? 'Annuaire des agents' : 'Gestion des Équipes'}
               </h2>
             </div>
             <TeamsView
@@ -1492,6 +1503,12 @@ function Board({ currentUser, onLogout }) {
               onAddTeamMembers={handleAddTeamMembers}
               onUpdateMemberRole={handleUpdateMemberRole}
               onRemoveTeamMember={handleRemoveTeamMember}
+              canManageAgents={isAdmin}
+              currentUserId={CURRENT_USER_ID}
+              onAddUser={handleAddUser}
+              onUpdateUser={handleUpdateUser}
+              onDeleteUser={handleDeleteUser}
+              onSetPassword={handleSetPassword}
             />
           </>
         ) : view === 'timeline' ? (
