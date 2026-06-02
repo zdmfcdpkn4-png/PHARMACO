@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Search, Plus, Pencil, Trash2, X, Loader2, Check, Users, Settings2 } from 'lucide-react';
+import { Search, Plus, Pencil, Trash2, X, Loader2, Check, Users, Settings2, Folder } from 'lucide-react';
 import Avatar from './Avatar.jsx';
 
 // Modale de création / édition d'une équipe (nom + description).
@@ -179,8 +179,25 @@ export default function TeamDirectory({
             </div>
 
             {t.description && (
-              <p className="mb-3 line-clamp-2 text-sm text-gray-500">{t.description}</p>
+              <p className="mb-2 line-clamp-2 text-sm text-gray-500">{t.description}</p>
             )}
+
+            {/* Projets associés */}
+            <div className="mb-3 flex flex-wrap items-center gap-1.5">
+              <Folder size={13} className="text-gray-400" />
+              {(t.projects || []).length ? (
+                t.projects.map((p) => (
+                  <span
+                    key={p.id}
+                    className="rounded-full bg-primary-light px-2 py-0.5 text-[11px] font-medium text-primary"
+                  >
+                    {p.name}
+                  </span>
+                ))
+              ) : (
+                <span className="text-xs text-gray-300">Aucun projet associé</span>
+              )}
+            </div>
 
             {/* Membres */}
             <div className="mt-auto flex items-center justify-between border-t border-gray-50 pt-3">

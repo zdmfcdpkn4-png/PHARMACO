@@ -6,13 +6,15 @@ import {
   updateUser,
   deleteUser,
 } from '../controllers/users.controller.js';
+import { requireAdmin } from '../middleware/auth.js';
 
 const router = Router();
 
 router.get('/', listUsers);
 router.get('/:id', getUser);
-router.post('/', createUser);
-router.patch('/:id', updateUser);
-router.delete('/:id', deleteUser);
+// Gestion des agents : réservée aux administrateurs.
+router.post('/', requireAdmin, createUser);
+router.patch('/:id', requireAdmin, updateUser);
+router.delete('/:id', requireAdmin, deleteUser);
 
 export default router;

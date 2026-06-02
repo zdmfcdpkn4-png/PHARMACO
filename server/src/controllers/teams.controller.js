@@ -1,7 +1,7 @@
 import { query } from '../db/pool.js';
 import { asyncHandler } from '../middleware/error.js';
 
-// Liste les équipes avec leurs membres.
+// Liste les équipes avec leurs membres et les projets associés.
 export const listTeams = asyncHandler(async (_req, res) => {
   const teams = await query('SELECT id, name, description FROM teams ORDER BY id');
   const members = await query(
@@ -9,12 +9,28 @@ export const listTeams = asyncHandler(async (_req, res) => {
      FROM team_members m JOIN users u ON u.id = m.user_id
      ORDER BY m.id`
   );
-  const byTeam = new Map();
+  const projects = await query(
+    `SELECT pt.team_id, b.id, b.name
+     FROM project_teams pt JOIN boards b ON b.id = pt.board_id
+     ORDER BY b.name`
+  );
+  const membersByTeam = new Map();
   for (const r of members.rows) {
-    if (!byTeam.has(r.team_id)) byTeam.set(r.team_id, []);
-    byTeam.get(r.team_id).push({ id: r.id, name: r.name, avatar_url: r.avatar_url, role: r.role });
+    if (!membersByTeam.has(r.team_id)) membersByTeam.set(r.team_id, []);
+    membersByTeam.get(r.team_id).push({ id: r.id, name: r.name, avatar_url: r.avatar_url, role: r.role });
   }
-  res.json(teams.rows.map((t) => ({ ...t, members: byTeam.get(t.id) || [] })));
+  const projectsByTeam = new Map();
+  for (const r of projects.rows) {
+    if (!projectsByTeam.has(r.team_id)) projectsByTeam.set(r.team_id, []);
+    projectsByTeam.get(r.team_id).push({ id: r.id, name: r.name });
+  }
+  res.json(
+    teams.rows.map((t) => ({
+      ...t,
+      members: membersByTeam.get(t.id) || [],
+      projects: projectsByTeam.get(t.id) || [],
+    }))
+  );
 });
 
 export const createTeam = asyncHandler(async (req, res) => {

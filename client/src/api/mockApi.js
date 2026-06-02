@@ -499,7 +499,15 @@ export const mockApi = {
 
   async getTeams() {
     await delay(40);
-    return clone(teams);
+    // Projets associés à chaque équipe (dérivés de project_teams = _teamIds).
+    return clone(
+      teams.map((t) => ({
+        ...t,
+        projects: boards
+          .filter((b) => (b._teamIds || []).includes(t.id))
+          .map((b) => ({ id: b.id, name: b.name })),
+      }))
+    );
   },
   async createTeam({ name, description }) {
     await delay(50);

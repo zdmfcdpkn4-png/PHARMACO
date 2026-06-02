@@ -15,6 +15,7 @@ import subtasksRouter from './routes/subtasks.js';
 import teamsRouter from './routes/teams.js';
 import shortcutsRouter from './routes/shortcuts.js';
 import { notFound, errorHandler } from './middleware/error.js';
+import { authenticate } from './middleware/auth.js';
 import { applySchema } from './db/migrate.js';
 
 dotenv.config();
@@ -24,6 +25,9 @@ const app = express();
 app.use(cors({ origin: process.env.CLIENT_ORIGIN || '*' }));
 app.use(express.json());
 app.use(morgan('dev'));
+
+// Identifie l'appelant (req.user) à partir du jeton, sans bloquer.
+app.use(authenticate);
 
 // Racine : petit message pour confirmer que l'API tourne (évite un 404 nu)
 app.get('/', (_req, res) =>

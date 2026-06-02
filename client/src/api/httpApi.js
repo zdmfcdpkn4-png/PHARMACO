@@ -1,10 +1,25 @@
 // Adaptateur HTTP : appelle le vrai backend Express.
 const BASE = import.meta.env.VITE_API_URL || 'http://localhost:4000/api';
+const AUTH_KEY = 'pharmaco_auth';
+
+// Récupère le jeton d'authentification stocké au login (pour l'envoyer au
+// backend, qui identifie l'appelant et applique les contrôles d'accès).
+function authToken() {
+  try {
+    return JSON.parse(localStorage.getItem(AUTH_KEY))?.token || null;
+  } catch {
+    return null;
+  }
+}
 
 async function request(path, { method = 'GET', body } = {}) {
+  const headers = {};
+  if (body) headers['Content-Type'] = 'application/json';
+  const token = authToken();
+  if (token) headers.Authorization = `Bearer ${token}`;
   const res = await fetch(`${BASE}${path}`, {
     method,
-    headers: body ? { 'Content-Type': 'application/json' } : undefined,
+    headers,
     body: body ? JSON.stringify(body) : undefined,
   });
   if (!res.ok) {

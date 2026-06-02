@@ -271,6 +271,8 @@ function Board({ currentUser, onLogout }) {
   };
   const handleOpenOverview = () => {
     setView('overview');
+    // Rafraîchit les compteurs de messages non lus pour la synthèse.
+    loadCommentCounts();
   };
 
   // -------- Multi-projets (un board par projet) --------
@@ -324,6 +326,8 @@ function Board({ currentUser, onLogout }) {
     await api.setBoardTeams(board.id, teamIds);
     const fresh = await api.getBoard(board.id);
     setBoard(fresh);
+    // Met à jour la liste « projets associés » de chaque équipe.
+    api.getTeams().then(setTeams).catch(() => {});
   };
 
   // Rafraîchit users (pour les badges d'équipes de l'annuaire) + teams.
