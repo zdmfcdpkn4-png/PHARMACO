@@ -6,7 +6,18 @@ export const listUsers = asyncHandler(async (_req, res) => {
   const { rows } = await query(
     'SELECT id, name, email, avatar_url, role, created_at FROM users ORDER BY name'
   );
-  res.json(rows);
+  // Équipes de chaque utilisateur (relation many-to-many)
+  const teamsRes = await query(
+    `SELECT m.user_id, t.id, t.name, m.role
+     FROM team_members m JOIN teams t ON t.id = m.team_id
+     ORDER BY t.name`
+  );
+  const byUser = new Map();
+  for (const r of teamsRes.rows) {
+    if (!byUser.has(r.user_id)) byUser.set(r.user_id, []);
+    byUser.get(r.user_id).push({ id: r.id, name: r.name, role: r.role });
+  }
+  res.json(rows.map((u) => ({ ...u, teams: byUser.get(u.id) || [] })));
 });
 
 export const getUser = asyncHandler(async (req, res) => {

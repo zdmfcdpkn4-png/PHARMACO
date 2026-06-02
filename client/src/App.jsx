@@ -245,6 +245,41 @@ function Board({ currentUser, onLogout }) {
     setTeamSection(`${teamId}:${section}`);
     setView('teams');
   };
+  const handleOpenDirectory = () => {
+    setTeamSection('directory');
+    setView('teams');
+  };
+
+  // Rafraîchit users (pour les badges d'équipes de l'annuaire) + teams.
+  const refreshTeamsAndUsers = async () => {
+    try {
+      const [t, u] = await Promise.all([api.getTeams(), api.getUsers()]);
+      setTeams(t);
+      setUsers(u);
+    } catch {
+      /* ignore */
+    }
+  };
+
+  const handleAddTeam = async (name) => {
+    const created = await api.createTeam({ name });
+    setTeams((prev) => [...prev, created]);
+  };
+  const handleAddTeamMembers = async (teamId, userIds) => {
+    const res = await api.addTeamMembers(teamId, userIds);
+    await refreshTeamsAndUsers();
+    return res;
+  };
+  const handleUpdateMemberRole = async (teamId, userId, role) => {
+    const res = await api.updateTeamMemberRole(teamId, userId, role);
+    await refreshTeamsAndUsers();
+    return res;
+  };
+  const handleRemoveTeamMember = async (teamId, userId) => {
+    const res = await api.removeTeamMember(teamId, userId);
+    await refreshTeamsAndUsers();
+    return res;
+  };
 
   // Configuration des étiquettes (dictionnaires du board).
   const handleCreateTag = async (name, color, tag_type) => {
@@ -988,6 +1023,11 @@ function Board({ currentUser, onLogout }) {
                   handleSelectTeamSection(id, s);
                   setMenuOpen(false);
                 }}
+                onOpenDirectory={() => {
+                  handleOpenDirectory();
+                  setMenuOpen(false);
+                }}
+                onAddTeam={handleAddTeam}
                 shortcuts={shortcuts}
                 onAddShortcut={handleAddShortcut}
                 onDeleteShortcut={handleDeleteShortcut}
@@ -1107,6 +1147,17 @@ function Board({ currentUser, onLogout }) {
               )}
               {view === 'reporting' && <ReportingView board={board} users={users} />}
               {view === 'workload' && <TeamWorkloadView board={board} users={users} />}
+              {view === 'teams' && (
+                <TeamsView
+                  teams={teams}
+                  users={users}
+                  teamSection={teamSection}
+                  onAddTeam={handleAddTeam}
+                  onAddTeamMembers={handleAddTeamMembers}
+                  onUpdateMemberRole={handleUpdateMemberRole}
+                  onRemoveTeamMember={handleRemoveTeamMember}
+                />
+              )}
             </div>
           </div>
         )}
@@ -1216,6 +1267,8 @@ function Board({ currentUser, onLogout }) {
           teams={teams}
           teamSection={teamSection}
           onSelectTeamSection={handleSelectTeamSection}
+          onOpenDirectory={handleOpenDirectory}
+          onAddTeam={handleAddTeam}
           shortcuts={shortcuts}
           onAddShortcut={handleAddShortcut}
           onDeleteShortcut={handleDeleteShortcut}
@@ -1291,7 +1344,15 @@ function Board({ currentUser, onLogout }) {
                 Gestion des Équipes
               </h2>
             </div>
-            <TeamsView teams={teams} teamSection={teamSection} />
+            <TeamsView
+              teams={teams}
+              users={users}
+              teamSection={teamSection}
+              onAddTeam={handleAddTeam}
+              onAddTeamMembers={handleAddTeamMembers}
+              onUpdateMemberRole={handleUpdateMemberRole}
+              onRemoveTeamMember={handleRemoveTeamMember}
+            />
           </>
         ) : view === 'timeline' ? (
           <>

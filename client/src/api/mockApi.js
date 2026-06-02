@@ -245,7 +245,18 @@ export const mockApi = {
 
   async getUsers() {
     await delay();
-    return clone(users.map(({ password: _pw, ...rest }) => rest));
+    return clone(
+      users.map(({ password: _pw, ...rest }) => ({
+        ...rest,
+        teams: teams
+          .filter((t) => t.members.some((m) => m.id === rest.id))
+          .map((t) => ({
+            id: t.id,
+            name: t.name,
+            role: t.members.find((m) => m.id === rest.id)?.role || 'membre',
+          })),
+      }))
+    );
   },
 
   async getBoard(/* id */) {
@@ -419,6 +430,33 @@ export const mockApi = {
         })
         .filter(Boolean);
     return { ok: true };
+  },
+
+  async addTeamMembers(id, userIds) {
+    await delay(50);
+    const t = teams.find((x) => x.id === id);
+    if (!t) throw new Error('Équipe introuvable');
+    for (const uid of userIds) {
+      if (t.members.some((m) => m.id === uid)) continue;
+      const u = users.find((x) => x.id === uid);
+      if (u) t.members.push({ id: u.id, name: u.name, avatar_url: u.avatar_url, email: u.email, role: 'membre' });
+    }
+    return clone({ members: t.members });
+  },
+
+  async updateTeamMemberRole(id, userId, role) {
+    await delay(40);
+    const t = teams.find((x) => x.id === id);
+    const m = t?.members.find((x) => x.id === userId);
+    if (m) m.role = role || 'membre';
+    return clone({ members: t?.members || [] });
+  },
+
+  async removeTeamMember(id, userId) {
+    await delay(40);
+    const t = teams.find((x) => x.id === id);
+    if (t) t.members = t.members.filter((m) => m.id !== userId);
+    return clone({ members: t?.members || [] });
   },
 
   async getShortcuts(userId) {

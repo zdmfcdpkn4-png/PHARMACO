@@ -68,6 +68,12 @@ export const httpApi = {
   deleteTeam: (id) => request(`/teams/${id}`, { method: 'DELETE' }),
   setTeamMembers: (id, members) =>
     request(`/teams/${id}/members`, { method: 'PUT', body: { members } }),
+  addTeamMembers: (id, user_ids) =>
+    request(`/teams/${id}/members`, { method: 'POST', body: { user_ids } }),
+  updateTeamMemberRole: (id, userId, role) =>
+    request(`/teams/${id}/members/${userId}`, { method: 'PATCH', body: { role } }),
+  removeTeamMember: (id, userId) =>
+    request(`/teams/${id}/members/${userId}`, { method: 'DELETE' }),
 
   getShortcuts: (user_id) => request(`/shortcuts?user_id=${user_id}`),
   createShortcut: (data) => request('/shortcuts', { method: 'POST', body: data }),

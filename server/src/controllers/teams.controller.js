@@ -45,3 +45,60 @@ export const setTeamMembers = asyncHandler(async (req, res) => {
   }
   res.json({ ok: true });
 });
+
+// Helper : renvoie les membres mis en forme d'une équipe.
+const fetchTeamMembers = async (teamId) => {
+  const { rows } = await query(
+    `SELECT m.role, u.id, u.name, u.avatar_url, u.email
+     FROM team_members m JOIN users u ON u.id = m.user_id
+     WHERE m.team_id = $1 ORDER BY u.name`,
+    [teamId]
+  );
+  return rows.map((r) => ({
+    id: r.id,
+    name: r.name,
+    avatar_url: r.avatar_url,
+    email: r.email,
+    role: r.role,
+  }));
+};
+
+// Ajoute un ou plusieurs membres à une équipe (sans retirer les existants).
+// Body : { user_ids: [...] } ou { members: [{ user_id, role }] }
+export const addTeamMembers = asyncHandler(async (req, res) => {
+  const teamId = req.params.id;
+  let entries = [];
+  if (Array.isArray(req.body.members)) {
+    entries = req.body.members.map((m) => ({ user_id: m.user_id, role: m.role || 'membre' }));
+  } else if (Array.isArray(req.body.user_ids)) {
+    entries = req.body.user_ids.map((id) => ({ user_id: id, role: 'membre' }));
+  }
+  if (!entries.length) return res.status(400).json({ error: 'user_ids ou members requis' });
+
+  for (const e of entries) {
+    await query(
+      'INSERT INTO team_members (team_id, user_id, role) VALUES ($1, $2, $3) ON CONFLICT (team_id, user_id) DO NOTHING',
+      [teamId, e.user_id, e.role]
+    );
+  }
+  res.status(201).json({ members: await fetchTeamMembers(teamId) });
+});
+
+// Modifie le rôle d'un membre dans l'équipe.
+export const updateTeamMemberRole = asyncHandler(async (req, res) => {
+  const { id: teamId, userId } = req.params;
+  const { role } = req.body;
+  const { rowCount } = await query(
+    'UPDATE team_members SET role = $1 WHERE team_id = $2 AND user_id = $3',
+    [role || 'membre', teamId, userId]
+  );
+  if (!rowCount) return res.status(404).json({ error: 'Membre introuvable dans cette équipe' });
+  res.json({ members: await fetchTeamMembers(teamId) });
+});
+
+// Retire un membre de l'équipe (ne supprime pas l'utilisateur).
+export const removeTeamMember = asyncHandler(async (req, res) => {
+  const { id: teamId, userId } = req.params;
+  await query('DELETE FROM team_members WHERE team_id = $1 AND user_id = $2', [teamId, userId]);
+  res.json({ members: await fetchTeamMembers(teamId) });
+});

@@ -17,6 +17,7 @@ import {
   PanelLeft,
   Target,
   Trash2,
+  BookUser,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import Logo from './Logo.jsx';
@@ -56,6 +57,8 @@ export default function Sidebar({
   teams = [],
   teamSection,
   onSelectTeamSection,
+  onOpenDirectory,
+  onAddTeam,
   shortcuts = [],
   onAddShortcut,
   onDeleteShortcut,
@@ -239,6 +242,30 @@ export default function Sidebar({
               ) : (
                 /* ---- Mode Équipes ---- */
                 <div className="px-3">
+                  {/* Annuaire des agents */}
+                  <NavItem
+                    icon={BookUser}
+                    label="Annuaire des agents"
+                    active={teamSection === 'directory'}
+                    onClick={() => onOpenDirectory?.()}
+                  />
+                  <div className="mb-1 mt-3 flex items-center justify-between px-1">
+                    <span className="text-xs font-semibold uppercase tracking-wide text-gray-400">
+                      Équipes
+                    </span>
+                    {onAddTeam && (
+                      <button
+                        onClick={() => {
+                          const n = window.prompt("Nom de la nouvelle équipe :");
+                          if (n && n.trim()) onAddTeam(n.trim());
+                        }}
+                        title="Nouvelle équipe"
+                        className="rounded p-0.5 text-gray-400 hover:bg-gray-100 hover:text-primary"
+                      >
+                        <Plus size={14} />
+                      </button>
+                    )}
+                  </div>
                   <ul className="space-y-0.5">
                     {teams.map((t) => {
                       const expanded = !!openTeams[t.id];
