@@ -12,6 +12,8 @@ import workspacesRouter from './routes/workspaces.js';
 import alertsRouter from './routes/alerts.js';
 import dependenciesRouter from './routes/dependencies.js';
 import subtasksRouter from './routes/subtasks.js';
+import teamsRouter from './routes/teams.js';
+import shortcutsRouter from './routes/shortcuts.js';
 import { notFound, errorHandler } from './middleware/error.js';
 
 dotenv.config();
@@ -40,6 +42,8 @@ app.use('/api/users', usersRouter);
 app.use('/api/alerts', alertsRouter);
 app.use('/api/dependencies', dependenciesRouter);
 app.use('/api/subtasks', subtasksRouter);
+app.use('/api/teams', teamsRouter);
+app.use('/api/shortcuts', shortcutsRouter);
 
 // Gestion des erreurs
 app.use(notFound);

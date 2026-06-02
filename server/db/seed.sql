@@ -62,3 +62,14 @@ INSERT INTO task_comments (task_id, user_id, content) VALUES
 INSERT INTO activity_log (task_id, user_id, action_type, old_value, new_value) VALUES
     (3, 1, 'created', NULL, 'Tâche 3'),
     (3, 1, 'status', 'En cours', 'Bloqué');
+
+-- --- Équipes de démonstration --------------------------------------------
+INSERT INTO teams (name, description) VALUES
+    ('Équipe Pharmacie', 'Production et contrôle qualité'),
+    ('Équipe Logistique', 'Approvisionnement et stocks');
+
+INSERT INTO team_members (team_id, user_id, role) VALUES
+    (1, 1, 'responsable'),
+    (1, 2, 'membre'),
+    (2, 3, 'responsable'),
+    (2, 4, 'membre');

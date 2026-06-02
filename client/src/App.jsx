@@ -11,6 +11,7 @@ import TeamWorkloadView from './components/TeamWorkloadView.jsx';
 import ReportingView from './components/ReportingView.jsx';
 import GanttChartView from './components/GanttChartView.jsx';
 import DynamicTimeView from './components/DynamicTimeView.jsx';
+import TeamsView from './components/TeamsView.jsx';
 import KanbanView from './components/KanbanView.jsx';
 import CalendarView from './components/CalendarView.jsx';
 import BoardTabs from './components/BoardTabs.jsx';
@@ -89,6 +90,12 @@ function Board({ currentUser, onLogout }) {
   // Onglet de vue du tableau : 'table' | 'kanban' | 'calendar'
   const [boardView, setBoardView] = useState('table');
 
+  // Double sidebar : mode + équipes + raccourcis
+  const [sidebarMode, setSidebarMode] = useState('projects'); // 'projects' | 'teams'
+  const [teams, setTeams] = useState([]);
+  const [shortcuts, setShortcuts] = useState([]);
+  const [teamSection, setTeamSection] = useState(null); // `${teamId}:${section}`
+
   // -------- Gestion fine des rôles --------
   // viewer : lecture seule. member / admin / propriétaire : édition.
   const isOwner = !board || board.created_by == null || board.created_by === CURRENT_USER_ID;
@@ -133,6 +140,8 @@ function Board({ currentUser, onLogout }) {
         setUsers(u);
         await loadAlerts();
         loadCommentCounts(b);
+        api.getTeams().then(setTeams).catch(() => {});
+        api.getShortcuts(CURRENT_USER_ID).then(setShortcuts).catch(() => {});
       } catch (e) {
         setError(e.message || 'Erreur de chargement');
       } finally {
@@ -200,6 +209,40 @@ function Board({ currentUser, onLogout }) {
     optimistic((b) => patchTaskLocal(b, taskId, { priority }), () =>
       api.updateTask(taskId, { priority, ...actor })
     );
+  };
+
+  // -------- Raccourcis & équipes --------
+  const handleAddShortcut = async (name, currentView) => {
+    const created = await api.createShortcut({
+      user_id: CURRENT_USER_ID,
+      name,
+      target_url: currentView, // on stocke la vue ciblée
+      icon_name:
+        currentView === 'gantt'
+          ? 'GanttChartSquare'
+          : currentView === 'reporting'
+          ? 'PieChart'
+          : currentView === 'timeline'
+          ? 'CalendarRange'
+          : 'Table2',
+    });
+    setShortcuts((prev) => [...prev, created]);
+  };
+  const handleDeleteShortcut = async (id) => {
+    setShortcuts((prev) => prev.filter((s) => s.id !== id));
+    try {
+      await api.deleteShortcut(id);
+    } catch {
+      /* ignore */
+    }
+  };
+  const handleOpenShortcut = (s) => {
+    setSidebarMode('projects');
+    setView(s.target_url || 'board');
+  };
+  const handleSelectTeamSection = (teamId, section) => {
+    setTeamSection(`${teamId}:${section}`);
+    setView('teams');
   };
 
   // Configuration des étiquettes (dictionnaires du board).
@@ -1112,6 +1155,15 @@ function Board({ currentUser, onLogout }) {
           onNewBoard={handleAddGroup}
           view={view}
           onSelectView={setView}
+          mode={sidebarMode}
+          onChangeMode={setSidebarMode}
+          teams={teams}
+          teamSection={teamSection}
+          onSelectTeamSection={handleSelectTeamSection}
+          shortcuts={shortcuts}
+          onAddShortcut={handleAddShortcut}
+          onDeleteShortcut={handleDeleteShortcut}
+          onOpenShortcut={handleOpenShortcut}
         />
       </div>
 
@@ -1176,7 +1228,16 @@ function Board({ currentUser, onLogout }) {
           </div>
         </div>
 
-        {view === 'timeline' ? (
+        {view === 'teams' ? (
+          <>
+            <div className="border-b border-gray-200 bg-white px-6 pt-4">
+              <h2 className="mb-3 flex items-center gap-2 text-2xl font-bold text-gray-800">
+                Gestion des Équipes
+              </h2>
+            </div>
+            <TeamsView teams={teams} teamSection={teamSection} />
+          </>
+        ) : view === 'timeline' ? (
           <>
             <div className="border-b border-gray-200 bg-white px-6 pt-4">
               <h2 className="mb-3 flex items-center gap-2 text-2xl font-bold text-gray-800">

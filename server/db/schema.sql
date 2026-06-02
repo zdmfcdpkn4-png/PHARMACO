@@ -239,6 +239,36 @@ CREATE TABLE IF NOT EXISTS alerts (
 CREATE INDEX IF NOT EXISTS idx_alerts_user_unread ON alerts(user_id, is_read);
 
 -- ---------------------------------------------------------------------
+--  Tables : équipes & raccourcis de barre latérale
+-- ---------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS teams (
+    id          SERIAL PRIMARY KEY,
+    name        VARCHAR(160) NOT NULL,
+    description TEXT,
+    created_at  TIMESTAMPTZ  NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS team_members (
+    id      SERIAL PRIMARY KEY,
+    team_id INTEGER     NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
+    user_id INTEGER     NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    role    VARCHAR(40) NOT NULL DEFAULT 'membre',
+    UNIQUE (team_id, user_id)
+);
+CREATE INDEX IF NOT EXISTS idx_team_members_team ON team_members(team_id);
+
+CREATE TABLE IF NOT EXISTS sidebar_shortcuts (
+    id         SERIAL PRIMARY KEY,
+    user_id    INTEGER     NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    name       VARCHAR(160) NOT NULL,
+    target_url TEXT        NOT NULL,
+    icon_name  VARCHAR(40) NOT NULL DEFAULT 'Link',
+    position   INTEGER     NOT NULL DEFAULT 0,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_sidebar_shortcuts_user ON sidebar_shortcuts(user_id);
+
+-- ---------------------------------------------------------------------
 --  Table : task_comments (discussion contextuelle d'une tâche)
 -- ---------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS task_comments (

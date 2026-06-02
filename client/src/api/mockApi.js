@@ -101,6 +101,29 @@ let activity = [
 // Dépendances Gantt : predecessor doit finir avant successor (Finish-to-Start)
 let dependencies = [{ id: 600, predecessor_id: 11, successor_id: 13 }];
 
+// Équipes & raccourcis (sidebar)
+let teams = [
+  {
+    id: 1,
+    name: 'Équipe Pharmacie',
+    description: 'Production et contrôle qualité',
+    members: [
+      { id: 1, name: 'Erwin Raingeard', avatar_url: null, role: 'responsable' },
+      { id: 2, name: 'Alice Martin', avatar_url: null, role: 'membre' },
+    ],
+  },
+  {
+    id: 2,
+    name: 'Équipe Logistique',
+    description: 'Approvisionnement et stocks',
+    members: [
+      { id: 3, name: 'Bob Durand', avatar_url: null, role: 'responsable' },
+      { id: 4, name: 'Chloé Petit', avatar_url: null, role: 'membre' },
+    ],
+  },
+];
+let shortcuts = [];
+
 // Suivi lu/non-lu : { `${userId}:${taskId}`: ISO last_read_at }
 let commentReads = {};
 const readKey = (userId, taskId) => `${userId}:${taskId}`;
@@ -369,6 +392,55 @@ export const mockApi = {
           if (s.intervention_tag_id === id) s.intervention_tag_id = null;
         }
       }
+  },
+
+  async getTeams() {
+    await delay(40);
+    return clone(teams);
+  },
+  async createTeam({ name, description }) {
+    await delay(50);
+    const t = { id: uid(), name: name.trim(), description: description || null, members: [] };
+    teams.push(t);
+    return clone(t);
+  },
+  async deleteTeam(id) {
+    await delay(40);
+    teams = teams.filter((t) => t.id !== id);
+  },
+  async setTeamMembers(id, members) {
+    await delay(50);
+    const t = teams.find((x) => x.id === id);
+    if (t)
+      t.members = members
+        .map((m) => {
+          const u = users.find((x) => x.id === m.user_id);
+          return u ? { id: u.id, name: u.name, avatar_url: u.avatar_url, role: m.role || 'membre' } : null;
+        })
+        .filter(Boolean);
+    return { ok: true };
+  },
+
+  async getShortcuts(userId) {
+    await delay(30);
+    return clone(shortcuts.filter((s) => s.user_id === userId));
+  },
+  async createShortcut({ user_id, name, target_url, icon_name }) {
+    await delay(40);
+    const s = {
+      id: uid(),
+      user_id,
+      name: name.trim(),
+      target_url,
+      icon_name: icon_name || 'Link',
+      position: shortcuts.length,
+    };
+    shortcuts.push(s);
+    return clone(s);
+  },
+  async deleteShortcut(id) {
+    await delay(30);
+    shortcuts = shortcuts.filter((s) => s.id !== id);
   },
 
   async getDependencies() {

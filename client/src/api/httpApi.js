@@ -63,6 +63,16 @@ export const httpApi = {
   setSubtaskAssignees: (subId, user_ids) =>
     request(`/subtasks/${subId}/assignees`, { method: 'PUT', body: { user_ids } }),
 
+  getTeams: () => request('/teams'),
+  createTeam: (data) => request('/teams', { method: 'POST', body: data }),
+  deleteTeam: (id) => request(`/teams/${id}`, { method: 'DELETE' }),
+  setTeamMembers: (id, members) =>
+    request(`/teams/${id}/members`, { method: 'PUT', body: { members } }),
+
+  getShortcuts: (user_id) => request(`/shortcuts?user_id=${user_id}`),
+  createShortcut: (data) => request('/shortcuts', { method: 'POST', body: data }),
+  deleteShortcut: (id) => request(`/shortcuts/${id}`, { method: 'DELETE' }),
+
   createTag: (boardId, data) => request(`/boards/${boardId}/tags`, { method: 'POST', body: data }),
   deleteTag: (id) => request(`/boards/tags/${id}`, { method: 'DELETE' }),
   updateSubtaskTags: (id, patch) => request(`/subtasks/${id}`, { method: 'PUT', body: patch }),
