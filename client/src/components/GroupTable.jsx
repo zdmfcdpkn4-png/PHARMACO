@@ -9,7 +9,8 @@ import TagCell from './TagCell.jsx';
 import { minColWidth } from '../lib/constants.js';
 
 // Poignée de redimensionnement (bord droit d'une colonne).
-function ColResizer({ colKey, getWidth, onResize }) {
+// Glisser = ajuster ; double-clic = réinitialiser la largeur par défaut.
+function ColResizer({ colKey, getWidth, onResize, onReset }) {
   const onDown = (e) => {
     e.preventDefault();
     e.stopPropagation();
@@ -31,7 +32,12 @@ function ColResizer({ colKey, getWidth, onResize }) {
   return (
     <span
       onMouseDown={onDown}
-      title="Redimensionner la colonne"
+      onDoubleClick={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        onReset?.(colKey);
+      }}
+      title="Glisser pour redimensionner • Double-clic pour réinitialiser"
       className="no-print absolute right-0 top-0 z-10 h-full w-1.5 cursor-col-resize hover:bg-primary/40"
     />
   );
@@ -77,6 +83,8 @@ export default function GroupTable({
   onDeleteGroup,
   getColWidth = () => 150,
   onResizeCol,
+  onResetCol,
+  registerScroller,
 }) {
   // Style d'une cellule à largeur fixe (redimensionnable).
   const cw = (key) => {
@@ -169,7 +177,7 @@ export default function GroupTable({
       </div>
 
       {!collapsed && (
-        <div className="overflow-x-auto rounded-lg border border-gray-200 shadow-sm">
+        <div ref={registerScroller} className="overflow-x-auto rounded-lg border border-gray-200 shadow-sm">
           {/* En-tête de colonnes */}
           <div className="flex min-w-max items-stretch border-b border-gray-200 bg-white text-xs font-medium uppercase tracking-wide text-gray-500">
             <div className="w-1 shrink-0" style={{ backgroundColor: group.color }} />
@@ -177,31 +185,31 @@ export default function GroupTable({
             <div className="w-10 shrink-0" />
             <div className="relative shrink-0 py-2.5 pl-2" style={cw('task')}>
               Tâche
-              <ColResizer colKey="task" getWidth={getColWidth} onResize={onResizeCol} />
+              <ColResizer colKey="task" getWidth={getColWidth} onResize={onResizeCol} onReset={onResetCol} />
             </div>
             <div className="relative shrink-0 border-l border-gray-100 py-2.5 text-center" style={cw('priority')}>
               Priorité
-              <ColResizer colKey="priority" getWidth={getColWidth} onResize={onResizeCol} />
+              <ColResizer colKey="priority" getWidth={getColWidth} onResize={onResizeCol} onReset={onResetCol} />
             </div>
             <div className="relative shrink-0 border-l border-gray-100 py-2.5 text-center" style={cw('admin')}>
               Admin
-              <ColResizer colKey="admin" getWidth={getColWidth} onResize={onResizeCol} />
+              <ColResizer colKey="admin" getWidth={getColWidth} onResize={onResizeCol} onReset={onResetCol} />
             </div>
             <div className="relative shrink-0 border-l border-gray-100 py-2.5 text-center" style={cw('status')}>
               Statut
-              <ColResizer colKey="status" getWidth={getColWidth} onResize={onResizeCol} />
+              <ColResizer colKey="status" getWidth={getColWidth} onResize={onResizeCol} onReset={onResetCol} />
             </div>
             <div className="relative shrink-0 border-l border-gray-100 py-2.5 text-center" style={cw('duedate')}>
               Échéance
-              <ColResizer colKey="duedate" getWidth={getColWidth} onResize={onResizeCol} />
+              <ColResizer colKey="duedate" getWidth={getColWidth} onResize={onResizeCol} onReset={onResetCol} />
             </div>
             <div className="relative shrink-0 border-l border-gray-100 py-2.5 text-center" style={cw('etape')}>
               Étape
-              <ColResizer colKey="etape" getWidth={getColWidth} onResize={onResizeCol} />
+              <ColResizer colKey="etape" getWidth={getColWidth} onResize={onResizeCol} onReset={onResetCol} />
             </div>
             <div className="relative shrink-0 border-l border-gray-100 py-2.5 text-center" style={cw('intervention')}>
               Type
-              <ColResizer colKey="intervention" getWidth={getColWidth} onResize={onResizeCol} />
+              <ColResizer colKey="intervention" getWidth={getColWidth} onResize={onResizeCol} onReset={onResetCol} />
             </div>
             {categories.map((c) => (
               <div
@@ -219,7 +227,7 @@ export default function GroupTable({
                     ✕
                   </button>
                 )}
-                <ColResizer colKey={`cat-${c.id}`} getWidth={getColWidth} onResize={onResizeCol} />
+                <ColResizer colKey={`cat-${c.id}`} getWidth={getColWidth} onResize={onResizeCol} onReset={onResetCol} />
               </div>
             ))}
             <div className="w-10 shrink-0 border-l border-gray-100" />

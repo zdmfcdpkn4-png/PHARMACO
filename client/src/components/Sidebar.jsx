@@ -70,7 +70,8 @@ export default function Sidebar({
   onSetInvolvedTeams,
   teamView, // `${teamId}:${section}` actif
   onSelectTeamView,
-  // Agents impliqués (dérivés des équipes du projet)
+  // Agents impliqués (membres d'équipes + personnes affectées aux tâches)
+  involvedAgents: involvedAgentsProp = null,
   onOpenAgent,
   // Icônes globales
   onOpenOverview,
@@ -103,16 +104,19 @@ export default function Sidebar({
   const [agentsSectionOpen, setAgentsSectionOpen] = useState(true);
   const [openAgents, setOpenAgents] = useState({});
 
-  // Agents impliqués = membres des équipes du projet, dédupliqués et triés.
-  const involvedAgents = (() => {
-    const map = new Map();
-    for (const t of involvedTeams) {
-      for (const m of t.members || []) {
-        if (!map.has(m.id)) map.set(m.id, m);
+  // Agents impliqués : liste fournie (équipes + tâches) sinon repli sur les
+  // seuls membres des équipes associées.
+  const involvedAgents =
+    involvedAgentsProp ??
+    (() => {
+      const map = new Map();
+      for (const t of involvedTeams) {
+        for (const m of t.members || []) {
+          if (!map.has(m.id)) map.set(m.id, m);
+        }
       }
-    }
-    return [...map.values()].sort((a, b) => (a.name || '').localeCompare(b.name || ''));
-  })();
+      return [...map.values()].sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+    })();
   const [shortcutsOpen, setShortcutsOpen] = useState(true);
   const [pinning, setPinning] = useState(false);
   const [pinName, setPinName] = useState('');
@@ -465,7 +469,8 @@ export default function Sidebar({
                 })}
                 {involvedAgents.length === 0 && (
                   <li className="flex items-center gap-2 px-2 py-3 text-xs text-gray-400">
-                    <BookUser size={14} /> Aucun agent (associez d'abord une équipe).
+                    <BookUser size={14} /> Aucun agent : associez une équipe ou affectez des
+                    tâches.
                   </li>
                 )}
               </ul>

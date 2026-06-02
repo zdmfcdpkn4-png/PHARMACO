@@ -21,15 +21,33 @@ export function useColumnWidths(boardId) {
     setWidths(load(boardId));
   }, [boardId]);
 
+  const persist = (next) => {
+    try {
+      localStorage.setItem(storageKey(boardId), JSON.stringify(next));
+    } catch {
+      /* ignore */
+    }
+  };
+
   const setWidth = useCallback(
     (key, px) => {
       setWidths((prev) => {
         const next = { ...prev, [key]: Math.round(px) };
-        try {
-          localStorage.setItem(storageKey(boardId), JSON.stringify(next));
-        } catch {
-          /* ignore */
-        }
+        persist(next);
+        return next;
+      });
+    },
+    [boardId]
+  );
+
+  // Réinitialise une colonne à sa largeur par défaut (supprime la valeur stockée).
+  const resetWidth = useCallback(
+    (key) => {
+      setWidths((prev) => {
+        if (!(key in prev)) return prev;
+        const next = { ...prev };
+        delete next[key];
+        persist(next);
         return next;
       });
     },
@@ -43,5 +61,5 @@ export function useColumnWidths(boardId) {
     [widths]
   );
 
-  return { getWidth, setWidth };
+  return { getWidth, setWidth, resetWidth };
 }

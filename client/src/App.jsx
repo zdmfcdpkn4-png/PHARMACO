@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Bell, Plus, LogOut, Menu, X } from 'lucide-react';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import Sidebar from './components/Sidebar.jsx';
@@ -95,7 +95,11 @@ function Board({ currentUser, onLogout, onUpdateCurrentUser }) {
   const [boards, setBoards] = useState([]); // liste des projets (métadonnées)
   const [currentBoardId, setCurrentBoardId] = useState(null);
   // Largeurs de colonnes redimensionnables (persistées par projet).
-  const { getWidth: getColWidth, setWidth: setColWidth } = useColumnWidths(currentBoardId);
+  const {
+    getWidth: getColWidth,
+    setWidth: setColWidth,
+    resetWidth: resetColWidth,
+  } = useColumnWidths(currentBoardId);
   const [users, setUsers] = useState([]);
   const [alerts, setAlerts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -1000,6 +1004,48 @@ function Board({ currentUser, onLogout, onUpdateCurrentUser }) {
     setSortBy((prev) => order[(order.indexOf(prev) + 1) % order.length]);
   };
 
+  // Défilement horizontal synchronisé entre tous les groupes du tableau :
+  // chaque conteneur scrollable s'enregistre et recopie sa position aux autres.
+  const scrollersRef = useRef([]);
+  const syncingScroll = useRef(false);
+  const registerScroller = useCallback((node) => {
+    if (!node || scrollersRef.current.includes(node)) return;
+    scrollersRef.current.push(node);
+    node.addEventListener('scroll', () => {
+      if (syncingScroll.current) return;
+      syncingScroll.current = true;
+      scrollersRef.current = scrollersRef.current.filter((n) => n.isConnected);
+      for (const other of scrollersRef.current) {
+        if (other !== node && other.scrollLeft !== node.scrollLeft) {
+          other.scrollLeft = node.scrollLeft;
+        }
+      }
+      syncingScroll.current = false;
+    });
+  }, []);
+
+  // Agents impliqués dans le projet : membres des équipes associées + toute
+  // personne affectée à une tâche/sous-tâche (admin ou assigné).
+  const involvedAgents = useMemo(() => {
+    const map = new Map();
+    const add = (u) => {
+      if (u && u.id != null && !map.has(u.id)) {
+        map.set(u.id, { id: u.id, name: u.name, avatar_url: u.avatar_url });
+      }
+    };
+    for (const t of board?.teams || []) for (const m of t.members || []) add(m);
+    for (const g of board?.groups || [])
+      for (const tk of g.tasks || []) {
+        add(tk.admin);
+        for (const a of tk.assignees || []) add(a);
+        for (const s of tk.subtasks || []) {
+          add(s.admin);
+          for (const a of s.assignees || []) add(a);
+        }
+      }
+    return [...map.values()].sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+  }, [board]);
+
   // Le drag n'a de sens que sur l'ordre "naturel" : on le désactive quand
   // un tri, une recherche ou un filtre modifie l'ordre/visibilité affiché.
   const dragEnabled =
@@ -1204,6 +1250,7 @@ function Board({ currentUser, onLogout, onUpdateCurrentUser }) {
                   setMenuOpen(false);
                 }}
                 involvedTeams={board.teams || []}
+                involvedAgents={involvedAgents}
                 allTeams={teams}
                 onSetInvolvedTeams={handleSetBoardTeams}
                 teamView={teamView}
@@ -1526,6 +1573,7 @@ function Board({ currentUser, onLogout, onUpdateCurrentUser }) {
           view={view}
           onSelectView={setView}
           involvedTeams={board.teams || []}
+          involvedAgents={involvedAgents}
           allTeams={teams}
           onSetInvolvedTeams={handleSetBoardTeams}
           teamView={teamView}
@@ -1847,6 +1895,8 @@ function Board({ currentUser, onLogout, onUpdateCurrentUser }) {
                               onDeleteGroup={() => handleDeleteGroup(group.id)}
                               getColWidth={getColWidth}
                               onResizeCol={setColWidth}
+                              onResetCol={resetColWidth}
+                              registerScroller={registerScroller}
                             />
                           )}
                         </Draggable>
