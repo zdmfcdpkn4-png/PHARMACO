@@ -1,0 +1,12 @@
+# Variables d'environnement (docker-compose) — ne jamais committer
+.env
+*.local
+
+# Dépendances / builds
+node_modules/
+dist/
+*.log
+
+# Dumps de base
+*.dump
+*.sql.gz

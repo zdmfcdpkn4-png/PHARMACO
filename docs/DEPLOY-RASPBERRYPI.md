@@ -41,6 +41,80 @@ Rappels techniques du projet :
 
 ## Partie 2 — Migrer vers un Raspberry Pi
 
+Trois voies, du plus simple au plus manuel :
+
+- **Voie A — Docker Compose** (recommandée) : tout en conteneurs (Postgres +
+  API + frontend). Voir ci-dessous « Voie A ».
+- **Voie B — Script d'installation** : `scripts/install-pi.sh` automatise les
+  étapes 1 à 7 (bare-metal). Voir « Voie B ».
+- **Voie C — Manuelle** : les étapes 1 à 11 détaillées plus bas.
+
+---
+
+### Voie A — Docker Compose (recommandée)
+
+Pré-requis : un Pi 64-bit avec **Docker** + **Docker Compose** :
+
+```bash
+curl -fsSL https://get.docker.com | sh
+sudo usermod -aG docker "$USER"   # puis se reconnecter
+```
+
+Démarrage de la stack (depuis le dépôt cloné) :
+
+```bash
+git clone https://github.com/zdmfcdpkn4-png/PHARMACO.git && cd PHARMACO
+cp .env.example .env
+# Éditer .env : POSTGRES_PASSWORD, AUTH_SECRET (obligatoires), WEB_PORT…
+#   AUTH_SECRET: node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"
+docker compose up -d --build
+```
+
+- Frontend : `http://IP_DU_PI:8080` (proxy `/api` interne → conteneur API).
+- L'API applique les **migrations au démarrage** (colonnes `color/icon/archived`).
+- Fichiers : `docker-compose.yml`, `server/Dockerfile`, `client/Dockerfile`,
+  `client/nginx.conf`.
+
+**Importer la base depuis Render** dans le conteneur `db` :
+
+```bash
+docker compose up -d db                       # démarre la base seule
+# dump custom-format (-Fc) -> restauration via stdin
+pg_restore --no-owner --no-privileges --clean --if-exists \
+  -d "postgres://pharmaco:MOTDEPASSE@localhost:5432/pharmaco" pharmaco.dump
+# (ou) docker compose exec -T db pg_restore --no-owner -U pharmaco -d pharmaco < pharmaco.dump
+docker compose up -d                          # démarre API + web
+```
+
+Commandes utiles : `docker compose logs -f api` · `docker compose ps` ·
+`docker compose down` (stop) · `docker compose pull && docker compose up -d --build`
+(mise à jour). Le volume `pgdata` conserve la base.
+
+**Reverse proxy / HTTPS** : ajouter un Cloudflare Tunnel ou Caddy devant le port
+`WEB_PORT` (voir étape 8). Avec un domaine, mets `CLIENT_ORIGIN=https://ton-domaine`
+dans `.env` et `docker compose up -d` (l'API relit la variable).
+
+**Sauvegarde** :
+`docker compose exec -T db pg_dump -U pharmaco -Fc pharmaco > backup-$(date +%F).dump`.
+
+---
+
+### Voie B — Script d'installation (bare-metal)
+
+```bash
+git clone https://github.com/zdmfcdpkn4-png/PHARMACO.git && cd PHARMACO
+sudo DOMAIN=pharmaco.mondomaine.fr DB_PASS='motdepasse_solide' bash scripts/install-pi.sh
+```
+
+Le script installe PostgreSQL 16 + Node 20, crée la base, écrit `server/.env`,
+build le frontend et installe les services systemd `pharmaco-api` /
+`pharmaco-web`. Il reste à configurer le reverse proxy/HTTPS (étape 8) et, pour
+migrer les données, à restaurer le dump Render (étape 4).
+
+---
+
+### Voie C — Installation manuelle
+
 ### 0. Matériel & système recommandés
 
 - Raspberry Pi **4 (4–8 Go)** ou **Pi 5**, **Raspberry Pi OS 64-bit (Bookworm)**.
