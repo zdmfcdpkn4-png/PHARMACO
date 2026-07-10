@@ -45,7 +45,23 @@ npm run dev
 
 Voir [`server/README.md`](server/README.md) et [`client/README.md`](client/README.md) pour le détail.
 
-## Feuille de route
-- [x] Étape 1 — Base de données (PostgreSQL) + structure API (Express)
-- [x] Étape 2 — Frontend React (Sidebar, BoardHeader, GroupTable, TaskRow, StatusBadge, GroupSummary)
-- [x] Étape 3 — CRUD, mises à jour optimistes, filtres, système d'alertes
+## Fonctionnalités
+
+- Multi-projets : tableau (colonnes redimensionnables), Kanban, calendrier,
+  Gantt, planning dynamique, reporting, vue d'ensemble (cartes repliables).
+- Projets personnalisables (couleur + vignette), archivage et suppression.
+- Équipes & annuaire des agents, vue agent (tâches affectées par priorité),
+  avatars personnalisés (initiales ou motifs, charte CHD).
+- Discussions par tâche : @mentions, messages **ciblés** et **prioritaires**
+  remontés sur la vue d'ensemble + cloche de notifications.
+- Rôles admin / membre / observateur (suppression réservée aux admins) —
+  matrice : [`docs/ROLES.md`](docs/ROLES.md).
+- Authentification par jetons signés (`AUTH_SECRET` obligatoire en production).
+
+## Documentation
+
+- [`CLAUDE.md`](CLAUDE.md) — guide de travail sur le dépôt (architecture, règles, pièges)
+- [`CHARTE_GRAPHIQUE.md`](CHARTE_GRAPHIQUE.md) — palette CHD, statuts, typographie
+- [`docs/DESIGN.md`](docs/DESIGN.md) — retravailler l'apparence sans casser le fonctionnel
+- [`docs/DEPLOY-RASPBERRYPI.md`](docs/DEPLOY-RASPBERRYPI.md) & [`docs/INSTALL-PI.txt`](docs/INSTALL-PI.txt) — auto-hébergement
+- `render.yaml` (Render) & `docker-compose.yml` (Docker) — autres déploiements
