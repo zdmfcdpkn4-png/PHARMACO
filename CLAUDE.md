@@ -163,6 +163,7 @@ car des déploiements peuvent suivre l'une ou l'autre. Après un push, pousser
 | `docs/DESIGN.md` | Retravailler l'apparence sans casser le fonctionnel |
 | `docs/DEPLOY-RASPBERRYPI.md` | Migration/hébergement Pi (3 voies) |
 | `docs/INSTALL-PI.txt` | Pas-à-pas unique d'installation sur Pi |
+| `docs/MANUEL-RAISONNEMENT.md` | Méthode de l'agent : raisonner, structurer, vérifier |
 | `CHARTE_GRAPHIQUE.md` | Charte CHD (palette, logo, typo) |
 
 Quand une évolution rend un de ces fichiers (ou celui-ci) inexact,
