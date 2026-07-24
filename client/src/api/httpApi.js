@@ -38,6 +38,11 @@ async function request(path, { method = 'GET', body } = {}) {
 export const httpApi = {
   login: (email, password) =>
     request('/auth/login', { method: 'POST', body: { email, password } }),
+  changePassword: (email, current_password, new_password) =>
+    request('/auth/change-password', {
+      method: 'POST',
+      body: { email, current_password, new_password },
+    }),
 
   getUsers: () => request('/users'),
   createUser: (data) => request('/users', { method: 'POST', body: data }),

@@ -35,9 +35,14 @@ cd client && VITE_USE_MOCK=false VITE_API_URL=http://localhost:4000/api npm run 
 `node --check` (fichiers serveur modifiés), et vérification en navigateur
 (Playwright ponctuel ou manuel). Ne pas inventer de commande `npm test`.
 
-Comptes de démo (seed et mock) : `erwin.raingeard@gmail.com` (admin),
-`alice.martin@example.com`, `bob.durand@example.com`, `chloe.petit@example.com`
-(membres) — mot de passe commun : `pharmaco123` (`DEFAULT_PASSWORD`).
+Comptes de démo (seed et mock, **développement uniquement**) :
+`erwin.raingeard@gmail.com` (admin), `alice.martin@example.com`,
+`bob.durand@example.com`, `chloe.petit@example.com` (membres) — mot de passe
+commun : `pharmaco123` (`DEFAULT_PASSWORD`). **En production**, un amorçage
+au démarrage (`server/src/db/bootstrap.js`) purge les comptes de test,
+crée/répare le compte admin initial (`ADMIN_EMAIL`, `ADMIN_INITIAL_PASSWORD`)
+et impose un changement de mot de passe à la première connexion
+(`users.must_change_password`).
 
 ## Architecture
 
@@ -103,7 +108,11 @@ Trois rôles globaux : `admin`, `member`, `viewer`. Matrice complète :
 Authentification : jetons HMAC signés avec `AUTH_SECRET`
 (`server/src/utils/authConfig.js`). **En production, le serveur refuse de
 démarrer sans `AUTH_SECRET`** (échappatoire explicite : `ALLOW_INSECURE_AUTH=true`).
-`POST /auth/set-password` est réservé aux admins.
+`POST /auth/set-password` (réinitialisation d'un tiers) est réservé aux admins
+et déclenche `must_change_password` ; `POST /auth/change-password` (son propre
+mot de passe, vérifié par l'actuel) est ouvert et lève ce verrou. La page de
+connexion enchaîne automatiquement sur l'écran « nouveau mot de passe » quand
+le serveur renvoie `must_change_password`.
 
 ## Thème et design
 
@@ -128,6 +137,8 @@ Serveur (`server/.env`, voir `.env.example`) :
   vide (auto : activé avec `SUPABASE_URL` ou si `sslmode=require` dans l'URL).
 - `AUTH_SECRET` (**obligatoire en prod**), `CLIENT_ORIGIN` (CORS, défaut `*`),
   `PORT` (défaut 4000), `RUN_MIGRATIONS` (défaut actif), `DEFAULT_PASSWORD`.
+- Amorçage production (voir plus haut) : `ADMIN_EMAIL`, `ADMIN_NAME`,
+  `ADMIN_INITIAL_PASSWORD`.
 
 Client — **figées AU BUILD** (changer = rebuilder) :
 - `VITE_USE_MOCK` (`true` par défaut → mode démo), `VITE_API_URL`.

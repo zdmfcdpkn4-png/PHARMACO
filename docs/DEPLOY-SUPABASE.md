@@ -64,30 +64,33 @@ Le serveur active SSL automatiquement quand elle est définie.
    avec l'URL du frontend (ex. `https://pharmaco-web.onrender.com`) pour
    restreindre le CORS.
 
-## 4. Insérer les données de démonstration (optionnel)
+## 4. Premier compte (créé automatiquement)
 
-La base neuve est vide (aucun compte). Pour créer les comptes et le tableau
-de démo, lancer **une fois**, depuis un poste local :
+**Aucun seed n'est nécessaire en production.** Au premier démarrage de l'API
+(environnement Render détecté), un amorçage idempotent :
 
-```bash
-cd server && npm install
-SUPABASE_URL='postgresql://postgres.<ref>:<mdp>@aws-0-<region>.pooler.supabase.com:5432/postgres' npm run db:seed
-```
+- crée le compte administrateur initial si la base est vide :
+  **`erwin.raingeard@gmail.com`** — mot de passe initial **`Password123!`**,
+  **changement obligatoire à la première connexion** ;
+- supprime les comptes de test de la démo (`alice.martin@example.com`,
+  `bob.durand@example.com`, `chloe.petit@example.com`) s'ils avaient été
+  seedés par erreur et jamais utilisés ;
+- si le compte admin existait encore avec le mot de passe de démo
+  (`pharmaco123`), lui applique le mot de passe initial ci-dessus.
 
-Comptes créés : `erwin.raingeard@gmail.com` (admin), `alice.martin@example.com`,
-`bob.durand@example.com`, `chloe.petit@example.com` — mot de passe commun
-`pharmaco123`, à changer ensuite (`POST /api/auth/set-password`, réservé admin).
+Variables d'ajustement (service `pharmaco-api`) : `ADMIN_EMAIL`,
+`ADMIN_NAME`, `ADMIN_INITIAL_PASSWORD`. Les comptes suivants se créent
+depuis l'annuaire de l'application (réservé admin).
 
-> ⚠️ `npm run db:seed` **vide les tables** (TRUNCATE) avant d'insérer : ne
-> jamais le lancer sur une base contenant des données réelles. Pour appliquer
-> seulement le schéma sans toucher aux données : `npm run db:init` (ou laisser
-> l'API le faire au démarrage).
+> `npm run db:seed` reste un outil de **développement local** : il **vide
+> les tables** (TRUNCATE) et insère des données de démonstration. Ne jamais
+> le lancer sur la base de production.
 
 ## 5. Vérifier
 
 - `https://pharmaco-api.onrender.com/api/health` → `{ "status": "ok" }`
-- Connexion sur le frontend avec un compte de démo (ou créer les comptes via
-  l'interface si le seed n'a pas été lancé).
+- Connexion sur le frontend avec le compte admin initial (§ 4) : l'interface
+  impose de choisir un nouveau mot de passe, puis ouvre l'espace de travail.
 
 ## Dépannage
 

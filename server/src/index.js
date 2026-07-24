@@ -16,8 +16,9 @@ import teamsRouter from './routes/teams.js';
 import shortcutsRouter from './routes/shortcuts.js';
 import { notFound, errorHandler } from './middleware/error.js';
 import { authenticate } from './middleware/auth.js';
-import { assertSecureAuth } from './utils/authConfig.js';
+import { assertSecureAuth, isProduction } from './utils/authConfig.js';
 import { applySchema } from './db/migrate.js';
+import { bootstrapProduction } from './db/bootstrap.js';
 import { explainConnectionError } from './db/pool.js';
 
 dotenv.config();
@@ -71,6 +72,9 @@ const start = async () => {
       console.log('-> Vérification/migration du schéma (idempotent)...');
       await applySchema();
       console.log('OK Schéma à jour.');
+      // Amorçage production : compte admin initial + purge des comptes de
+      // test de la démo (idempotent ; jamais en développement local).
+      if (isProduction) await bootstrapProduction();
     } catch (err) {
       console.error('AVERTISSEMENT : migration du schéma échouée :', err.message);
       const hint = explainConnectionError(err);

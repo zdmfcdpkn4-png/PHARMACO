@@ -56,8 +56,11 @@ CREATE TABLE IF NOT EXISTS users (
     created_at    TIMESTAMPTZ   NOT NULL DEFAULT now()
 );
 
--- Pour les bases déjà créées : ajoute la colonne si absente.
+-- Pour les bases déjà créées : ajoute les colonnes si absentes.
 ALTER TABLE users ADD COLUMN IF NOT EXISTS password_hash TEXT;
+-- Force le changement de mot de passe à la prochaine connexion (comptes
+-- amorcés en production, mots de passe réinitialisés par un admin…).
+ALTER TABLE users ADD COLUMN IF NOT EXISTS must_change_password BOOLEAN NOT NULL DEFAULT false;
 
 -- ---------------------------------------------------------------------
 --  Table : workspaces

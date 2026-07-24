@@ -94,12 +94,18 @@ Statuts disponibles (`task_status`) : `À faire`, `En cours`, `Fait`, `Bloqué`.
 - `POST   /api/alerts/read-all`             — tout marquer comme lu (body: { user_id })
 
 ### Auth
-- `POST   /api/auth/login`         — connexion (body: { email, password }) → { token, user }
-- `POST   /api/auth/set-password`  — définir/réinitialiser un mot de passe (body: { email, password })
+- `POST   /api/auth/login`           — connexion (body: { email, password }) → { token, user }
+  (le champ `user.must_change_password` impose un changement avant l'accès)
+- `POST   /api/auth/change-password` — changer son propre mot de passe
+  (body: { email, current_password, new_password }) → { token, user }
+- `POST   /api/auth/set-password`    — réinitialiser le mot de passe d'un tiers
+  (réservé admin ; impose un changement à la prochaine connexion)
 
-> Compte de démonstration (après `db:seed`) :
+> Compte de démonstration (après `db:seed`, **développement uniquement**) :
 > **erwin.raingeard@gmail.com** / **pharmaco123**
 > (tous les comptes de démo partagent ce mot de passe).
+> En production, le compte admin initial est créé automatiquement au
+> démarrage — voir `../docs/DEPLOY-SUPABASE.md` § 4.
 
 ### Health
 - `GET    /api/health`

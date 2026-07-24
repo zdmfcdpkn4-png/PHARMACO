@@ -33,7 +33,8 @@ Trois rôles globaux : **Observateur** (`viewer`), **Membre** (`member`),
   `canManageBoard` (propriétaire ou admin), `canDeleteTask` (= admin),
   `canDeleteGroup` (= admin).
 - **Backend** (autorité) — middlewares de `server/src/middleware/auth.js` :
-  - `requireAuth` : **toutes** les routes de l'API (hors `/auth/login` et
+  - `requireAuth` : **toutes** les routes de l'API (hors `/auth/login`,
+    `/auth/change-password` — authentifié par le mot de passe actuel — et
     `/api/health`) exigent un jeton valide (expiration : 30 jours,
     `AUTH_TOKEN_TTL_DAYS`).
   - `requireEditor` : toutes les mutations (POST/PATCH/PUT) refusent les
@@ -46,3 +47,14 @@ Trois rôles globaux : **Observateur** (`viewer`), **Membre** (`member`),
 
 > La sécurité réelle est imposée côté serveur (middlewares ci-dessus). Les
 > masquages côté interface ne sont qu'un confort d'usage.
+
+## Mots de passe
+
+- Chacun peut changer **son propre** mot de passe via
+  `POST /auth/change-password` (e-mail + mot de passe actuel + nouveau,
+  8 caractères minimum).
+- Une réinitialisation par un admin (`POST /auth/set-password`, ou via
+  l'annuaire) **impose un changement à la prochaine connexion**
+  (`users.must_change_password`) ; idem pour la première connexion d'un
+  compte créé sans mot de passe (mot de passe par défaut accepté une fois,
+  changement immédiat exigé) et pour le compte admin amorcé en production.

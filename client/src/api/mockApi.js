@@ -252,6 +252,30 @@ export const mockApi = {
     return { token: `mock-${user.id}`, user: clone(safe) };
   },
 
+  // Changement de son propre mot de passe (parité avec l'API réelle ; en
+  // démo aucun compte n'impose de changement, mais le parcours fonctionne).
+  async changePassword(email, current_password, new_password) {
+    await delay();
+    if (!email || !current_password || !new_password) {
+      throw new Error('email, current_password et new_password sont requis');
+    }
+    if (String(new_password).length < 8) {
+      throw new Error('Le nouveau mot de passe doit contenir au moins 8 caractères');
+    }
+    if (new_password === current_password) {
+      throw new Error('Le nouveau mot de passe doit être différent de l’actuel');
+    }
+    const user = users.find((u) => u.email.toLowerCase() === String(email).toLowerCase());
+    const expected = user?.password || 'pharmaco123';
+    if (!user || current_password !== expected) {
+      throw new Error('Identifiants invalides');
+    }
+    user.password = new_password;
+    user.must_change_password = false;
+    const { password: _pw, ...safe } = user;
+    return { token: `mock-${user.id}`, user: clone({ ...safe, must_change_password: false }) };
+  },
+
   async createUser({ name, email, role, password, avatar_url }) {
     await delay();
     if (!name || !email) throw new Error('name et email sont requis');
