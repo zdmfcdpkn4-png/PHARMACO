@@ -16,6 +16,10 @@ cp .env.example .env   # puis adapter les variables
 
 ## Base de données
 
+Connexion (ordre de priorité) : `SUPABASE_URL` (production — URL *session
+pooler* Supabase, SSL auto), sinon `DATABASE_URL`, sinon variables `PG*`.
+Déploiement complet : [`../docs/DEPLOY-SUPABASE.md`](../docs/DEPLOY-SUPABASE.md).
+
 ```bash
 # Crée la base au préalable, ex :
 createdb pharmaco

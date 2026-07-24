@@ -119,8 +119,10 @@ démarrer sans `AUTH_SECRET`** (échappatoire explicite : `ALLOW_INSECURE_AUTH=t
 ## Variables d'environnement
 
 Serveur (`server/.env`, voir `.env.example`) :
-- `DATABASE_URL` (ou variables `PG*`) ; `PGSSL` : `true` (base hébergée) /
-  `false` (locale) / vide (auto si `sslmode=require` dans l'URL).
+- `SUPABASE_URL` (**production** : URL PostgreSQL Supabase en mode
+  *session pooler*, prioritaire, SSL auto) ; sinon `DATABASE_URL` ou
+  variables `PG*` (dev local). `PGSSL` : `true` (forcer) / `false` (locale) /
+  vide (auto : activé avec `SUPABASE_URL` ou si `sslmode=require` dans l'URL).
 - `AUTH_SECRET` (**obligatoire en prod**), `CLIENT_ORIGIN` (CORS, défaut `*`),
   `PORT` (défaut 4000), `RUN_MIGRATIONS` (défaut actif), `DEFAULT_PASSWORD`.
 
@@ -129,13 +131,14 @@ Client — **figées AU BUILD** (changer = rebuilder) :
 
 ## Déploiement
 
-Trois voies documentées — ne pas en inventer d'autres :
-1. **Render** : `render.yaml` (2 services + base). `AUTH_SECRET` auto-généré.
-2. **Docker Compose** : `docker-compose.yml` (Postgres 16 + API + nginx qui
-   sert le statique et proxifie `/api` → pas de CORS). `.env` racine requis.
-3. **Raspberry Pi** : `docs/INSTALL-PI.txt` (pas-à-pas unique),
-   `scripts/install-pi.sh` (installation), `scripts/update-pi.sh`
-   (mise à jour en une commande), guide détaillé `docs/DEPLOY-RASPBERRYPI.md`.
+Une seule voie documentée — ne pas en inventer d'autres :
+**Render (app) + Supabase (base de données)** — guide complet :
+`docs/DEPLOY-SUPABASE.md`.
+- `render.yaml` : 2 services (`pharmaco-api`, `pharmaco-web`), pas de base
+  Render. `AUTH_SECRET` auto-généré.
+- La base est un PostgreSQL managé Supabase, atteint via `SUPABASE_URL`
+  (URL **session pooler**, seule compatible IPv4 depuis Render). Le schéma
+  est appliqué automatiquement au démarrage de l'API (idempotent).
 
 **Branches** : `claude/zen-ritchie-mpOku` est la branche par défaut ; `main`
 est maintenue alignée dessus (`git branch -f main <branche> && git push origin main`)
@@ -146,8 +149,11 @@ car des déploiements peuvent suivre l'une ou l'autre. Après un push, pousser
 
 - `VITE_API_URL`/`VITE_USE_MOCK` figés au build → « ça marche en local mais
   pas en prod » = souvent un build avec les mauvaises valeurs.
-- `PGSSL=false` avec une base hébergée (Neon, Render) → échec de connexion ;
+- `PGSSL=false` avec une base hébergée (Supabase, Neon) → échec de connexion ;
   ces bases exigent SSL.
+- Supabase : la **connexion directe** (`db.<ref>.supabase.co`) est IPv6-only
+  et injoignable depuis Render → toujours utiliser l'URL *session pooler*
+  (`*.pooler.supabase.com:5432`, utilisateur `postgres.<ref>`).
 - Colonnes du tableau : largeur via `useColumnWidths` — en-tête (`GroupTable`)
   et cellules (`TaskRow`) doivent utiliser la même clé de colonne.
 - `getBoards()` masque les projets archivés par défaut
@@ -161,8 +167,7 @@ car des déploiements peuvent suivre l'une ou l'autre. Après un push, pousser
 |---|---|
 | `docs/ROLES.md` | Matrice des droits admin / membre / observateur |
 | `docs/DESIGN.md` | Retravailler l'apparence sans casser le fonctionnel |
-| `docs/DEPLOY-RASPBERRYPI.md` | Migration/hébergement Pi (3 voies) |
-| `docs/INSTALL-PI.txt` | Pas-à-pas unique d'installation sur Pi |
+| `docs/DEPLOY-SUPABASE.md` | Déploiement Render + Supabase (pas-à-pas, dépannage) |
 | `CHARTE_GRAPHIQUE.md` | Charte CHD (palette, logo, typo) |
 
 Quand une évolution rend un de ces fichiers (ou celui-ci) inexact,

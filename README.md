@@ -45,6 +45,12 @@ npm run dev
 
 Voir [`server/README.md`](server/README.md) et [`client/README.md`](client/README.md) pour le détail.
 
+## Déploiement
+
+Production : **Render** (frontend + API, via `render.yaml`) + **Supabase**
+(PostgreSQL managé, variable `SUPABASE_URL` sur l'API). Pas-à-pas complet :
+[`docs/DEPLOY-SUPABASE.md`](docs/DEPLOY-SUPABASE.md).
+
 ## Fonctionnalités
 
 - Multi-projets : tableau (colonnes redimensionnables), Kanban, calendrier,
@@ -63,5 +69,4 @@ Voir [`server/README.md`](server/README.md) et [`client/README.md`](client/READM
 - [`CLAUDE.md`](CLAUDE.md) — guide de travail sur le dépôt (architecture, règles, pièges)
 - [`CHARTE_GRAPHIQUE.md`](CHARTE_GRAPHIQUE.md) — palette CHD, statuts, typographie
 - [`docs/DESIGN.md`](docs/DESIGN.md) — retravailler l'apparence sans casser le fonctionnel
-- [`docs/DEPLOY-RASPBERRYPI.md`](docs/DEPLOY-RASPBERRYPI.md) & [`docs/INSTALL-PI.txt`](docs/INSTALL-PI.txt) — auto-hébergement
-- `render.yaml` (Render) & `docker-compose.yml` (Docker) — autres déploiements
+- [`docs/DEPLOY-SUPABASE.md`](docs/DEPLOY-SUPABASE.md) — déploiement Render (app) + Supabase (base)

@@ -1,15 +1,14 @@
 # Blueprint Render pour PHARMACO (frontend + backend).
 # Déploiement : Render Dashboard -> New -> Blueprint -> sélectionner ce repo.
-# Render lit ce fichier et crée/maj les deux services + la base.
-
-databases:
-  - name: pharmaco-db
-    databaseName: pharmaco
-    plan: free
+# Render lit ce fichier et crée/maj les deux services.
+#
+# La base de données est hébergée sur Supabase (PostgreSQL managé) :
+# renseigner SUPABASE_URL dans le dashboard du service pharmaco-api.
+# Guide complet : docs/DEPLOY-SUPABASE.md
 
 services:
   # -------------------------------------------------------------------
-  # Backend : API Express
+  # Backend : API Express (base de données : Supabase)
   # -------------------------------------------------------------------
   - type: web
     name: pharmaco-api
@@ -20,12 +19,14 @@ services:
     startCommand: npm start
     healthCheckPath: /api/health
     envVars:
-      - key: DATABASE_URL
-        fromDatabase:
-          name: pharmaco-db
-          property: connectionString
-      - key: PGSSL
-        value: "true"
+      - key: SUPABASE_URL
+        # URL de connexion PostgreSQL de Supabase, en mode « Session pooler »
+        # (compatible IPv4 — la connexion directe est IPv6-only et ne
+        # fonctionne pas depuis Render). À récupérer dans Supabase :
+        # Project -> Connect -> Session pooler, ex :
+        #   postgresql://postgres.<ref>:<mot_de_passe>@aws-0-<region>.pooler.supabase.com:5432/postgres
+        # À renseigner dans le dashboard Render (valeur secrète).
+        sync: false
       # Secret de signature des jetons (HMAC) : auto-généré par Render.
       # Obligatoire en production : sans lui, le serveur refuse de démarrer.
       - key: AUTH_SECRET
