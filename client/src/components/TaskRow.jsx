@@ -37,6 +37,7 @@ export default function TaskRow({
   tags = [],
   onChangeTag,
   getColWidth = () => 150,
+  canEdit = true,
 }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(task.name);
@@ -97,7 +98,7 @@ export default function TaskRow({
 
       {/* Nom de la tâche (éditable au clic) */}
       <div className="flex shrink-0 items-center py-2 pr-3" style={cw('task')}>
-        {editing ? (
+        {editing && canEdit ? (
           <input
             ref={inputRef}
             value={draft}
@@ -155,21 +156,23 @@ export default function TaskRow({
             </button>
 
             {/* Édition rapide */}
-            <button
-              type="button"
-              onClick={() => setEditing(true)}
-              title="Renommer"
-              className="no-print rounded p-1 text-gray-300 opacity-0 transition hover:text-primary group-hover:opacity-100"
-            >
-              <Pencil size={13} />
-            </button>
+            {canEdit && (
+              <button
+                type="button"
+                onClick={() => setEditing(true)}
+                title="Renommer"
+                className="no-print rounded p-1 text-gray-300 opacity-0 transition hover:text-primary group-hover:opacity-100"
+              >
+                <Pencil size={13} />
+              </button>
+            )}
           </div>
         )}
       </div>
 
       {/* Priorité */}
       <div className="flex shrink-0 items-center justify-center border-l border-gray-100" style={cw('priority')}>
-        <PriorityBadge priority={task.priority} onChange={onChangePriority} />
+        <PriorityBadge priority={task.priority} onChange={onChangePriority} readOnly={!canEdit} />
       </div>
 
       {/* Admin */}
@@ -179,26 +182,29 @@ export default function TaskRow({
           assignees={task.assignees}
           users={users}
           onSetAssignees={onSetAssignees}
+          readOnly={!canEdit}
         />
       </div>
 
       {/* Statut */}
       <div className="flex shrink-0 items-stretch border-l border-gray-100" style={cw('status')}>
-        <StatusBadge status={task.status} onChange={onChangeStatus} />
+        <StatusBadge status={task.status} onChange={onChangeStatus} readOnly={!canEdit} />
       </div>
 
       {/* Échéance */}
       <div className="relative flex shrink-0 items-center justify-center border-l border-gray-100" style={cw('duedate')}>
-        <label className="flex cursor-pointer items-center gap-1 text-gray-600">
+        <label className={`flex items-center gap-1 text-gray-600 ${canEdit ? 'cursor-pointer' : ''}`}>
           <span className={task.status === 'Fait' ? 'text-gray-400 line-through' : ''}>
             {formatShortDate(task.duedate) || '—'}
           </span>
-          <input
-            type="date"
-            value={task.duedate ? task.duedate.slice(0, 10) : ''}
-            onChange={(e) => onChangeDate(e.target.value || null)}
-            className="absolute inset-0 cursor-pointer opacity-0"
-          />
+          {canEdit && (
+            <input
+              type="date"
+              value={task.duedate ? task.duedate.slice(0, 10) : ''}
+              onChange={(e) => onChangeDate(e.target.value || null)}
+              className="absolute inset-0 cursor-pointer opacity-0"
+            />
+          )}
         </label>
       </div>
 
@@ -207,6 +213,7 @@ export default function TaskRow({
         <TagCell
           value={task.etape_tag_id}
           tags={tags.filter((t) => t.tag_type === 'etape')}
+          canEdit={canEdit}
           onChange={(id) => onChangeTag?.('etape_tag_id', id)}
         />
       </div>
@@ -214,6 +221,7 @@ export default function TaskRow({
         <TagCell
           value={task.intervention_tag_id}
           tags={tags.filter((t) => t.tag_type === 'intervention')}
+          canEdit={canEdit}
           onChange={(id) => onChangeTag?.('intervention_tag_id', id)}
         />
       </div>
@@ -229,6 +237,7 @@ export default function TaskRow({
             category={c}
             value={categoryValue ? categoryValue(c.id, task.id) : ''}
             users={users}
+            canEdit={canEdit}
             onChange={(val) => onSetCategoryValue?.(c.id, task.id, val)}
           />
         </div>

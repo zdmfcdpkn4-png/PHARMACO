@@ -25,7 +25,8 @@ export function AvatarStack({ people = [], size = 28, max = 4 }) {
 
 // Cellule d'assignation : pile d'avatars + popover multi-sélection (checkboxes).
 // Accepte `assignees` (tableau) ou rétro-compat `admin` (unique).
-export default function AdminCell({ admin, assignees, users, onAssign, onSetAssignees }) {
+// `readOnly` : affiche les avatars sans permettre de modifier l'assignation.
+export default function AdminCell({ admin, assignees, users, onAssign, onSetAssignees, readOnly = false }) {
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
 
@@ -58,9 +59,10 @@ export default function AdminCell({ admin, assignees, users, onAssign, onSetAssi
     <div className="relative flex items-center justify-center" ref={ref}>
       <button
         type="button"
-        onClick={() => setOpen((v) => !v)}
-        title={people.length ? people.map((p) => p.name).join(', ') : 'Assigner'}
-        className="flex items-center justify-center rounded-full transition-transform hover:scale-105"
+        disabled={readOnly}
+        onClick={() => !readOnly && setOpen((v) => !v)}
+        title={people.length ? people.map((p) => p.name).join(', ') : readOnly ? 'Assignation' : 'Assigner'}
+        className={`flex items-center justify-center rounded-full transition-transform ${readOnly ? '' : 'hover:scale-105'}`}
       >
         {people.length ? (
           <AvatarStack people={people} />

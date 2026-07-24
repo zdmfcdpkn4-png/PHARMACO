@@ -206,16 +206,18 @@ function Board({ currentUser, onLogout, onUpdateCurrentUser }) {
   // et restaure l'état précédent en cas d'échec.
   const optimistic = useCallback(
     async (mutator, apiCall) => {
+      // Instantané de rollback propre à CET appel (une propriété partagée
+      // serait écrasée par une mutation concurrente et restaurerait un
+      // état erroné en cas d'échec).
+      let snapshot = null;
       setBoard((prev) => {
-        const snapshot = prev;
-        // On stocke le snapshot pour rollback via closure
-        optimistic._snapshot = snapshot;
+        snapshot = prev;
         return mutator(structuredClone(prev));
       });
       try {
         await apiCall();
       } catch (e) {
-        setBoard(optimistic._snapshot); // rollback
+        if (snapshot) setBoard(snapshot); // rollback
         setError(e.message || 'Échec de la synchronisation');
         setTimeout(() => setError(null), 3000);
       }
@@ -907,13 +909,19 @@ function Board({ currentUser, onLogout, onUpdateCurrentUser }) {
   const handleDeleteUser = async (id) => {
     await api.deleteUser(id);
     setUsers((prev) => prev.filter((u) => u.id !== id));
-    // Désassigne ce membre des tâches
+    // Désassigne ce membre des tâches ET des sous-items (admin + assignés),
+    // comme le fait handleUpdateUser pour un changement de profil.
     setBoard((b) => {
       if (!b) return b;
       const next = structuredClone(b);
       for (const g of next.groups) {
         for (const t of g.tasks) {
-          if (t.admin?.id === id) t.admin = null;
+          if (t.assignees) t.assignees = t.assignees.filter((a) => a.id !== id);
+          if (t.admin?.id === id) t.admin = t.assignees?.[0] || null;
+          for (const s of t.subtasks || []) {
+            if (s.assignees) s.assignees = s.assignees.filter((a) => a.id !== id);
+            if (s.admin?.id === id) s.admin = s.assignees?.[0] || null;
+          }
         }
       }
       return next;
@@ -930,25 +938,26 @@ function Board({ currentUser, onLogout, onUpdateCurrentUser }) {
     const { source, destination } = result;
     if (!destination || source.index === destination.index) return;
 
-    let payload = null;
+    // L'état suivant est calculé HORS de setBoard : lire une variable
+    // renseignée dans l'updater ne fonctionne que si React l'exécute
+    // immédiatement, ce qui n'est pas garanti.
     const snapshot = board;
-    setBoard((prev) => {
-      const next = structuredClone(prev);
-      const [moved] = next.groups.splice(source.index, 1);
-      next.groups.splice(destination.index, 0, moved);
-      next.groups.forEach((g, i) => {
-        g.position = i;
-      });
-      payload = next.groups.map((g) => ({ id: g.id, position: g.position }));
-      return next;
+    if (!snapshot) return;
+    const next = structuredClone(snapshot);
+    const [moved] = next.groups.splice(source.index, 1);
+    if (!moved) return;
+    next.groups.splice(destination.index, 0, moved);
+    next.groups.forEach((g, i) => {
+      g.position = i;
     });
-    if (payload) {
-      api.reorderGroups(payload).catch((e) => {
-        setBoard(snapshot);
-        setError(e.message || 'Échec du déplacement du groupe');
-        setTimeout(() => setError(null), 3000);
-      });
-    }
+    const payload = next.groups.map((g) => ({ id: g.id, position: g.position }));
+
+    setBoard(next);
+    api.reorderGroups(payload).catch((e) => {
+      setBoard(snapshot);
+      setError(e.message || 'Échec du déplacement du groupe');
+      setTimeout(() => setError(null), 3000);
+    });
   };
 
   // -------- Glisser-déposer (tâches + groupes) --------
@@ -970,48 +979,40 @@ function Board({ currentUser, onLogout, onUpdateCurrentUser }) {
     const toGroupId = Number(destination.droppableId);
     const taskId = Number(draggableId);
 
-    let payload = null;
+    // L'état suivant est calculé HORS de setBoard (voir handleGroupDragEnd).
+    const snapshot = board;
+    if (!snapshot) return;
+    const next = structuredClone(snapshot);
+    const fromGroup = next.groups.find((g) => g.id === fromGroupId);
+    const toGroup = next.groups.find((g) => g.id === toGroupId);
+    if (!fromGroup || !toGroup) return;
 
-    setBoard((prev) => {
-      const next = structuredClone(prev);
-      const fromGroup = next.groups.find((g) => g.id === fromGroupId);
-      const toGroup = next.groups.find((g) => g.id === toGroupId);
-      if (!fromGroup || !toGroup) return prev;
+    // Retire la tâche de sa position d'origine
+    const [moved] = fromGroup.tasks.splice(source.index, 1);
+    if (!moved || moved.id !== taskId) return; // index et tâche doivent coïncider
+    moved.group_id = toGroupId;
 
-      // Retire la tâche de sa position d'origine
-      const [moved] = fromGroup.tasks.splice(source.index, 1);
-      if (!moved) return prev;
-      moved.group_id = toGroupId;
+    // Insère à la position cible
+    toGroup.tasks.splice(destination.index, 0, moved);
 
-      // Insère à la position cible
-      toGroup.tasks.splice(destination.index, 0, moved);
-
-      // Recalcule les positions des groupes affectés
-      const affected = new Set([fromGroupId, toGroupId]);
-      const items = [];
-      for (const g of next.groups) {
-        if (!affected.has(g.id)) continue;
-        g.tasks.forEach((t, i) => {
-          t.position = i;
-          items.push({ id: t.id, group_id: g.id, position: i });
-        });
-      }
-      payload = items;
-      return next;
-    });
-
-    // Persistance (optimiste : l'UI est déjà à jour). Rollback si échec.
-    if (payload) {
-      const snapshot = board;
-      api.reorderTasks(payload).catch((e) => {
-        setBoard(snapshot);
-        setError(e.message || 'Échec du déplacement');
-        setTimeout(() => setError(null), 3000);
+    // Recalcule les positions des groupes affectés
+    const affected = new Set([fromGroupId, toGroupId]);
+    const payload = [];
+    for (const g of next.groups) {
+      if (!affected.has(g.id)) continue;
+      g.tasks.forEach((t, i) => {
+        t.position = i;
+        payload.push({ id: t.id, group_id: g.id, position: i });
       });
-      // Le statut "Bloqué" peut dépendre du contexte : on rafraîchit juste
-      // l'identité de la tâche déplacée si besoin (no-op ici).
-      void taskId;
     }
+
+    // Persistance optimiste : l'UI d'abord, rollback si échec.
+    setBoard(next);
+    api.reorderTasks(payload).catch((e) => {
+      setBoard(snapshot);
+      setError(e.message || 'Échec du déplacement');
+      setTimeout(() => setError(null), 3000);
+    });
   };
 
   // -------- Sélection --------
@@ -1109,9 +1110,16 @@ function Board({ currentUser, onLogout, onUpdateCurrentUser }) {
   }, [board]);
 
   // Le drag n'a de sens que sur l'ordre "naturel" : on le désactive quand
-  // un tri, une recherche ou un filtre modifie l'ordre/visibilité affiché.
+  // un tri, une recherche ou un filtre modifie l'ordre/visibilité affiché
+  // (sinon les index de la liste filtrée déplaceraient la mauvaise tâche).
   const dragEnabled =
-    !sortBy && !search.trim() && !personFilter && !statusFilter && showDone;
+    !sortBy &&
+    !search.trim() &&
+    !personFilter &&
+    !statusFilter &&
+    showDone &&
+    !etapeFilter &&
+    !interventionFilter;
 
   // -------- Export --------
   // Construit les lignes visibles (filtres + tri actifs appliqués), groupe par groupe.
@@ -1217,7 +1225,7 @@ function Board({ currentUser, onLogout, onUpdateCurrentUser }) {
           const meta = STATUS_META[data.cell.raw];
           if (meta) {
             data.cell.styles.fillColor = hexToRgb(meta.bg);
-            data.cell.styles.textColor = 255;
+            data.cell.styles.textColor = hexToRgb(meta.text);
             data.cell.styles.fontStyle = 'bold';
           }
         }
@@ -1225,7 +1233,7 @@ function Board({ currentUser, onLogout, onUpdateCurrentUser }) {
           const meta = PRIORITY_META[data.cell.raw];
           if (meta) {
             data.cell.styles.fillColor = hexToRgb(meta.bg);
-            data.cell.styles.textColor = 255;
+            data.cell.styles.textColor = hexToRgb(meta.text);
             data.cell.styles.fontStyle = 'bold';
           }
         }
@@ -1358,6 +1366,11 @@ function Board({ currentUser, onLogout, onUpdateCurrentUser }) {
           </div>
         )}
 
+        {/* Bandeau d'erreur global (visible quelle que soit la vue mobile) */}
+        {error && (
+          <div className="bg-red-50 px-4 py-2 text-sm text-status-blocked">{error}</div>
+        )}
+
         {view === 'board' ? (
           <>
             <MobileHeader
@@ -1380,9 +1393,6 @@ function Board({ currentUser, onLogout, onUpdateCurrentUser }) {
             <div className="overflow-x-auto">
               <BoardTabs active={boardView} onChange={setBoardView} />
             </div>
-            {error && (
-              <div className="bg-red-50 px-4 py-2 text-sm text-status-blocked">{error}</div>
-            )}
             {boardView === 'table' && (
               <MobileBoard
                 board={board}

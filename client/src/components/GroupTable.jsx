@@ -287,6 +287,7 @@ export default function GroupTable({
                           tags={tags}
                           onChangeTag={(field, tagId) => onChangeTaskTag?.(task.id, field, tagId)}
                           getColWidth={getColWidth}
+                          canEdit={canEdit}
                         />
                         {expanded[task.id] && (
                           <SubtaskList

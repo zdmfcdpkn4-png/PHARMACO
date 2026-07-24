@@ -134,6 +134,7 @@ function SubRow({ sub, users, groupColor, canEdit, tags = [], onUpdate, onDelete
           assignees={sub.assignees}
           users={users}
           onSetAssignees={canEdit ? (ids) => onSetAssignees?.(sub.id, ids) : undefined}
+          readOnly={!canEdit}
         />
       </div>
 
