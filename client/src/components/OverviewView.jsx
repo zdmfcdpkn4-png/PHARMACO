@@ -19,7 +19,7 @@ import {
   ChevronsUpDown,
 } from 'lucide-react';
 import Avatar from './Avatar.jsx';
-import { STATUS_META } from '../lib/constants.js';
+import { STATUS_META, textColorFor } from '../lib/constants.js';
 
 const STATUSES = ['À faire', 'En cours', 'Bloqué', 'Fait'];
 const todayKey = new Date().toISOString().slice(0, 10);
@@ -435,8 +435,8 @@ export default function OverviewView({
                 className="flex min-w-0 flex-1 items-center gap-2 text-left"
               >
                 <span
-                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-base text-white"
-                  style={{ backgroundColor: color }}
+                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-base"
+                  style={{ backgroundColor: color, color: textColorFor(color) }}
                 >
                   {meta.icon || <Folder size={18} />}
                 </span>

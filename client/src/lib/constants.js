@@ -103,6 +103,22 @@ export function colorFromString(str = '') {
   return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
 }
 
+// Couleur de texte lisible (blanc ou foncé) selon la luminance du fond.
+// À utiliser pour toute pastille dont la couleur de fond est libre
+// (couleur de groupe, couleur de projet) : jamais de text-white en dur.
+export function textColorFor(bg) {
+  if (!bg || typeof bg !== 'string') return '#ffffff';
+  let hex = bg.trim().replace(/^#/, '');
+  if (hex.length === 3) hex = hex.replace(/./g, (c) => c + c);
+  if (!/^[0-9a-fA-F]{6}/.test(hex)) return '#ffffff';
+  const r = parseInt(hex.slice(0, 2), 16);
+  const g = parseInt(hex.slice(2, 4), 16);
+  const b = parseInt(hex.slice(4, 6), 16);
+  // Luminance perceptuelle (sRGB approx.) : seuil ~0.6 -> texte foncé.
+  const lum = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+  return lum > 0.6 ? '#1f2937' : '#ffffff';
+}
+
 // ---- Largeurs des colonnes du tableau (redimensionnables) ----
 // Largeurs par défaut (px). La colonne « Tâche » est large pour la lisibilité.
 export const DEFAULT_COL_WIDTHS = {

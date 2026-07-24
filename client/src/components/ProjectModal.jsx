@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { X, Loader2, Check } from 'lucide-react';
+import { textColorFor } from '../lib/constants.js';
 
 // Palette de couleurs proposée (charte CHD + teintes complémentaires).
 export const PROJECT_COLORS = [
@@ -61,8 +62,8 @@ export default function ProjectModal({ mode = 'create', project = null, onClose,
           {/* Aperçu de la vignette */}
           <div className="mb-4 flex items-center gap-3">
             <span
-              className="flex h-12 w-12 items-center justify-center rounded-2xl text-2xl text-white shadow"
-              style={{ backgroundColor: color }}
+              className="flex h-12 w-12 items-center justify-center rounded-2xl text-2xl shadow"
+              style={{ backgroundColor: color, color: textColorFor(color) }}
             >
               {icon || (name || '?').charAt(0).toUpperCase()}
             </span>

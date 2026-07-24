@@ -23,6 +23,7 @@ import {
   PRIORITIES,
   PRIORITY_META,
   formatShortDate,
+  textColorFor,
 } from '../lib/constants.js';
 
 // Page "Tableau de bord et reporting" : donut des statuts, barres cumulées
@@ -511,8 +512,8 @@ export default function ReportingView({ board, users = [] }) {
                     {PRIORITY_META[t.priority]?.label || 'P3'}
                   </span>
                   <span
-                    className="rounded px-2 py-0.5 text-[11px] font-medium text-white"
-                    style={{ backgroundColor: t.groupColor }}
+                    className="rounded px-2 py-0.5 text-[11px] font-medium"
+                    style={{ backgroundColor: t.groupColor, color: textColorFor(t.groupColor) }}
                   >
                     {t.groupName}
                   </span>

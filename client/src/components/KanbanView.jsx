@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { Lock, Plus, MessageSquare } from 'lucide-react';
 import { AvatarStack } from './AdminCell.jsx';
-import { STATUSES, STATUS_META, PRIORITY_META, formatShortDate } from '../lib/constants.js';
+import { STATUSES, STATUS_META, PRIORITY_META, formatShortDate, textColorFor } from '../lib/constants.js';
 
 // Vue Kanban : une colonne par statut, cartes déplaçables (si propriétaire).
 export default function KanbanView({
@@ -67,8 +67,8 @@ export default function KanbanView({
           {PRIORITY_META[task.priority]?.label || 'P3'}
         </span>
         <span
-          className="rounded px-1.5 py-0.5 text-[10px] font-medium text-white"
-          style={{ backgroundColor: task.groupColor }}
+          className="rounded px-1.5 py-0.5 text-[10px] font-medium"
+          style={{ backgroundColor: task.groupColor, color: textColorFor(task.groupColor) }}
         >
           {task.groupName}
         </span>
