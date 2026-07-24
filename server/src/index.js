@@ -18,6 +18,7 @@ import { notFound, errorHandler } from './middleware/error.js';
 import { authenticate } from './middleware/auth.js';
 import { assertSecureAuth } from './utils/authConfig.js';
 import { applySchema } from './db/migrate.js';
+import { explainConnectionError } from './db/pool.js';
 
 dotenv.config();
 
@@ -72,6 +73,8 @@ const start = async () => {
       console.log('OK Schéma à jour.');
     } catch (err) {
       console.error('AVERTISSEMENT : migration du schéma échouée :', err.message);
+      const hint = explainConnectionError(err);
+      if (hint) console.error('PISTE :', hint);
     }
   }
   app.listen(PORT, () => {

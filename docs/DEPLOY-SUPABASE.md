@@ -45,9 +45,18 @@ Le serveur active SSL automatiquement quand elle est définie.
 1. Render Dashboard → **New → Blueprint** → sélectionner ce dépôt :
    `render.yaml` crée les deux services (`pharmaco-api`, `pharmaco-web`).
    `AUTH_SECRET` est auto-généré.
+
+   > **Service API créé à la main ?** Vérifier dans le dashboard :
+   > *Root Directory* = `server`, *Build Command* = `npm install` (SANS
+   > `db:init` : les migrations s'appliquent au démarrage, pas au build),
+   > *Start Command* = `npm start`, et la **branche suivie** = celle qui
+   > contient ce guide. La version de Node est fixée par
+   > `server/.node-version` (LTS 22).
 2. Sur **pharmaco-api**, renseigner `SUPABASE_URL` (l'URL du § 2) dans
    *Environment*, puis déployer. Au premier démarrage, l'API applique le
-   schéma sur la base Supabase (log : `OK Schéma à jour.`).
+   schéma sur la base Supabase (log : `OK Schéma à jour.`). Le log
+   `[db] Connexion via …` indique quelle variable est utilisée et si le
+   SSL est actif — premier réflexe en cas de problème.
 3. Sur **pharmaco-web**, renseigner `VITE_API_URL`
    (ex. `https://pharmaco-api.onrender.com/api`) puis **relancer un déploiement**
    (variable figée au build).
@@ -82,9 +91,14 @@ Comptes créés : `erwin.raingeard@gmail.com` (admin), `alice.martin@example.com
 
 ## Dépannage
 
+L'API journalise une ligne `PISTE : …` sous la plupart de ces erreurs, avec
+l'action corrective correspondante.
+
 | Symptôme | Cause probable |
 |---|---|
+| `Connection terminated unexpectedly` | SSL non activé (le serveur Supabase coupe les connexions en clair) → utiliser `SUPABASE_URL` (SSL auto) ou `PGSSL=true` ; ou build lancé depuis une **branche sans le support SUPABASE_URL** — vérifier la branche suivie par le service |
 | `ENETUNREACH` / timeout au démarrage | URL de **connexion directe** utilisée (IPv6-only) → prendre l'URL *Session pooler* |
+| `ECONNREFUSED 127.0.0.1:5432` | Aucune variable de connexion définie sur le service → renseigner `SUPABASE_URL` |
 | `self-signed certificate` | SSL mal configuré — ne pas mettre `PGSSL=false` avec Supabase |
 | `password authentication failed` | Mot de passe erroné dans l'URL (attention aux caractères spéciaux : les encoder en %xx) |
 | Le front affiche les données de démo alors que la base est vide | Build du client avec `VITE_USE_MOCK=true` ou `VITE_API_URL` absent → corriger puis **rebuilder** |
