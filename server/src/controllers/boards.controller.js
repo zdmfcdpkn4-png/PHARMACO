@@ -240,14 +240,36 @@ export const getBoardFull = asyncHandler(async (req, res) => {
 
 export const createBoard = asyncHandler(async (req, res) => {
   const { workspace_id, name, description, created_by, color, icon } = req.body;
-  if (!workspace_id || !name) {
-    return res.status(400).json({ error: 'workspace_id et name sont requis' });
+  if (!name) {
+    return res.status(400).json({ error: 'name est requis' });
   }
   const board = await withTransaction(async (client) => {
+    // Espace de travail cible : celui demandé s'il existe, sinon le premier
+    // disponible, sinon un espace par défaut créé à la volée — une base
+    // neuve (production sans seed) n'a encore aucun espace de travail.
+    let wsId = null;
+    if (workspace_id) {
+      const w = await client.query('SELECT id FROM workspaces WHERE id = $1', [workspace_id]);
+      wsId = w.rows[0]?.id ?? null;
+    }
+    if (!wsId) {
+      const first = await client.query('SELECT id FROM workspaces ORDER BY id LIMIT 1');
+      wsId = first.rows[0]?.id ?? null;
+    }
+    if (!wsId) {
+      const created = await client.query(
+        `INSERT INTO workspaces (name, description, created_by)
+         VALUES ('Espace de travail principal', 'Créé automatiquement', $1)
+         RETURNING id`,
+        [created_by || null]
+      );
+      wsId = created.rows[0].id;
+    }
+
     const { rows } = await client.query(
       `INSERT INTO boards (workspace_id, name, description, created_by, color, icon)
        VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
-      [workspace_id, name, description || null, created_by || null, color || null, icon || null]
+      [wsId, name, description || null, created_by || null, color || null, icon || null]
     );
     // Groupes de départ (comportement identique au mode démo) : un projet
     // neuf s'ouvre avec deux sections prêtes à l'emploi.

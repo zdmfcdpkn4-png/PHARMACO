@@ -107,6 +107,8 @@ function Board({ currentUser, onLogout, onUpdateCurrentUser }) {
   const [alerts, setAlerts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  // Base sans aucun projet et utilisateur sans droit de création (observateur).
+  const [noProjects, setNoProjects] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false); // sidebar coulissante (mobile)
 
@@ -183,7 +185,27 @@ function Board({ currentUser, onLogout, onUpdateCurrentUser }) {
         const all = await api.getBoards({ include_archived: true }).catch(() => []);
         const list = all.filter((b) => !b.archived);
         setArchivedBoards(all.filter((b) => b.archived));
-        const firstId = list[0]?.id || all[0]?.id || 1;
+        let firstId = list[0]?.id || all[0]?.id || null;
+        // Base neuve (aucun projet) : crée automatiquement un premier projet
+        // « Suivi », comme en mode démo. Le serveur crée aussi l'espace de
+        // travail par défaut si nécessaire.
+        if (!firstId) {
+          try {
+            const created = await api.createBoard({
+              name: 'Suivi',
+              created_by: CURRENT_USER_ID,
+            });
+            firstId = created.id;
+          } catch {
+            // Observateur (lecture seule) : écran « aucun projet » ci-dessous.
+          }
+        }
+        if (!firstId) {
+          const u = await api.getUsers().catch(() => []);
+          setUsers(u);
+          setNoProjects(true);
+          return;
+        }
         const [b, u] = await Promise.all([api.getBoard(firstId), api.getUsers()]);
         setBoards(list.length ? list : [{ id: b.id, name: b.name, description: b.description }]);
         setCurrentBoardId(b.id);
@@ -412,8 +434,12 @@ function Board({ currentUser, onLogout, onUpdateCurrentUser }) {
           const b = await api.getBoard(next.id);
           setBoard(b);
           setCurrentBoardId(next.id);
+          setView('overview');
+        } else {
+          // Dernier projet actif archivé : recharge (un projet « Suivi »
+          // sera recréé automatiquement si besoin).
+          window.location.reload();
         }
-        setView('overview');
       }
     } catch (e) {
       setError(e.message || "Impossible d'archiver le projet");
@@ -434,8 +460,12 @@ function Board({ currentUser, onLogout, onUpdateCurrentUser }) {
           const b = await api.getBoard(next.id);
           setBoard(b);
           setCurrentBoardId(next.id);
+          setView('overview');
+        } else {
+          // Dernier projet supprimé : recharge (un projet « Suivi » sera
+          // recréé automatiquement).
+          window.location.reload();
         }
-        setView('overview');
       }
     } catch (e) {
       setError(e.message || 'Suppression impossible (réservée aux administrateurs)');
@@ -1272,6 +1302,34 @@ function Board({ currentUser, onLogout, onUpdateCurrentUser }) {
     return (
       <div className="flex h-screen items-center justify-center bg-canvas text-gray-500">
         Chargement…
+      </div>
+    );
+  }
+
+  // Aucun projet accessible (base neuve + observateur) : écran d'attente
+  // neutre plutôt qu'une erreur rouge.
+  if (noProjects && !board) {
+    return (
+      <div className="flex h-screen flex-col items-center justify-center gap-3 bg-canvas px-6 text-center">
+        <div className="text-lg font-semibold text-primary">Aucun projet pour le moment</div>
+        <p className="max-w-sm text-sm text-gray-500">
+          Un administrateur ou un membre doit créer le premier projet.
+          Actualisez la page une fois que c'est fait.
+        </p>
+        <div className="mt-2 flex gap-2">
+          <button
+            onClick={() => window.location.reload()}
+            className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-primary-hover"
+          >
+            Actualiser
+          </button>
+          <button
+            onClick={onLogout}
+            className="rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50"
+          >
+            Se déconnecter
+          </button>
+        </div>
       </div>
     );
   }
