@@ -1,4 +1,4 @@
-import { query } from '../db/pool.js';
+import { query, withTransaction } from '../db/pool.js';
 import { asyncHandler } from '../middleware/error.js';
 
 export const listBoards = asyncHandler(async (req, res) => {
@@ -243,16 +243,31 @@ export const createBoard = asyncHandler(async (req, res) => {
   if (!workspace_id || !name) {
     return res.status(400).json({ error: 'workspace_id et name sont requis' });
   }
-  const { rows } = await query(
-    `INSERT INTO boards (workspace_id, name, description, created_by, color, icon)
-     VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
-    [workspace_id, name, description || null, created_by || null, color || null, icon || null]
-  );
-  res.status(201).json(rows[0]);
+  const board = await withTransaction(async (client) => {
+    const { rows } = await client.query(
+      `INSERT INTO boards (workspace_id, name, description, created_by, color, icon)
+       VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
+      [workspace_id, name, description || null, created_by || null, color || null, icon || null]
+    );
+    // Groupes de départ (comportement identique au mode démo) : un projet
+    // neuf s'ouvre avec deux sections prêtes à l'emploi.
+    await client.query(
+      `INSERT INTO groups (board_id, name, color, position)
+       VALUES ($1, 'À faire', '#579bfc', 0), ($1, 'Terminé', '#00c875', 1)`,
+      [rows[0].id]
+    );
+    return rows[0];
+  });
+  res.status(201).json(board);
 });
 
 export const updateBoard = asyncHandler(async (req, res) => {
   const { name, description, color, icon, archived } = req.body;
+  // Archiver un projet est réservé aux admins (docs/ROLES.md) ; la
+  // restauration (archived=false) reste ouverte aux membres.
+  if (archived === true && req.user?.role !== 'admin') {
+    return res.status(403).json({ error: 'Archivage réservé aux administrateurs' });
+  }
   // color/icon : présents (chaîne ou null) -> remplacent ; archived : booléen.
   const setColor = color !== undefined;
   const setIcon = icon !== undefined;
@@ -288,15 +303,28 @@ export const deleteBoard = asyncHandler(async (req, res) => {
 });
 
 // Définit les équipes impliquées dans un projet. Body : { team_ids: [...] }
+// Réservé au propriétaire du projet ou à un admin (docs/ROLES.md).
 export const setBoardTeams = asyncHandler(async (req, res) => {
   const boardId = req.params.id;
   const ids = Array.isArray(req.body.team_ids) ? req.body.team_ids : [];
-  await query('DELETE FROM project_teams WHERE board_id = $1', [boardId]);
-  for (const tid of ids) {
-    await query(
-      'INSERT INTO project_teams (board_id, team_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
-      [boardId, tid]
-    );
+
+  const bRes = await query('SELECT created_by FROM boards WHERE id = $1', [boardId]);
+  if (!bRes.rows.length) return res.status(404).json({ error: 'Tableau introuvable' });
+  const owner = bRes.rows[0].created_by;
+  if (req.user.role !== 'admin' && owner != null && owner !== req.user.id) {
+    return res.status(403).json({ error: 'Réservé au propriétaire du projet ou à un administrateur' });
   }
+
+  // Transaction : un team_id invalide annule tout au lieu de laisser le
+  // projet sans équipe après le DELETE.
+  await withTransaction(async (client) => {
+    await client.query('DELETE FROM project_teams WHERE board_id = $1', [boardId]);
+    for (const tid of ids) {
+      await client.query(
+        'INSERT INTO project_teams (board_id, team_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
+        [boardId, tid]
+      );
+    }
+  });
   res.json({ ok: true });
 });

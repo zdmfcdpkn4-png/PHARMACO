@@ -49,6 +49,23 @@ export const createDependency = asyncHandler(async (req, res) => {
   }
 
   const result = await withTransaction(async (client) => {
+    // Les deux tâches doivent exister et appartenir au même projet.
+    const { rows: located } = await client.query(
+      `SELECT t.id, g.board_id
+       FROM tasks t JOIN groups g ON g.id = t.group_id
+       WHERE t.id = ANY($1::int[])`,
+      [[predecessor_id, successor_id]]
+    );
+    if (located.length !== 2) {
+      const err = new Error('Tâche introuvable');
+      err.status = 404;
+      throw err;
+    }
+    if (located[0].board_id !== located[1].board_id) {
+      const err = new Error('Les deux tâches doivent appartenir au même projet');
+      err.status = 400;
+      throw err;
+    }
     if (await createsCycle(client, predecessor_id, successor_id)) {
       const err = new Error('Dépendance circulaire détectée');
       err.status = 409;

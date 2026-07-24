@@ -79,18 +79,20 @@ const cascadeShiftSuccessors = async (client, taskId, depth = 0) => {
   );
   if (!deps.length) return shifted;
 
-  const predRes = await client.query('SELECT start_date, duedate FROM tasks WHERE id = $1', [
-    taskId,
-  ]);
+  // start_date vit dans tasks ; duedate vit dans task_columns (relation 1-1).
+  const datesSql = `SELECT t.start_date, tc.duedate
+     FROM tasks t LEFT JOIN task_columns tc ON tc.task_id = t.id
+     WHERE t.id = $1`;
+
+  const predRes = await client.query(datesSql, [taskId]);
   const predEnd = predRes.rows[0]?.duedate || predRes.rows[0]?.start_date;
   if (!predEnd) return shifted;
   const predEndIso = new Date(predEnd).toISOString().slice(0, 10);
 
   for (const { successor_id } of deps) {
-    const sRes = await client.query('SELECT start_date, duedate FROM tasks WHERE id = $1', [
-      successor_id,
-    ]);
+    const sRes = await client.query(datesSql, [successor_id]);
     const s = sRes.rows[0];
+    if (!s) continue;
     const sStart = s.start_date || s.duedate;
     if (!sStart) continue;
     const sStartIso = new Date(sStart).toISOString().slice(0, 10);
@@ -100,11 +102,15 @@ const cascadeShiftSuccessors = async (client, taskId, depth = 0) => {
       const duration = s.duedate && s.start_date ? diffDays(s.start_date, s.duedate) : 0;
       const newStart = minStart;
       const newEnd = addDaysIso(newStart, duration);
-      await client.query('UPDATE tasks SET start_date = $1, duedate = $2 WHERE id = $3', [
+      await client.query('UPDATE tasks SET start_date = $1 WHERE id = $2', [
         newStart,
-        newEnd,
         successor_id,
       ]);
+      await client.query(
+        `INSERT INTO task_columns (task_id, duedate) VALUES ($1, $2)
+         ON CONFLICT (task_id) DO UPDATE SET duedate = EXCLUDED.duedate`,
+        [successor_id, newEnd]
+      );
       shifted.push(successor_id);
       const sub = await cascadeShiftSuccessors(client, successor_id, depth + 1);
       shifted.push(...sub);
