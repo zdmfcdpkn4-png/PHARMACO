@@ -1,4 +1,4 @@
-# Variables d'environnement (docker-compose) — ne jamais committer
+# Variables d'environnement — ne jamais committer
 .env
 *.local
 
