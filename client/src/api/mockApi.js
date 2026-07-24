@@ -349,7 +349,14 @@ export const mockApi = {
         }
       }
     const involvedTeams = teams.filter((t) => (board._teamIds || []).includes(t.id));
-    return clone({ ...board, dependencies, teams: involvedTeams });
+    // Comme le serveur : seules les dépendances entre tâches DU projet sont
+    // renvoyées, et le champ interne _teamIds n'est pas exposé.
+    const boardTaskIds = new Set(board.groups.flatMap((g) => g.tasks.map((t) => t.id)));
+    const boardDeps = dependencies.filter(
+      (d) => boardTaskIds.has(d.predecessor_id) && boardTaskIds.has(d.successor_id)
+    );
+    const { _teamIds, ...publicBoard } = board;
+    return clone({ ...publicBoard, dependencies: boardDeps, teams: involvedTeams });
   },
 
   async createBoard({ name, description, workspace_id = 1, created_by = 1, color = null, icon = null }) {
@@ -458,6 +465,8 @@ export const mockApi = {
       position: task.subtasks.length,
       status: status || 'À faire',
       duedate: duedate || null,
+      etape_tag_id: null,
+      intervention_tag_id: null,
       admin: admin_id ? adminShape(admin_id) : null,
     };
     task.subtasks.push(sub);
@@ -491,6 +500,12 @@ export const mockApi = {
       parentCompleted = true;
     }
     return clone({ subtask: sub, parentCompleted, parentId: parent.id });
+  },
+
+  // Même comportement que updateSubtask (parité avec httpApi.updateSubtaskTags,
+  // qui passe par PUT /subtasks/:id côté serveur).
+  async updateSubtaskTags(id, patch) {
+    return this.updateSubtask(id, patch);
   },
 
   async deleteSubtask(id) {
@@ -649,14 +664,28 @@ export const mockApi = {
     shortcuts = shortcuts.filter((s) => s.id !== id);
   },
 
-  async getDependencies() {
+  async getDependencies(boardId) {
     await delay(40);
-    return clone(dependencies);
+    // Comme le serveur : filtrées par projet (le projet actif par défaut).
+    const b = boardId != null ? boards.find((x) => x.id === Number(boardId)) : board;
+    if (!b) return [];
+    const ids = new Set(b.groups.flatMap((g) => g.tasks.map((t) => t.id)));
+    return clone(
+      dependencies.filter((d) => ids.has(d.predecessor_id) && ids.has(d.successor_id))
+    );
   },
 
   async addDependency(predecessor_id, successor_id) {
     await delay(60);
     if (predecessor_id === successor_id) throw new Error('Une tâche ne peut dépendre d’elle-même');
+    // Comme le serveur : les deux tâches doivent appartenir au même projet.
+    const locate = (tid) =>
+      boards.find((b) => b.groups.some((g) => g.tasks.some((t) => t.id === tid)));
+    const bPred = locate(predecessor_id);
+    const bSucc = locate(successor_id);
+    if (!bPred || !bSucc) throw new Error('Tâche introuvable');
+    if (bPred.id !== bSucc.id)
+      throw new Error('Les deux tâches doivent appartenir au même projet');
     // Détection de cycle (succ atteint déjà pred ?)
     const reaches = (from, target, seen = new Set()) => {
       if (from === target) return true;
@@ -757,6 +786,17 @@ export const mockApi = {
     if (patch.etape_tag_id !== undefined) task.etape_tag_id = patch.etape_tag_id;
     if (patch.intervention_tag_id !== undefined) task.intervention_tag_id = patch.intervention_tag_id;
     if (patch.admin_id !== undefined) task.admin = patch.admin_id ? adminShape(patch.admin_id) : null;
+    if (patch.position !== undefined) task.position = patch.position;
+    // Déplacement vers un autre groupe (même comportement que le serveur).
+    if (patch.group_id !== undefined && patch.group_id !== task.group_id) {
+      const from = board.groups.find((gr) => gr.tasks.some((t) => t.id === task.id));
+      const to = findGroup(patch.group_id);
+      if (to) {
+        if (from) from.tasks = from.tasks.filter((t) => t.id !== task.id);
+        task.group_id = patch.group_id;
+        to.tasks.push(task);
+      }
+    }
 
     if (patch.status === 'Bloqué' && prev.status !== 'Bloqué' && task.admin) {
       this._pushBlockedAlert(task, task.admin.id);
@@ -816,33 +856,16 @@ export const mockApi = {
       created_at: new Date().toISOString(),
     };
     comments.push(c);
-    // Alerte au destinataire ciblé (hors auteur).
-    if (recipientUser && recipientUser.id !== user_id) {
-      const authorName = user_id ? adminShape(user_id)?.name : 'Quelqu’un';
-      const taskName =
-        boards.flatMap((b) => b.groups).flatMap((g) => g.tasks).find((t) => t.id === taskId)?.name ||
-        'une tâche';
-      const prefix = priority === true ? '📌 Message prioritaire' : '✉️ Message';
-      alerts = [
-        {
-          id: uid(),
-          user_id: recipientUser.id,
-          message: `${prefix} de ${authorName} sur « ${taskName} » : ${text.slice(0, 80)}`,
-          type: 'mention',
-          is_read: false,
-          created_at: new Date().toISOString(),
-        },
-        ...alerts,
-      ];
-    }
     // L'auteur a lu sa propre discussion
     if (user_id) commentReads[readKey(user_id, taskId)] = new Date().toISOString();
 
-    // @mentions -> alertes
     const lower = text.toLowerCase();
     const taskName =
-      board.groups.flatMap((g) => g.tasks).find((t) => t.id === taskId)?.name || 'une tâche';
+      boards.flatMap((b) => b.groups).flatMap((g) => g.tasks).find((t) => t.id === taskId)?.name ||
+      'une tâche';
     const authorName = user_id ? adminShape(user_id)?.name : 'Quelqu’un';
+
+    // @mentions -> alertes
     const mentioned = [];
     for (const u of users) {
       if (u.id !== user_id && lower.includes(`@${u.name.toLowerCase()}`)) {
@@ -859,6 +882,23 @@ export const mockApi = {
           ...alerts,
         ];
       }
+    }
+
+    // Alerte au destinataire ciblé (hors auteur, sans doublon s'il est aussi
+    // @mentionné) — même type 'critical' que le serveur.
+    if (recipientUser && recipientUser.id !== user_id && !mentioned.includes(recipientUser.id)) {
+      const prefix = priority === true ? '📌 Message prioritaire' : '✉️ Message';
+      alerts = [
+        {
+          id: uid(),
+          user_id: recipientUser.id,
+          message: `${prefix} de ${authorName} sur « ${taskName} » : ${text.slice(0, 80)}`,
+          type: 'critical',
+          is_read: false,
+          created_at: new Date().toISOString(),
+        },
+        ...alerts,
+      ];
     }
 
     // Message prioritaire -> notifie aussi les assigné(e)s de la tâche (cloche).
@@ -992,8 +1032,10 @@ export const mockApi = {
 
   async markAllAlertsRead(userId) {
     await delay();
+    // Comme le serveur : user_id obligatoire (pas de marquage global).
+    if (!userId) throw new Error('user_id requis');
     for (const a of alerts) {
-      if (!userId || a.user_id === userId) a.is_read = true;
+      if (a.user_id === userId) a.is_read = true;
     }
     return { ok: true };
   },
