@@ -1300,7 +1300,7 @@ function Board({ currentUser, onLogout, onUpdateCurrentUser }) {
   // -------- Rendu --------
   if (loading) {
     return (
-      <div className="flex h-screen items-center justify-center bg-canvas text-gray-500">
+      <div className="flex h-dvh items-center justify-center bg-canvas text-gray-500">
         Chargement…
       </div>
     );
@@ -1310,7 +1310,7 @@ function Board({ currentUser, onLogout, onUpdateCurrentUser }) {
   // neutre plutôt qu'une erreur rouge.
   if (noProjects && !board) {
     return (
-      <div className="flex h-screen flex-col items-center justify-center gap-3 bg-canvas px-6 text-center">
+      <div className="flex h-dvh flex-col items-center justify-center gap-3 bg-canvas px-6 text-center">
         <div className="text-lg font-semibold text-primary">Aucun projet pour le moment</div>
         <p className="max-w-sm text-sm text-gray-500">
           Un administrateur ou un membre doit créer le premier projet.
@@ -1336,7 +1336,7 @@ function Board({ currentUser, onLogout, onUpdateCurrentUser }) {
 
   if (error && !board) {
     return (
-      <div className="flex h-screen items-center justify-center bg-canvas text-status-blocked">
+      <div className="flex h-dvh items-center justify-center bg-canvas text-status-blocked">
         {error}
       </div>
     );
@@ -1345,7 +1345,7 @@ function Board({ currentUser, onLogout, onUpdateCurrentUser }) {
   // ---------- Layout MOBILE (< 768px) ----------
   if (isMobile) {
     return (
-      <div className="flex h-screen flex-col overflow-hidden bg-canvas">
+      <div className="flex h-dvh flex-col overflow-hidden bg-canvas">
         {/* Sidebar coulissante (burger) : 85% de largeur + overlay */}
         {menuOpen && (
           <div className="fixed inset-0 z-[70] flex">
@@ -1704,7 +1704,7 @@ function Board({ currentUser, onLogout, onUpdateCurrentUser }) {
   }
 
   return (
-    <div className="flex h-screen overflow-hidden bg-canvas">
+    <div className="flex h-dvh overflow-hidden bg-canvas">
       <div className="contents no-print">
         <Sidebar
           workspaceName="Espace de travail principal"

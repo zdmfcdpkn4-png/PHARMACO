@@ -113,7 +113,7 @@ export default function TaskCard({
           if (selectionMode) onToggleSelect?.();
           else if (revealed === -1) resetSwipe();
         }}
-        className="relative flex gap-3 border-l-4 bg-white p-3 shadow-sm transition-transform"
+        className="relative flex h-full gap-3 border-l-4 bg-white p-3 shadow-sm transition-transform"
         style={{
           borderLeftColor: groupColor,
           transform: `translateX(${dx}px)`,
@@ -154,14 +154,14 @@ export default function TaskCard({
                 e.stopPropagation();
                 onOpenStatusSheet?.();
               }}
-              className="flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium text-white"
-              style={{ backgroundColor: meta.bg }}
+              className="flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium"
+              style={{ backgroundColor: meta.bg, color: meta.text || '#fff' }}
             >
               {task.status}
             </button>
             <span
-              className="rounded-full px-2 py-0.5 text-[11px] font-bold text-white"
-              style={{ backgroundColor: prio.bg }}
+              className="rounded-full px-2 py-0.5 text-[11px] font-bold"
+              style={{ backgroundColor: prio.bg, color: prio.text || '#fff' }}
             >
               {prio.label}
             </span>

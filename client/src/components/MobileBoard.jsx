@@ -78,7 +78,7 @@ export default function MobileBoard({
             </button>
 
             {!isCollapsed && (
-              <div className="space-y-2">
+              <div className="space-y-2 sm:grid sm:grid-cols-2 sm:gap-3 sm:space-y-0 lg:grid-cols-3">
                 {tasks.map((task) => (
                   <TaskCard
                     key={task.id}
@@ -102,7 +102,7 @@ export default function MobileBoard({
 
                 <button
                   onClick={() => onAddTask(group.id)}
-                  className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-dashed border-gray-300 py-2.5 text-sm text-gray-500"
+                  className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-dashed border-gray-300 py-2.5 text-sm text-gray-500 sm:col-span-2 lg:col-span-3"
                 >
                   <Plus size={16} /> Ajouter une tâche
                 </button>

@@ -21,7 +21,9 @@ export default function MobileNav({ view, onSelectView, onOpenAlerts, onOpenProf
   );
 
   return (
-    <nav className="fixed inset-x-0 bottom-0 z-40 flex border-t border-gray-200 bg-white pb-[env(safe-area-inset-bottom)] shadow-[0_-2px_8px_rgba(0,0,0,0.04)] md:hidden">
+    // Rendu uniquement par la branche mobile d'App.jsx — pas de md:hidden :
+    // l'interface mobile sert aussi les tablettes en portrait (>= 768 px).
+    <nav className="fixed inset-x-0 bottom-0 z-40 flex border-t border-gray-200 bg-white pb-[env(safe-area-inset-bottom)] shadow-[0_-2px_8px_rgba(0,0,0,0.04)]">
       <Item icon={Table2} label="Tableau" active={view === 'board'} onClick={() => onSelectView('board')} />
       <Item
         icon={CalendarRange}

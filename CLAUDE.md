@@ -83,6 +83,13 @@ Oublier le mock est le bug le plus fréquent : l'app paraît marcher en local
 nouvelle prop/handler doit être passée **aux deux instances**, sinon la
 fonctionnalité manquera sur mobile (ou l'inverse).
 
+Le choix mobile/desktop est fait par `src/lib/useIsMobile.js` selon le
+**type d'appareil** (pointeur tactile + petit côté de l'écran), pas la seule
+largeur : téléphone → toujours interface mobile (même en paysage) ; tablette
+→ mobile en portrait (< 1024 px), bureau en paysage ; ordinateur → mobile
+sous 768 px. Ne pas utiliser de `md:hidden`/`lg:hidden` pour masquer un
+composant propre à un mode : c'est la branche d'App.jsx qui décide.
+
 ### Mises à jour optimistes
 
 Les mutations du tableau passent par le helper `optimistic()` d'App.jsx :

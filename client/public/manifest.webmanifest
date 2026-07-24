@@ -4,8 +4,8 @@
   "description": "Outil de gestion de projet et d'équipe",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#faf7fb",
-  "theme_color": "#3b1f7a",
+  "background_color": "#eef4f8",
+  "theme_color": "#005586",
   "icons": [
     { "src": "/logo-192.png", "sizes": "192x192", "type": "image/png" },
     { "src": "/logo-512.png", "sizes": "512x512", "type": "image/png" },

@@ -34,7 +34,7 @@ export default function MobileHeader({
   ].filter(Boolean).length;
 
   return (
-    <header className="sticky top-0 z-30 border-b border-gray-200 bg-white px-4 py-2.5">
+    <header className="sticky top-0 z-30 border-b border-gray-200 bg-white px-4 pb-2.5 pt-[max(env(safe-area-inset-top),0.625rem)]">
       <div className="flex items-center gap-2">
         <button
           onClick={onOpenMenu}

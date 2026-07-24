@@ -12,6 +12,29 @@ body {
   margin: 0;
   background-color: #eef4f8; /* fond bleuté CHD */
   -webkit-font-smoothing: antialiased;
+  /* Évite que le « pull-to-refresh » (Android) ou le rebond (iOS) ne se
+     déclenche pendant un glisser-déposer ou un défilement interne. */
+  overscroll-behavior-y: contain;
+}
+
+/* =====================================================================
+   Écrans tactiles (téléphone / tablette)
+   ===================================================================== */
+@media (pointer: coarse) {
+  /* iOS Safari zoome automatiquement sur tout champ dont la police fait
+     moins de 16 px : on impose 16 px pour neutraliser ce zoom. */
+  input,
+  select,
+  textarea {
+    font-size: 16px;
+  }
+
+  /* Supprime le halo gris au tap et le menu de rappel sur appui long. */
+  button,
+  a {
+    -webkit-tap-highlight-color: transparent;
+    -webkit-touch-callout: none;
+  }
 }
 
 /* Animations du drawer */
