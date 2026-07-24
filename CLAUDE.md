@@ -89,12 +89,15 @@ ce motif pour les nouvelles mutations.
 Trois rôles globaux : `admin`, `member`, `viewer`. Matrice complète :
 `docs/ROLES.md`. À retenir :
 
-- **Toute suppression (tâche, groupe, projet) = admin uniquement**
+- **Toute suppression (tâche, sous-item, groupe, projet) = admin uniquement**
   (`canDeleteTask`, `canDeleteGroup` côté UI ; `requireAdmin` côté serveur).
-- `viewer` = lecture seule (`canEdit` false).
+- `viewer` = lecture seule (`canEdit` false côté UI ; `requireEditor` refuse
+  ses mutations côté serveur).
 - Structure (groupes, colonnes, équipes du projet) : propriétaire du projet ou admin.
-- **La sécurité réelle est côté serveur** (middleware `requireAdmin`) ; les
-  masquages UI ne sont qu'un confort. Toute nouvelle route sensible doit être
+- **La sécurité réelle est côté serveur** (middlewares `requireAuth` sur
+  toutes les routes, `requireEditor` sur les mutations, `requireAdmin` sur
+  les suppressions/archivage — `server/src/middleware/auth.js`) ; les
+  masquages UI ne sont qu'un confort. Toute nouvelle route doit être
   protégée serveur, pas seulement cachée.
 
 Authentification : jetons HMAC signés avec `AUTH_SECRET`

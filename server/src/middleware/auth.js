@@ -2,8 +2,15 @@ import crypto from 'node:crypto';
 import { query } from '../db/pool.js';
 import { AUTH_SECRET } from '../utils/authConfig.js';
 
+// Durée de vie des jetons (jours). Au-delà, le jeton est refusé et
+// l'utilisateur doit se reconnecter. Configurable via AUTH_TOKEN_TTL_DAYS.
+const TOKEN_TTL_MS =
+  (Number(process.env.AUTH_TOKEN_TTL_DAYS) > 0
+    ? Number(process.env.AUTH_TOKEN_TTL_DAYS)
+    : 30) * 86400000;
+
 // Vérifie un jeton signé HMAC (base64url de `${userId}.${ts}.${sig}`) et
-// renvoie l'id utilisateur s'il est authentique, sinon null.
+// renvoie l'id utilisateur s'il est authentique et non expiré, sinon null.
 function verifyToken(token) {
   try {
     const decoded = Buffer.from(token, 'base64url').toString('utf8');
@@ -17,6 +24,9 @@ function verifyToken(token) {
     const a = Buffer.from(sig);
     const b = Buffer.from(expected);
     if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) return null;
+    // Expiration : ts est l'horodatage (ms) de l'émission du jeton.
+    const issuedAt = Number(ts);
+    if (!Number.isFinite(issuedAt) || Date.now() - issuedAt > TOKEN_TTL_MS) return null;
     return Number(userId);
   } catch {
     return null;
@@ -46,6 +56,23 @@ export const authenticate = async (req, _res, next) => {
     }
   } else {
     req.user = null;
+  }
+  next();
+};
+
+// Exige un utilisateur authentifié, quel que soit son rôle
+// (à placer après authenticate).
+export const requireAuth = (req, res, next) => {
+  if (!req.user) return res.status(401).json({ error: 'Authentification requise' });
+  next();
+};
+
+// Exige un utilisateur authentifié pouvant modifier les données :
+// membre ou admin. Les observateurs (viewer) sont en lecture seule.
+export const requireEditor = (req, res, next) => {
+  if (!req.user) return res.status(401).json({ error: 'Authentification requise' });
+  if (req.user.role === 'viewer') {
+    return res.status(403).json({ error: 'Lecture seule : action non autorisée pour les observateurs' });
   }
   next();
 };

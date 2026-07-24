@@ -6,12 +6,13 @@ import {
   updateUser,
   deleteUser,
 } from '../controllers/users.controller.js';
-import { requireAdmin } from '../middleware/auth.js';
+import { requireAdmin, requireAuth } from '../middleware/auth.js';
 
 const router = Router();
 
-router.get('/', listUsers);
-router.get('/:id', getUser);
+// Annuaire (noms, e-mails, rôles) : réservé aux utilisateurs authentifiés.
+router.get('/', requireAuth, listUsers);
+router.get('/:id', requireAuth, getUser);
 // Gestion des agents : réservée aux administrateurs.
 router.post('/', requireAdmin, createUser);
 router.patch('/:id', requireAdmin, updateUser);

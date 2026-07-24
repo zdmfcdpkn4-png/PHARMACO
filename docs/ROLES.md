@@ -32,10 +32,17 @@ Trois rôles globaux : **Observateur** (`viewer`), **Membre** (`member`),
 - **Frontend** (`client/src/App.jsx`) : `isAdmin`, `isViewer`, `canEdit`,
   `canManageBoard` (propriétaire ou admin), `canDeleteTask` (= admin),
   `canDeleteGroup` (= admin).
-- **Backend** (autorité) :
-  - `DELETE /api/boards/:id` → middleware `requireAdmin`.
-  - `POST /api/auth/set-password` → `requireAdmin`.
-  - Routes `users` / `teams` de gestion → `requireAdmin`.
+- **Backend** (autorité) — middlewares de `server/src/middleware/auth.js` :
+  - `requireAuth` : **toutes** les routes de l'API (hors `/auth/login` et
+    `/api/health`) exigent un jeton valide (expiration : 30 jours,
+    `AUTH_TOKEN_TTL_DAYS`).
+  - `requireEditor` : toutes les mutations (POST/PATCH/PUT) refusent les
+    observateurs (`viewer` = lecture seule).
+  - `requireAdmin` : suppressions de tâche / sous-item / groupe / projet,
+    archivage d'un projet, `POST /auth/set-password`, gestion `users` /
+    `teams`.
+  - Cas particuliers : `PUT /boards/:id/teams` vérifie propriétaire-ou-admin ;
+    alertes et raccourcis sont cloisonnés à l'utilisateur authentifié.
 
-> La sécurité réelle est imposée côté serveur (middleware `requireAdmin`). Les
+> La sécurité réelle est imposée côté serveur (middlewares ci-dessus). Les
 > masquages côté interface ne sont qu'un confort d'usage.

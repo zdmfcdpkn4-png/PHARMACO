@@ -4,11 +4,14 @@ import {
   getWorkspace,
   createWorkspace,
 } from '../controllers/workspaces.controller.js';
+import { requireAuth, requireEditor } from '../middleware/auth.js';
 
 const router = Router();
 
+router.use(requireAuth);
+
 router.get('/', listWorkspaces);
 router.get('/:id', getWorkspace);
-router.post('/', createWorkspace);
+router.post('/', requireEditor, createWorkspace);
 
 export default router;

@@ -9,11 +9,11 @@ import {
   updateTeamMemberRole,
   removeTeamMember,
 } from '../controllers/teams.controller.js';
-import { requireAdmin } from '../middleware/auth.js';
+import { requireAdmin, requireAuth } from '../middleware/auth.js';
 
 const router = Router();
 
-router.get('/', listTeams);
+router.get('/', requireAuth, listTeams);
 // Gestion des équipes et de leur composition : réservée aux administrateurs.
 router.post('/', requireAdmin, createTeam);
 router.patch('/:id', requireAdmin, updateTeam);

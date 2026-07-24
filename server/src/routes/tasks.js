@@ -15,26 +15,32 @@ import {
 } from '../controllers/comments.controller.js';
 import { listSubtasks, createSubtask } from '../controllers/subtasks.controller.js';
 import { setTaskAssignees } from '../controllers/assignments.controller.js';
+import { requireAdmin, requireAuth, requireEditor } from '../middleware/auth.js';
 
 const router = Router();
 
-router.post('/', createTask);
-router.put('/reorder', reorderTasks); // avant /:id pour éviter le conflit de route
+// Toutes les routes exigent un utilisateur authentifié ; les mutations sont
+// réservées aux membres/admins (requireEditor, les observateurs sont en
+// lecture seule), la suppression aux admins — voir docs/ROLES.md.
+router.use(requireAuth);
+
+router.post('/', requireEditor, createTask);
+router.put('/reorder', requireEditor, reorderTasks); // avant /:id pour éviter le conflit de route
 router.get('/comments/unread', unreadCounts); // compteurs non-lus par tâche
 router.get('/comments/highlights', highlightComments); // messages prioritaires / ciblés
 
 // Discussion & historique d'une tâche
 router.get('/:taskId/comments', listComments);
-router.post('/:taskId/comments', createComment);
-router.post('/:taskId/comments/read', markRead);
+router.post('/:taskId/comments', requireEditor, createComment);
+router.post('/:taskId/comments/read', markRead); // état de lecture personnel
 router.get('/:taskId/activity', listActivity);
 
 // Sous-items
 router.get('/:taskId/subtasks', listSubtasks);
-router.post('/:taskId/subtasks', createSubtask);
-router.put('/:id/assignees', setTaskAssignees);
+router.post('/:taskId/subtasks', requireEditor, createSubtask);
+router.put('/:id/assignees', requireEditor, setTaskAssignees);
 
-router.patch('/:id', updateTask);
-router.delete('/:id', deleteTask);
+router.patch('/:id', requireEditor, updateTask);
+router.delete('/:id', requireAdmin, deleteTask); // suppression : admin uniquement
 
 export default router;
