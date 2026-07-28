@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Plus, SlidersHorizontal, Search, Menu } from 'lucide-react';
+import { Plus, SlidersHorizontal, Search, Menu, ChevronDown } from 'lucide-react';
 import BottomSheet from './BottomSheet.jsx';
 import Logo from './Logo.jsx';
 import { STATUSES } from '../lib/constants.js';
@@ -24,6 +24,9 @@ export default function MobileHeader({
   steps = [],
   groupByStep = false,
   onToggleGroupByStep,
+  // Ouvre la feuille d'actions du projet (renommer / personnaliser / archiver /
+  // supprimer). Absent → le titre reste un simple libellé.
+  onOpenProjectMenu,
 }) {
   const [filtersOpen, setFiltersOpen] = useState(false);
   const etapeTags = tags.filter((t) => t.tag_type === 'etape');
@@ -47,7 +50,22 @@ export default function MobileHeader({
           <Menu size={20} />
         </button>
         <Logo size={28} />
-        <h1 className="flex-1 truncate text-lg font-bold text-gray-800">{title}</h1>
+        {/* Le titre est le point d'entrée du menu de projet, comme sur bureau
+            (BoardHeader) : titre + chevron. */}
+        {onOpenProjectMenu ? (
+          <button
+            type="button"
+            onClick={onOpenProjectMenu}
+            aria-haspopup="dialog"
+            title="Actions du projet"
+            className="flex min-w-0 flex-1 items-center gap-1 rounded-lg py-2 pr-1 text-left"
+          >
+            <span className="truncate text-lg font-bold text-gray-800">{title}</span>
+            <ChevronDown size={16} className="shrink-0 text-gray-400" />
+          </button>
+        ) : (
+          <h1 className="flex-1 truncate text-lg font-bold text-gray-800">{title}</h1>
+        )}
 
         <button
           onClick={() => setFiltersOpen(true)}

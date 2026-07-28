@@ -518,6 +518,12 @@ Conséquence concrète et déjà avérée : le tri (`sortBy`), l'affichage des t
 terminées (`showDone`) et les exports CSV/PDF/impression sont **inaccessibles sur
 mobile** — ils ne sont câblés que dans `BoardHeader`, qui n'existe que côté desktop.
 
+Le cas le plus grave de cette famille a été corrigé depuis (B17) : les actions de
+projet — renommer, personnaliser, archiver, **supprimer** — étaient dans le même
+cas, et un projet ne pouvait donc pas être supprimé depuis un téléphone. Elles
+passent désormais par `ProjectActionsSheet`, ouverte depuis le titre de
+`MobileHeader`. Le reste de la liste ci-dessus attend toujours (1.16).
+
 ### Typage, tests, accessibilité
 
 - **Aucun typage** : ni TypeScript, ni PropTypes, ni JSDoc — **et aucune
@@ -661,6 +667,8 @@ en phase 1.
 | B14 | **Dérive de charte** : violet hérité `#3b1f7a` dans les en-têtes PDF au lieu du bleu CHD `#005586` | `ReportingView.jsx:195`, `App.jsx:1220,1244`, `TeamWorkloadView.jsx:154,183` | faible |
 | B15 | **Prop `onAssign` morte** : déclarée dans `TaskRow` mais jamais transmise à `AdminCell` | `TaskRow.jsx:27` vs `:180-186` | faible |
 | B16 | **Un échec de migration ne bloque pas le démarrage** : l'API démarre sur un schéma désynchronisé et échoue ensuite en 500 à l'exécution | `index.js:78-82` | moyen |
+| ~~B17~~ | ~~**Aucune action de projet sur mobile** : renommer, personnaliser, archiver et supprimer ne vivent que dans le menu de `BoardHeader`, monté uniquement en branche bureau. Impasse complète — la corbeille du menu latéral ne vise que les projets *archivés*, et l'archivage n'existe pas non plus sur mobile.~~ **Corrigé** : feuille `ProjectActionsSheet` ouverte depuis le titre de `MobileHeader`. | `MobileHeader.jsx`, `ProjectActionsSheet.jsx`, `App.jsx` | fort |
+| ~~B18~~ | ~~**Le dernier projet supprimé réapparaît** : `handleDeleteProject` recharge la page, et l'effet de démarrage recrée aussitôt un projet « Suivi ». La suppression réussit en base mais semble échouer.~~ **Corrigé** : bascule sur l'écran « Aucun projet », doté d'un bouton « Créer un projet ». | `App.jsx` (`handleDeleteProject`) | fort |
 
 ---
 

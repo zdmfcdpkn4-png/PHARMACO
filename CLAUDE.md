@@ -114,6 +114,20 @@ largeur : téléphone → toujours interface mobile (même en paysage) ; tablett
 sous 768 px. Ne pas utiliser de `md:hidden`/`lg:hidden` pour masquer un
 composant propre à un mode : c'est la branche d'App.jsx qui décide.
 
+**Exemple vécu** : les actions de projet (renommer, personnaliser, archiver,
+supprimer) ne vivaient que dans le menu de `BoardHeader`, monté uniquement côté
+bureau → un projet ne pouvait pas être supprimé depuis un téléphone. Leur
+pendant mobile est `ProjectActionsSheet.jsx`, ouvert depuis le titre de
+`MobileHeader`. Les gardes des deux menus doivent rester identiques (renommer =
+tout éditeur, personnaliser = propriétaire ou admin, archiver/supprimer = admin),
+et calées sur le serveur — c'est lui qui tranche.
+
+Corollaire : ne **jamais** répondre à une suppression par `window.location.reload()`.
+Au redémarrage, l'effet de chargement recrée automatiquement un projet « Suivi »
+quand la base est vide (`App.jsx`) : la suppression du dernier projet semblait
+donc échouer. Le bon chemin est l'écran « Aucun projet » (`noProjects`), qui
+propose d'en recréer un.
+
 ### Mises à jour optimistes
 
 Les mutations du tableau passent par le helper `optimistic(mutator, apiCall,

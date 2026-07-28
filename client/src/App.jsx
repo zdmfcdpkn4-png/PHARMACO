@@ -14,6 +14,7 @@ import TaskDetailPanel from './components/TaskDetailPanel.jsx';
 import MobileNav from './components/MobileNav.jsx';
 import MobileHeader from './components/MobileHeader.jsx';
 import MobileBoard from './components/MobileBoard.jsx';
+import ProjectActionsSheet from './components/ProjectActionsSheet.jsx';
 import BottomSheet from './components/BottomSheet.jsx';
 import BandeauErreur from './components/BandeauErreur.jsx';
 import { SqueletteVue, AnnonceChargement } from './components/Skeleton.jsx';
@@ -122,6 +123,8 @@ function Board({ currentUser, onLogout, onUpdateCurrentUser }) {
   const [noProjects, setNoProjects] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false); // sidebar coulissante (mobile)
+  // Feuille d'actions du projet (mobile) : pendant du menu de BoardHeader.
+  const [projectMenuOpen, setProjectMenuOpen] = useState(false);
 
   // Filtres / recherche
   const [search, setSearch] = useState('');
@@ -490,6 +493,7 @@ function Board({ currentUser, onLogout, onUpdateCurrentUser }) {
       const b = await api.getBoard(created.id);
       setBoard(b);
       setCurrentBoardId(created.id);
+      setNoProjects(false); // on sort de l'écran « aucun projet »
       setView('board');
     }
   };
@@ -533,9 +537,12 @@ function Board({ currentUser, onLogout, onUpdateCurrentUser }) {
           setCurrentBoardId(next.id);
           setView('overview');
         } else {
-          // Dernier projet supprimé : recharge (un projet « Suivi » sera
-          // recréé automatiquement).
-          window.location.reload();
+          // Dernier projet supprimé : bascule sur l'écran « aucun projet ».
+          // Surtout PAS de rechargement : l'effet de démarrage recréerait
+          // aussitôt un projet « Suivi », et la suppression semblerait échouer.
+          setBoard(null);
+          setCurrentBoardId(null);
+          setNoProjects(true);
         }
       }
     } catch (e) {
@@ -1494,20 +1501,34 @@ function Board({ currentUser, onLogout, onUpdateCurrentUser }) {
     );
   }
 
-  // Aucun projet accessible (base neuve + observateur) : écran d'attente
-  // neutre plutôt qu'une erreur rouge.
+  // Aucun projet accessible : base neuve vue par un observateur, ou dernier
+  // projet supprimé. Écran neutre plutôt qu'une erreur rouge — et une porte de
+  // sortie pour qui a le droit de créer.
   if (noProjects && !board) {
     return (
       <div className="flex h-dvh flex-col items-center justify-center gap-3 bg-canvas px-6 text-center">
         <div className="text-lg font-semibold text-primary">Aucun projet pour le moment</div>
         <p className="max-w-sm text-sm text-gray-500">
-          Un administrateur ou un membre doit créer le premier projet.
-          Actualisez la page une fois que c'est fait.
+          {canEdit
+            ? 'Créez un projet pour commencer.'
+            : "Un administrateur ou un membre doit créer le premier projet. Actualisez la page une fois que c'est fait."}
         </p>
-        <div className="mt-2 flex gap-2">
+        <div className="mt-2 flex flex-wrap justify-center gap-2">
+          {canEdit && (
+            <button
+              onClick={handleNewProject}
+              className="flex items-center gap-1.5 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-primary-hover"
+            >
+              <Plus size={16} /> Créer un projet
+            </button>
+          )}
           <button
             onClick={() => window.location.reload()}
-            className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-primary-hover"
+            className={`rounded-lg px-4 py-2 text-sm font-medium ${
+              canEdit
+                ? 'border border-gray-200 bg-white text-gray-600 hover:bg-gray-50'
+                : 'bg-primary text-white hover:bg-primary-hover'
+            }`}
           >
             Actualiser
           </button>
@@ -1518,6 +1539,16 @@ function Board({ currentUser, onLogout, onUpdateCurrentUser }) {
             Se déconnecter
           </button>
         </div>
+        {/* Modale de création : cet écran précède les branches mobile/bureau,
+            elle doit donc être montée ici aussi. */}
+        {projectModal && (
+          <ProjectModal
+            mode={projectModal.mode}
+            project={projectModal.project}
+            onClose={() => setProjectModal(null)}
+            onSubmit={handleSubmitProject}
+          />
+        )}
       </div>
     );
   }
@@ -1637,6 +1668,7 @@ function Board({ currentUser, onLogout, onUpdateCurrentUser }) {
               steps={board.steps || []}
               groupByStep={groupByStep}
               onToggleGroupByStep={() => setViewPref('groupByStep', !groupByStep)}
+              onOpenProjectMenu={() => setProjectMenuOpen(true)}
             />
             <div className="overflow-x-auto">
               <BoardTabs active={boardView} onChange={setBoardView} />
@@ -1889,6 +1921,23 @@ function Board({ currentUser, onLogout, onUpdateCurrentUser }) {
             />
           );
         })()}
+        {/* Actions du projet — pendant mobile du menu de BoardHeader (bureau).
+            Montée à la demande : l'état interne (renommage) repart propre à
+            chaque ouverture et suit le projet courant. */}
+        {projectMenuOpen && (
+          <ProjectActionsSheet
+            open
+            onClose={() => setProjectMenuOpen(false)}
+            boardName={board.name}
+            canEdit={canEdit}
+            canManage={canManageBoard}
+            isAdmin={isAdmin}
+            onRename={handleRenameBoard}
+            onCustomize={() => handleCustomizeProject(board)}
+            onArchive={() => handleArchiveProject(board.id, true)}
+            onDelete={() => handleDeleteProject(board.id)}
+          />
+        )}
         {projectModal && (
           <ProjectModal
             mode={projectModal.mode}
