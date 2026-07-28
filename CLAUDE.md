@@ -116,9 +116,32 @@ composant propre à un mode : c'est la branche d'App.jsx qui décide.
 
 ### Mises à jour optimistes
 
-Les mutations du tableau passent par le helper `optimistic()` d'App.jsx :
-mise à jour immédiate de l'état, appel API ensuite, rollback si échec. Suivre
-ce motif pour les nouvelles mutations.
+Les mutations du tableau passent par le helper `optimistic(mutator, apiCall,
+secours)` d'App.jsx : mise à jour immédiate de l'état, appel API ensuite,
+retour arrière si échec. **Suivre ce motif pour toute nouvelle mutation** —
+ne jamais faire son retour arrière à la main, et ne jamais avaler l'erreur.
+
+- L'instantané est lu depuis `boardRef`, **hors** de l'updater `setState` :
+  lire une variable renseignée dans un updater n'est pas fiable (React peut
+  différer son exécution, et `<React.StrictMode>` la double en développement).
+- Si d'autres mutations ont eu lieu entre-temps, restaurer l'instantané les
+  effacerait : le helper recharge alors le projet depuis le serveur.
+- `optimisteListe(setEtat, instantane, mutator, apiCall, secours)` fait la même
+  chose pour les états de liste hors `board` (raccourcis, équipes…).
+- Les messages d'erreur passent par `signalerErreur(e, secours)` : **un seul
+  minuteur**, sinon deux erreurs successives s'effacent mutuellement. Ils sont
+  rendus par un `BandeauErreur` unique par branche, porteur de `role="alert"`.
+
+### Chargement différé (React.lazy)
+
+Les dix vues secondaires sont chargées à la demande. **Piège** : ne jamais
+placer une frontière `<Suspense>` entre un `DragDropContext` et ses
+`Droppable`/`Draggable` — `GroupTable` doit donc rester un import **statique**.
+`KanbanView` porte son propre `DragDropContext`, entièrement contenu dans son
+morceau : son chargement différé est sans risque.
+
+Chaque branche de rendu d'`App.jsx` a **sa propre** frontière `<Suspense>`, dont
+le repli est un écran fantôme (`Skeleton.jsx`, gabarit choisi selon l'appareil).
 
 ## Rôles et sécurité
 

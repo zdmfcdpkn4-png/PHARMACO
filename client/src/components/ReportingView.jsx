@@ -14,8 +14,6 @@ import {
   Legend,
   ResponsiveContainer,
 } from 'recharts';
-import { toPng } from 'html-to-image';
-import { jsPDF } from 'jspdf';
 import { TrendingUp, CheckCircle2, X, Download, FileText, Loader2 } from 'lucide-react';
 import {
   STATUSES,
@@ -153,6 +151,8 @@ export default function ReportingView({ board, users = [] }) {
     if (!dashboardRef.current) return;
     setExporting(true);
     try {
+      // Chargé à la demande : html-to-image ne sert qu'à l'export.
+      const { toPng } = await import('html-to-image');
       const dataUrl = await toPng(dashboardRef.current, {
         backgroundColor: '#faf7fb',
         pixelRatio: 2,
@@ -174,6 +174,12 @@ export default function ReportingView({ board, users = [] }) {
     if (!dashboardRef.current) return;
     setExporting(true);
     try {
+      // Chargés à la demande : ce sont les deux plus grosses dépendances du
+      // projet et elles ne servent qu'ici.
+      const [{ toPng }, { jsPDF }] = await Promise.all([
+        import('html-to-image'),
+        import('jspdf'),
+      ]);
       const dataUrl = await toPng(dashboardRef.current, {
         backgroundColor: '#ffffff',
         pixelRatio: 2,

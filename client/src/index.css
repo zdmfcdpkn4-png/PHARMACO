@@ -37,6 +37,23 @@ body {
   }
 }
 
+/* =====================================================================
+   Mouvement réduit
+   Respecte la préférence système : la pulsation des écrans fantômes et les
+   animations d'ouverture de panneau sont exactement le type de mouvement
+   qui gêne les personnes sensibles.
+   ===================================================================== */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
 /* Animations du drawer */
 @keyframes slideIn {
   from {

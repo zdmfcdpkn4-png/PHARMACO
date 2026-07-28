@@ -463,6 +463,8 @@ tâche ; le comptage des éléments JSX donne **45 à 55 nœuds DOM par ligne**,
 `Suspense` dans le projet, aucun `manualChunks` dans `vite.config.js`. Chunk
 principal : **1 353 982 octets (1,35 Mo)**.
 
+> **Corrigé (juillet 2026).** Le chunk principal est descendu à **327 Ko** (−76 %) : imports dynamiques dans `ReportingView`, `React.lazy` sur les dix vues secondaires, `manualChunks` isolant `recharts` (554 Ko) et `jspdf` (399 Ko), désormais chargés à la demande.
+
 Deux appels utilisent pourtant correctement l'import dynamique (`App.jsx:1202-1203`,
 `TeamWorkloadView.jsx:147-148`) — mais `ReportingView.jsx:17-18` importe
 **statiquement** `html-to-image` et `jsPDF`, et `ReportingView` est lui-même
@@ -629,10 +631,10 @@ de règles envisagé et jamais construit. Aucun ordonnanceur n'existe pour produ
 | Mises à jour temps réel | ❌ **Zéro** WebSocket, SSE ou polling |
 | Présence / curseurs collaboratifs | ❌ |
 | Virtualisation des listes | ❌ |
-| Découpage de bundle | ❌ Chunk unique de 1,35 Mo |
+| Découpage de bundle | ✅ **Corrigé** — 327 Ko au premier rendu, un morceau par vue |
 | Pagination / filtrage serveur | ❌ |
 | Cache client | 🟡 État en mémoire, rechargé intégralement |
-| Optimistic UI | 🟡 Bon patron, mais 9 mutations sans rollback |
+| Optimistic UI | ✅ **Corrigé** — toutes les mutations passent par le helper, erreurs annoncées |
 
 ---
 
@@ -672,7 +674,7 @@ service de pharmacotechnie, pas de la complétude théorique.
 | # | Sujet | Pourquoi |
 |---|---|---|
 | A1 | **Deux imports à rendre dynamiques** dans `ReportingView` | Deux lignes. Débloque tout le découpage de bundle, aujourd'hui neutralisé |
-| A2 | **`React.lazy` sur les 9 vues** | Chunk initial de 1,35 Mo à ~500 Ko. Décisif en 4G hospitalière |
+| ~~A2~~ | ~~**`React.lazy` sur les 9 vues**~~ | ✅ **Livré** — 1,35 Mo → 327 Ko |
 | A3 | **Indexer `categoryValue` dans une `Map`** | Supprime ~9 M de comparaisons par rendu |
 | A4 | **8 index manquants + index sur `lower(email)`** | Supprime des balayages complets en cascade, et rend l'authentification indexée |
 | A5 | **Mapper les codes PostgreSQL en HTTP** | Transforme des 500 opaques en 400/404 lisibles, et cesse d'exposer la structure du schéma |
@@ -784,7 +786,7 @@ Préalable à tout le reste : sans lui, chaque tâche suivante est un pari.
 - **Cible réaliste :** ~30 tests. Le but n'est pas la couverture, c'est de rendre
   les régressions visibles.
 
-### 1.2 Débloquer le découpage de bundle — complexité **Faible**
+### 1.2 Débloquer le découpage de bundle — ✅ **LIVRÉ**
 
 Le correctif au meilleur rapport de tout le document.
 
@@ -799,7 +801,7 @@ Le correctif au meilleur rapport de tout le document.
   de rendu (mobile et desktop).
 - **Et :** `client/vite.config.js` — `build.rollupOptions.output.manualChunks`
   pour isoler `recharts` et `jspdf`.
-- **Gain attendu :** 1 353 982 o → ~500 Ko.
+- **Gain constaté :** 1 353 982 o → **334 700 o** (327 Ko), soit −76 %.
 - **Vérification :** `npm run build`, comparaison de la taille des chunks.
 
 ### 1.3 Supprimer le calcul quadratique des colonnes personnalisées — complexité **Faible**
@@ -943,7 +945,7 @@ Supprime les ~240 requêtes déclenchées à chaque affichage.
 - **À modifier :** `server/src/db/pool.js:114-127` — poser un `statement_timeout`
   et un `lock_timeout` dans `withTransaction`.
 
-### 1.13 Cesser d'avaler les erreurs — complexité **Faible**
+### 1.13 Cesser d'avaler les erreurs — ✅ **LIVRÉ**
 
 - **À modifier :** `client/src/App.jsx` — faire passer par `optimistic()` les 9
   mutations qui n'ont pas de rollback (`:306`, `:552`, `:570`, `:716`, `:744`,

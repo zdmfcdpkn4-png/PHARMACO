@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Bell, Plus, LogOut, Menu, X } from 'lucide-react';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import Sidebar from './components/Sidebar.jsx';
@@ -7,16 +7,6 @@ import BoardHeader from './components/BoardHeader.jsx';
 import GroupTable from './components/GroupTable.jsx';
 import AlertsPanel from './components/AlertsPanel.jsx';
 import Avatar from './components/Avatar.jsx';
-import TeamWorkloadView from './components/TeamWorkloadView.jsx';
-import ReportingView from './components/ReportingView.jsx';
-import GanttChartView from './components/GanttChartView.jsx';
-import DynamicTimeView from './components/DynamicTimeView.jsx';
-import TeamsView from './components/TeamsView.jsx';
-import TeamProjectView from './components/TeamProjectView.jsx';
-import OverviewView from './components/OverviewView.jsx';
-import AgentView from './components/AgentView.jsx';
-import KanbanView from './components/KanbanView.jsx';
-import CalendarView from './components/CalendarView.jsx';
 import BoardTabs from './components/BoardTabs.jsx';
 import ProjectModal from './components/ProjectModal.jsx';
 import TaskDrawer from './components/TaskDrawer.jsx';
@@ -25,11 +15,28 @@ import MobileNav from './components/MobileNav.jsx';
 import MobileHeader from './components/MobileHeader.jsx';
 import MobileBoard from './components/MobileBoard.jsx';
 import BottomSheet from './components/BottomSheet.jsx';
+import BandeauErreur from './components/BandeauErreur.jsx';
+import { SqueletteVue, AnnonceChargement } from './components/Skeleton.jsx';
 import Login from './components/Login.jsx';
 import useIsMobile from './lib/useIsMobile.js';
 import { useColumnWidths } from './lib/useColumnWidths.js';
 import { useViewPreferences } from './lib/useViewPreferences.js';
 import { api, IS_MOCK } from './api/index.js';
+
+// Vues secondaires : chargées à la demande pour alléger le premier rendu.
+// Ne PAS rendre paresseux GroupTable / BoardHeader / Sidebar : ils sont
+// affichés d'emblée, et GroupTable vit à l'intérieur du DragDropContext.
+const TeamWorkloadView = lazy(() => import('./components/TeamWorkloadView.jsx'));
+const ReportingView = lazy(() => import('./components/ReportingView.jsx'));
+const GanttChartView = lazy(() => import('./components/GanttChartView.jsx'));
+const DynamicTimeView = lazy(() => import('./components/DynamicTimeView.jsx'));
+const TeamsView = lazy(() => import('./components/TeamsView.jsx'));
+const TeamProjectView = lazy(() => import('./components/TeamProjectView.jsx'));
+const OverviewView = lazy(() => import('./components/OverviewView.jsx'));
+const AgentView = lazy(() => import('./components/AgentView.jsx'));
+const KanbanView = lazy(() => import('./components/KanbanView.jsx'));
+const CalendarView = lazy(() => import('./components/CalendarView.jsx'));
+
 import { GROUP_COLORS, STATUS_META, PRIORITY_META } from './lib/constants.js';
 
 const AUTH_KEY = 'pharmaco_auth';
@@ -220,35 +227,98 @@ function Board({ currentUser, onLogout, onUpdateCurrentUser }) {
         api.getTeams().then(setTeams).catch(() => {});
         api.getShortcuts(CURRENT_USER_ID).then(setShortcuts).catch(() => {});
       } catch (e) {
-        setError(e.message || 'Erreur de chargement');
+        signalerErreur(e, 'Erreur de chargement');
       } finally {
         setLoading(false);
       }
     })();
   }, [loadAlerts, loadCommentCounts]);
 
-  // -------- Helpers de mise à jour optimiste --------
-  // Applique une transformation locale immédiate, lance l'appel API,
-  // et restaure l'état précédent en cas d'échec.
-  const optimistic = useCallback(
-    async (mutator, apiCall) => {
-      // Instantané de rollback propre à CET appel (une propriété partagée
-      // serait écrasée par une mutation concurrente et restaurerait un
-      // état erroné en cas d'échec).
-      let snapshot = null;
-      setBoard((prev) => {
-        snapshot = prev;
-        return mutator(structuredClone(prev));
-      });
+  // -------- Mises à jour optimistes --------
+
+  // Émetteur unique de messages d'erreur. UN SEUL minuteur : sans cela, deux
+  // erreurs successives laissent deux minuteurs et le plus ancien efface le
+  // message du plus récent.
+  const minuterieErreur = useRef(null);
+  const signalerErreur = useCallback((e, secours = 'Une erreur est survenue') => {
+    const message = typeof e === 'string' ? e : e?.message || secours;
+    setError(message);
+    clearTimeout(minuterieErreur.current);
+    minuterieErreur.current = setTimeout(() => setError(null), 6000);
+  }, []);
+  useEffect(() => () => clearTimeout(minuterieErreur.current), []);
+
+  // Réf toujours à jour du tableau courant. Lire l'état depuis un updater
+  // setState n'est pas fiable — React peut différer son exécution, et
+  // <React.StrictMode> la double en développement. On lit donc l'instantané
+  // ICI, hors de setBoard, exactement comme le fait déjà handleDragEnd.
+  const boardRef = useRef(null);
+  useEffect(() => {
+    boardRef.current = board;
+  }, [board]);
+
+  // Recharge le projet depuis la source de vérité. Filet utilisé quand un
+  // retour arrière exact n'est plus possible (d'autres mutations ont suivi).
+  // L'identifiant est CELUI capturé au moment de la mutation : l'utilisateur
+  // a pu changer de projet entre-temps.
+  const resynchroniserBoard = useCallback(async (boardId) => {
+    if (!boardId) return;
+    try {
+      const frais = await api.getBoard(boardId);
+      boardRef.current = frais;
+      setBoard(frais);
+    } catch {
+      /* la resynchronisation est un filet : son échec ne doit rien casser */
+    }
+  }, []);
+
+  // Variante pour les états de liste hors `board` (raccourcis, équipes…).
+  const optimisteListe = useCallback(
+    async (setEtat, instantane, mutator, apiCall, secours) => {
+      setEtat(mutator(instantane));
       try {
-        await apiCall();
+        return await apiCall();
       } catch (e) {
-        if (snapshot) setBoard(snapshot); // rollback
-        setError(e.message || 'Échec de la synchronisation');
-        setTimeout(() => setError(null), 3000);
+        setEtat(instantane); // retour arrière
+        signalerErreur(e, secours);
+        return undefined;
       }
     },
-    []
+    [signalerErreur]
+  );
+
+  // Applique une transformation locale immédiate, lance l'appel API, et
+  // restaure l'état précédent en cas d'échec.
+  //
+  // `mutator` reçoit un CLONE de l'état et renvoie l'état suivant.
+  // Renvoie le résultat de l'appel API, ou undefined si celui-ci a échoué.
+  const optimistic = useCallback(
+    async (mutator, apiCall, secours = 'Échec de la synchronisation') => {
+      const instantane = boardRef.current;
+      if (!instantane) return undefined;
+      const idProjet = instantane.id;
+
+      const suivant = mutator(structuredClone(instantane));
+      boardRef.current = suivant; // avant setBoard : deux mutations dans le
+      setBoard(suivant); //         même tick partent alors du bon état.
+
+      try {
+        return await apiCall();
+      } catch (e) {
+        if (boardRef.current === suivant) {
+          // Personne n'a touché au tableau depuis : retour arrière exact.
+          boardRef.current = instantane;
+          setBoard(instantane);
+        } else {
+          // D'autres mutations ont suivi ; restaurer l'instantané les
+          // effacerait. On repart donc de la source de vérité.
+          await resynchroniserBoard(idProjet);
+        }
+        signalerErreur(e, secours);
+        return undefined;
+      }
+    },
+    [resynchroniserBoard, signalerErreur]
   );
 
   const patchTaskLocal = (b, taskId, patch) => {
@@ -307,14 +377,14 @@ function Board({ currentUser, onLogout, onUpdateCurrentUser }) {
     });
     setShortcuts((prev) => [...prev, created]);
   };
-  const handleDeleteShortcut = async (id) => {
-    setShortcuts((prev) => prev.filter((s) => s.id !== id));
-    try {
-      await api.deleteShortcut(id);
-    } catch {
-      /* ignore */
-    }
-  };
+  const handleDeleteShortcut = (id) =>
+    optimisteListe(
+      setShortcuts,
+      shortcuts,
+      (prev) => prev.filter((s) => s.id !== id),
+      () => api.deleteShortcut(id),
+      'Suppression du raccourci impossible'
+    );
   const handleOpenShortcut = (s) => {
     setSidebarMode('projects');
     setView(s.target_url || 'board');
@@ -356,8 +426,7 @@ function Board({ currentUser, onLogout, onUpdateCurrentUser }) {
       const task = (b?.groups || []).flatMap((g) => g.tasks).find((t) => t.id === h.task_id);
       if (task) setDrawerTask(task);
     } catch (e) {
-      setError(e.message || "Impossible d'ouvrir la discussion");
-      setTimeout(() => setError(null), 3000);
+      signalerErreur(e, "Impossible d'ouvrir la discussion");
     }
   };
   // Marque comme lues les discussions correspondant aux messages indiqués.
@@ -384,8 +453,7 @@ function Board({ currentUser, onLogout, onUpdateCurrentUser }) {
       setTeamView(null);
       setView('board');
     } catch (e) {
-      setError(e.message || 'Impossible de charger le projet');
-      setTimeout(() => setError(null), 3000);
+      signalerErreur(e, 'Impossible de charger le projet');
     }
   };
 
@@ -446,8 +514,7 @@ function Board({ currentUser, onLogout, onUpdateCurrentUser }) {
         }
       }
     } catch (e) {
-      setError(e.message || "Impossible d'archiver le projet");
-      setTimeout(() => setError(null), 3000);
+      signalerErreur(e, "Impossible d'archiver le projet");
     }
   };
 
@@ -472,8 +539,7 @@ function Board({ currentUser, onLogout, onUpdateCurrentUser }) {
         }
       }
     } catch (e) {
-      setError(e.message || 'Suppression impossible (réservée aux administrateurs)');
-      setTimeout(() => setError(null), 3500);
+      signalerErreur(e, 'Suppression impossible (réservée aux administrateurs)');
     }
   };
   const handleOpenDirectory = () => {
@@ -553,14 +619,27 @@ function Board({ currentUser, onLogout, onUpdateCurrentUser }) {
     const color = TAG_PALETTE[count % TAG_PALETTE.length];
     return handleCreateTag(name, color, tag_type);
   };
-  const handleDeleteTag = async (tagId) => {
-    setBoard((b) => ({ ...b, tags: (b.tags || []).filter((t) => t.id !== tagId) }));
-    try {
-      await api.deleteTag(tagId);
-    } catch {
-      /* ignore */
-    }
-  };
+  const handleDeleteTag = (tagId) =>
+    optimistic(
+      (b) => {
+        b.tags = (b.tags || []).filter((t) => t.id !== tagId);
+        // Le serveur remet les clés étrangères à NULL (ON DELETE SET NULL) :
+        // sans ce détachement local, l'état garderait des étiquettes fantômes
+        // jusqu'au prochain rechargement.
+        for (const g of b.groups || [])
+          for (const t of g.tasks) {
+            if (t.etape_tag_id === tagId) t.etape_tag_id = null;
+            if (t.intervention_tag_id === tagId) t.intervention_tag_id = null;
+            for (const st of t.subtasks || []) {
+              if (st.etape_tag_id === tagId) st.etape_tag_id = null;
+              if (st.intervention_tag_id === tagId) st.intervention_tag_id = null;
+            }
+          }
+        return b;
+      },
+      () => api.deleteTag(tagId),
+      "Suppression de l'étiquette impossible"
+    );
 
   // -------- Circuit d'intervention (étapes / sous-étapes) --------
   const handleCreateStep = async (name, color, parent_id = null) => {
@@ -569,70 +648,57 @@ function Board({ currentUser, onLogout, onUpdateCurrentUser }) {
     return created;
   };
 
-  const handleUpdateStep = async (stepId, patch) => {
-    const snapshot = board;
-    setBoard((b) => ({
-      ...b,
-      steps: (b.steps || []).map((s) => (s.id === stepId ? { ...s, ...patch } : s)),
-    }));
-    try {
-      await api.updateStep(stepId, patch);
-    } catch (e) {
-      setBoard(snapshot);
-      setError(e.message || "Échec de la modification de l'étape");
-      setTimeout(() => setError(null), 3000);
-    }
-  };
+  const handleUpdateStep = (stepId, patch) =>
+    optimistic(
+      (b) => ({
+        ...b,
+        steps: (b.steps || []).map((s) => (s.id === stepId ? { ...s, ...patch } : s)),
+      }),
+      () => api.updateStep(stepId, patch),
+      "Échec de la modification de l'étape"
+    );
 
-  const handleDeleteStep = async (stepId) => {
-    const snapshot = board;
+  const handleDeleteStep = (stepId) => {
     // La suppression est en cascade côté serveur : sous-étapes, franchissements
     // et rattachements des tâches. On reproduit exactement le même effet.
     const supprimes = new Set([stepId]);
     for (const s of board.steps || []) if (s.parent_id === stepId) supprimes.add(s.id);
-    setBoard((b) => ({
-      ...b,
-      steps: (b.steps || []).filter((s) => !supprimes.has(s.id)),
-      stepProgress: (b.stepProgress || []).filter((p) => !supprimes.has(p.step_id)),
-      groups: (b.groups || []).map((g) => ({
-        ...g,
-        tasks: g.tasks.map((t) => ({
-          ...t,
-          step_id: supprimes.has(t.step_id) ? null : t.step_id,
-          subtasks: (t.subtasks || []).map((s) => ({
-            ...s,
-            step_id: supprimes.has(s.step_id) ? null : s.step_id,
+    return optimistic(
+      (b) => ({
+        ...b,
+        steps: (b.steps || []).filter((s) => !supprimes.has(s.id)),
+        stepProgress: (b.stepProgress || []).filter((p) => !supprimes.has(p.step_id)),
+        groups: (b.groups || []).map((g) => ({
+          ...g,
+          tasks: g.tasks.map((t) => ({
+            ...t,
+            step_id: supprimes.has(t.step_id) ? null : t.step_id,
+            subtasks: (t.subtasks || []).map((s) => ({
+              ...s,
+              step_id: supprimes.has(s.step_id) ? null : s.step_id,
+            })),
           })),
         })),
-      })),
-    }));
-    try {
-      await api.deleteStep(stepId);
-    } catch (e) {
-      setBoard(snapshot);
-      setError(e.message || "Échec de la suppression de l'étape");
-      setTimeout(() => setError(null), 3000);
-    }
+      }),
+      () => api.deleteStep(stepId),
+      "Échec de la suppression de l'étape"
+    );
   };
 
-  const handleReorderSteps = async (items) => {
-    const snapshot = board;
+  const handleReorderSteps = (items) => {
     const parIds = new Map(items.map((it) => [it.id, it]));
-    setBoard((b) => ({
-      ...b,
-      steps: (b.steps || []).map((s) =>
-        parIds.has(s.id)
-          ? { ...s, parent_id: parIds.get(s.id).parent_id, position: parIds.get(s.id).position }
-          : s
-      ),
-    }));
-    try {
-      await api.reorderSteps(items);
-    } catch (e) {
-      setBoard(snapshot);
-      setError(e.message || 'Échec du réordonnancement des étapes');
-      setTimeout(() => setError(null), 3000);
-    }
+    return optimistic(
+      (b) => ({
+        ...b,
+        steps: (b.steps || []).map((s) =>
+          parIds.has(s.id)
+            ? { ...s, parent_id: parIds.get(s.id).parent_id, position: parIds.get(s.id).position }
+            : s
+        ),
+      }),
+      () => api.reorderSteps(items),
+      'Échec du réordonnancement des étapes'
+    );
   };
 
   // Étape courante d'une tâche.
@@ -668,8 +734,7 @@ function Board({ currentUser, onLogout, onUpdateCurrentUser }) {
       await api.setStepProgress(taskId, stepId, completed, CURRENT_USER_ID);
     } catch (e) {
       setBoard(snapshot);
-      setError(e.message || "Échec de l'enregistrement du franchissement");
-      setTimeout(() => setError(null), 3000);
+      signalerErreur(e, "Échec de l'enregistrement du franchissement");
     }
   };
 
@@ -699,7 +764,7 @@ function Board({ currentUser, onLogout, onUpdateCurrentUser }) {
     try {
       await api.setSubtaskAssignees(subId, userIds);
     } catch (e) {
-      setError(e.message);
+      signalerErreur(e);
     }
   };
 
@@ -750,8 +815,7 @@ function Board({ currentUser, onLogout, onUpdateCurrentUser }) {
   const handleDeleteTask = (taskId) => {
     const task = board?.groups.flatMap((g) => g.tasks).find((t) => t.id === taskId);
     if (task && !canDeleteTask(task)) {
-      setError('Vous n’êtes pas autorisé à supprimer cette tâche.');
-      setTimeout(() => setError(null), 3000);
+      signalerErreur('Vous n’êtes pas autorisé à supprimer cette tâche.');
       return;
     }
     if (!confirm(`Supprimer la tâche « ${task?.name || ''} » ?`)) return;
@@ -796,7 +860,7 @@ function Board({ currentUser, onLogout, onUpdateCurrentUser }) {
         g.tasks = g.tasks.filter((t) => t.id !== tempId);
         return next;
       });
-      setError(e.message);
+      signalerErreur(e);
     }
   };
 
@@ -852,24 +916,35 @@ function Board({ currentUser, onLogout, onUpdateCurrentUser }) {
         setBoard((b) => patchTaskLocal(structuredClone(b), res.parentId, { status: 'Fait' }));
       }
     } catch (e) {
-      setError(e.message);
+      signalerErreur(e);
     }
   };
 
-  const handleDeleteSubtask = async (subId) => {
-    setBoard((b) => {
-      const next = structuredClone(b);
-      for (const g of next.groups)
-        for (const t of g.tasks)
-          if (t.subtasks) t.subtasks = t.subtasks.filter((s) => s.id !== subId);
-      return next;
-    });
-    try {
-      await api.deleteSubtask(subId);
-    } catch {
-      /* ignore */
-    }
-  };
+  const handleDeleteSubtask = (subId) =>
+    optimistic(
+      (b) => {
+        for (const g of b.groups)
+          for (const t of g.tasks)
+            if (t.subtasks) t.subtasks = t.subtasks.filter((s) => s.id !== subId);
+        return b;
+      },
+      () => api.deleteSubtask(subId),
+      'Suppression du sous-item impossible'
+    );
+
+  // Renommage du projet courant. Handler nommé plutôt qu'appel dans le JSX :
+  // il n'existe aujourd'hui que dans la branche bureau, et un handler nommé
+  // est prêt à être branché sur mobile sans dupliquer la logique.
+  const handleRenameBoard = (name) =>
+    optimistic(
+      (b) => ({ ...b, name }),
+      async () => {
+        const maj = await api.updateBoard(board.id, { name });
+        await refreshBoards();
+        return maj;
+      },
+      'Renommage du projet impossible'
+    );
 
   // -------- Catégories / colonnes personnalisées --------
   const handleCreateCategory = async (name, type) => {
@@ -877,32 +952,32 @@ function Board({ currentUser, onLogout, onUpdateCurrentUser }) {
     setBoard((b) => ({ ...b, categories: [...(b.categories || []), created] }));
   };
 
-  const handleDeleteCategory = async (catId) => {
-    setBoard((b) => ({
-      ...b,
-      categories: (b.categories || []).filter((c) => c.id !== catId),
-      categoryValues: (b.categoryValues || []).filter((v) => v.category_id !== catId),
-    }));
-    try {
-      await api.deleteCategory(catId);
-    } catch {
-      /* ignore */
-    }
-  };
+  const handleDeleteCategory = (catId) =>
+    optimistic(
+      (b) => ({
+        ...b,
+        categories: (b.categories || []).filter((c) => c.id !== catId),
+        categoryValues: (b.categoryValues || []).filter((v) => v.category_id !== catId),
+      }),
+      () => api.deleteCategory(catId),
+      'Suppression de la colonne impossible'
+    );
 
-  const handleSetCategoryValue = (categoryId, taskId, value) => {
-    setBoard((b) => {
-      const next = structuredClone(b);
-      next.categoryValues = next.categoryValues || [];
-      const existing = next.categoryValues.find(
-        (v) => v.category_id === categoryId && v.task_id === taskId
-      );
-      if (existing) existing.value = value;
-      else next.categoryValues.push({ category_id: categoryId, task_id: taskId, value });
-      return next;
-    });
-    api.setCategoryValue({ category_id: categoryId, task_id: taskId, value }).catch(() => {});
-  };
+
+  const handleSetCategoryValue = (categoryId, taskId, value) =>
+    optimistic(
+      (b) => {
+        b.categoryValues = b.categoryValues || [];
+        const existing = b.categoryValues.find(
+          (v) => v.category_id === categoryId && v.task_id === taskId
+        );
+        if (existing) existing.value = value;
+        else b.categoryValues.push({ category_id: categoryId, task_id: taskId, value });
+        return b;
+      },
+      () => api.setCategoryValue({ category_id: categoryId, task_id: taskId, value }),
+      'Enregistrement de la valeur impossible'
+    );
 
   // Accès rapide à la valeur d'une catégorie pour une tâche.
   const categoryValue = (categoryId, taskId) =>
@@ -944,8 +1019,7 @@ function Board({ currentUser, onLogout, onUpdateCurrentUser }) {
         }
       } catch (e) {
         setBoard(snapshot);
-        setError(e.message || 'Échec de la mise à jour');
-        setTimeout(() => setError(null), 3000);
+        signalerErreur(e, 'Échec de la mise à jour');
       }
     })();
   };
@@ -965,17 +1039,12 @@ function Board({ currentUser, onLogout, onUpdateCurrentUser }) {
     setBoard(fresh);
   };
 
-  const handleDeleteDependency = async (depId) => {
-    setBoard((b) => ({
-      ...b,
-      dependencies: (b.dependencies || []).filter((d) => d.id !== depId),
-    }));
-    try {
-      await api.deleteDependency(depId);
-    } catch {
-      /* ignore */
-    }
-  };
+  const handleDeleteDependency = (depId) =>
+    optimistic(
+      (b) => ({ ...b, dependencies: (b.dependencies || []).filter((d) => d.id !== depId) }),
+      () => api.deleteDependency(depId),
+      'Suppression de la dépendance impossible'
+    );
 
   // -------- Handlers groupes --------
   const handleAddGroup = async () => {
@@ -985,7 +1054,7 @@ function Board({ currentUser, onLogout, onUpdateCurrentUser }) {
       const created = await api.createGroup({ board_id: board.id, name, color });
       setBoard((b) => ({ ...b, groups: [...b.groups, created] }));
     } catch (e) {
-      setError(e.message);
+      signalerErreur(e);
     }
   };
 
@@ -1100,8 +1169,7 @@ function Board({ currentUser, onLogout, onUpdateCurrentUser }) {
     setBoard(next);
     api.reorderGroups(payload).catch((e) => {
       setBoard(snapshot);
-      setError(e.message || 'Échec du déplacement du groupe');
-      setTimeout(() => setError(null), 3000);
+      signalerErreur(e, 'Échec du déplacement du groupe');
     });
   };
 
@@ -1155,8 +1223,7 @@ function Board({ currentUser, onLogout, onUpdateCurrentUser }) {
     setBoard(next);
     api.reorderTasks(payload).catch((e) => {
       setBoard(snapshot);
-      setError(e.message || 'Échec du déplacement');
-      setTimeout(() => setError(null), 3000);
+      signalerErreur(e, 'Échec du déplacement');
     });
   };
 
@@ -1417,9 +1484,12 @@ function Board({ currentUser, onLogout, onUpdateCurrentUser }) {
 
   // -------- Rendu --------
   if (loading) {
+    // Écran fantôme plutôt qu'un simple texte : la mise en page ne saute pas
+    // à l'arrivée des données et l'attente paraît plus courte.
     return (
-      <div className="flex h-dvh items-center justify-center bg-canvas text-gray-500">
-        Chargement…
+      <div className="flex h-dvh flex-col bg-canvas">
+        <SqueletteVue />
+        <AnnonceChargement>Chargement de votre espace de travail…</AnnonceChargement>
       </div>
     );
   }
@@ -1544,9 +1614,7 @@ function Board({ currentUser, onLogout, onUpdateCurrentUser }) {
         )}
 
         {/* Bandeau d'erreur global (visible quelle que soit la vue mobile) */}
-        {error && (
-          <div className="bg-red-50 px-4 py-2 text-sm text-status-blocked">{error}</div>
-        )}
+        <BandeauErreur message={error} onFermer={() => setError(null)} />
 
         {view === 'board' ? (
           <>
@@ -1648,6 +1716,7 @@ function Board({ currentUser, onLogout, onUpdateCurrentUser }) {
               </h1>
             </div>
             <div className="flex flex-1 flex-col overflow-auto pb-20">
+              <Suspense fallback={<><SqueletteVue /><AnnonceChargement /></>}>
               {view === 'overview' && (
                 <OverviewView
                   boards={boards}
@@ -1724,6 +1793,7 @@ function Board({ currentUser, onLogout, onUpdateCurrentUser }) {
                   }}
                 />
               )}
+              </Suspense>
             </div>
           </div>
         )}
@@ -1932,6 +2002,12 @@ function Board({ currentUser, onLogout, onUpdateCurrentUser }) {
           </div>
         </div>
 
+        {/* Bandeau d'erreur unique de la branche bureau : il était auparavant
+            dupliqué cinq fois et absent des vues Vue d'ensemble, Agent et
+            Équipes, où une erreur passait donc totalement inaperçue. */}
+        <BandeauErreur message={error} onFermer={() => setError(null)} />
+
+        <Suspense fallback={<><SqueletteVue /><AnnonceChargement /></>}>
         {view === 'agent' ? (
           <>
             <div className="border-b border-gray-200 bg-white px-6 pt-4">
@@ -1998,9 +2074,6 @@ function Board({ currentUser, onLogout, onUpdateCurrentUser }) {
                 Planning dynamique
               </h2>
             </div>
-            {error && (
-              <div className="bg-red-50 px-6 py-2 text-sm text-status-blocked">{error}</div>
-            )}
             <DynamicTimeView
               board={board}
               tags={board.tags || []}
@@ -2014,9 +2087,6 @@ function Board({ currentUser, onLogout, onUpdateCurrentUser }) {
                 Gantt / Chronogramme
               </h2>
             </div>
-            {error && (
-              <div className="bg-red-50 px-6 py-2 text-sm text-status-blocked">{error}</div>
-            )}
             <GanttChartView
               board={board}
               onUpdateTask={handleUpdateTaskDates}
@@ -2032,9 +2102,6 @@ function Board({ currentUser, onLogout, onUpdateCurrentUser }) {
                 Tableau de bord et reporting
               </h2>
             </div>
-            {error && (
-              <div className="bg-red-50 px-6 py-2 text-sm text-status-blocked">{error}</div>
-            )}
             <ReportingView board={board} users={users} />
           </>
         ) : view === 'team-project' ? (
@@ -2070,9 +2137,6 @@ function Board({ currentUser, onLogout, onUpdateCurrentUser }) {
                 Charge de travail de l'équipe
               </h2>
             </div>
-            {error && (
-              <div className="bg-red-50 px-6 py-2 text-sm text-status-blocked">{error}</div>
-            )}
             <TeamWorkloadView board={board} users={users} />
           </>
         ) : (
@@ -2088,7 +2152,7 @@ function Board({ currentUser, onLogout, onUpdateCurrentUser }) {
               onDeleteProject={() => handleDeleteProject(board.id)}
               onRenameBoard={(name) => {
                 setBoard((b) => ({ ...b, name }));
-                api.updateBoard(board.id, { name }).then(refreshBoards).catch(() => {});
+                handleRenameBoard(name);
               }}
               search={search}
               onSearch={setSearch}
@@ -2121,9 +2185,6 @@ function Board({ currentUser, onLogout, onUpdateCurrentUser }) {
             </div>
 
             {/* Bandeau d'erreur transitoire */}
-            {error && (
-              <div className="no-print bg-red-50 px-6 py-2 text-sm text-status-blocked">{error}</div>
-            )}
 
             {/* Titre visible uniquement à l'impression */}
             <div className="hidden px-6 pt-2 print:block">
@@ -2239,6 +2300,7 @@ function Board({ currentUser, onLogout, onUpdateCurrentUser }) {
             )}
           </>
         )}
+        </Suspense>
       </div>
 
       {/* Drawer contextuel d'une tâche (discussion + historique) */}
