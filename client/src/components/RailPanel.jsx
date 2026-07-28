@@ -317,8 +317,12 @@ function MemberRow({ user, onUpdateUser, onDeleteUser, onSetPassword }) {
 
 // Panneau latéral affiché quand on sélectionne un onglet du rail
 // (Agents = membres de l'équipe, Sidekick, Favoris).
+//
+// `variante` suit la branche de rendu d'App.jsx : colonne latérale sur
+// ordinateur, superposition plein écran sur téléphone et tablette.
 export default function RailPanel({
   rail,
+  variante = 'bureau',
   users = [],
   onClose,
   onAddUser,
@@ -414,21 +418,39 @@ export default function RailPanel({
   if (!c) return null;
   const Icon = c.icon;
 
+  const entete = (
+    <div className="flex items-center justify-between border-b border-gray-100 px-4 py-3">
+      <span className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+        <Icon size={16} /> {c.title}
+      </span>
+      <button
+        type="button"
+        onClick={onClose}
+        className="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+        title="Fermer"
+      >
+        <X size={16} />
+      </button>
+    </div>
+  );
+
+  // Sur mobile il n'y a pas de colonne latérale : le panneau se superpose en
+  // plein écran. Sans cette variante, la configuration du circuit et des
+  // étiquettes reste inatteignable depuis un téléphone.
+  if (variante === 'mobile') {
+    return (
+      <div className="fixed inset-0 z-[70] flex flex-col bg-white">
+        <div className="pt-[env(safe-area-inset-top)]">{entete}</div>
+        <div className="flex-1 overflow-auto p-2 pb-[calc(env(safe-area-inset-bottom)+4.5rem)]">
+          {c.body}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <aside className="flex w-72 shrink-0 flex-col border-r border-gray-200 bg-white">
-      <div className="flex items-center justify-between border-b border-gray-100 px-4 py-3">
-        <span className="flex items-center gap-2 text-sm font-semibold text-gray-700">
-          <Icon size={16} /> {c.title}
-        </span>
-        <button
-          type="button"
-          onClick={onClose}
-          className="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
-          title="Fermer"
-        >
-          <X size={16} />
-        </button>
-      </div>
+      {entete}
       <div className="flex-1 overflow-auto p-2">{c.body}</div>
     </aside>
   );

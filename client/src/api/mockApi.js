@@ -223,6 +223,64 @@ const logActivity = (taskId, action, oldV, newV, actorId) => {
 const delay = (ms = 120) => new Promise((r) => setTimeout(r, ms));
 const clone = (o) => JSON.parse(JSON.stringify(o));
 
+// --- Circuit d'intervention : mêmes invariants que steps.controller.js ------
+// Profondeur en index : 0 = étape, 1 = sous-étape, 2 = sous-sous-étape.
+const PROFONDEUR_MAX_ETAPES = 2;
+const TROP_PROFOND_ETAPES =
+  'Le circuit est limité à trois niveaux (étape, sous-étape, sous-sous-étape)';
+const BORNE_RECURSION_ETAPES = 16;
+
+// Nombre d'ancêtres d'une étape (0 pour une étape de premier niveau).
+const profondeurEtape = (steps, id) => {
+  const map = new Map(steps.map((s) => [s.id, s]));
+  let n = 0;
+  let courant = map.get(Number(id));
+  while (courant?.parent_id != null && n < BORNE_RECURSION_ETAPES) {
+    courant = map.get(courant.parent_id);
+    n += 1;
+  }
+  return n;
+};
+
+// Descendance d'une étape (elle-même incluse) et hauteur de son sous-arbre.
+const sousArbreEtapes = (steps, id) => {
+  const ids = new Set([Number(id)]);
+  let hauteur = 0;
+  let niveau = [Number(id)];
+  while (niveau.length && hauteur < BORNE_RECURSION_ETAPES) {
+    const suivant = steps
+      .filter((s) => niveau.includes(s.parent_id) && !ids.has(s.id))
+      .map((s) => s.id);
+    if (!suivant.length) break;
+    suivant.forEach((i) => ids.add(i));
+    niveau = suivant;
+    hauteur += 1;
+  }
+  return { ids, hauteur };
+};
+
+// Message d'erreur si le circuit n'est plus un arbre de trois niveaux au plus,
+// null sinon. Descend depuis les racines : une étape non atteinte est dans un
+// cycle.
+const circuitInvalide = (steps) => {
+  const atteints = new Set();
+  let niveau = steps.filter((s) => s.parent_id == null).map((s) => s.id);
+  let profondeur = 0;
+  niveau.forEach((i) => atteints.add(i));
+  while (niveau.length && profondeur < BORNE_RECURSION_ETAPES) {
+    const suivant = steps
+      .filter((s) => niveau.includes(s.parent_id) && !atteints.has(s.id))
+      .map((s) => s.id);
+    if (!suivant.length) break;
+    suivant.forEach((i) => atteints.add(i));
+    niveau = suivant;
+    profondeur += 1;
+  }
+  if (atteints.size !== steps.length) return 'Circuit incohérent : chaîne de parenté cyclique';
+  if (profondeur > PROFONDEUR_MAX_ETAPES) return TROP_PROFOND_ETAPES;
+  return null;
+};
+
 const findGroup = (gid) => board.groups.find((g) => g.id === gid);
 const findTask = (tid) => {
   for (const g of board.groups) {
@@ -377,7 +435,7 @@ export const mockApi = {
       }));
   },
 
-  async getBoard(id) {
+  async getBoard(id, { include_archived = false } = {}) {
     await delay();
     // Sélectionne le projet demandé (pointeur actif pour les mutations).
     if (id != null) {
@@ -406,7 +464,13 @@ export const mockApi = {
       (d) => boardTaskIds.has(d.predecessor_id) && boardTaskIds.has(d.successor_id)
     );
     const { _teamIds, ...publicBoard } = board;
-    return clone({ ...publicBoard, dependencies: boardDeps, teams: involvedTeams });
+    // Comme getBoardFull : les tâches archivées sont masquées par défaut.
+    // Le magasin garde tout, seule la projection filtre.
+    const groups = publicBoard.groups.map((g) => ({
+      ...g,
+      tasks: g.tasks.filter((t) => include_archived || !t.archived),
+    }));
+    return clone({ ...publicBoard, groups, dependencies: boardDeps, teams: involvedTeams });
   },
 
   async createBoard({ name, description, workspace_id = 1, created_by = 1, color = null, icon = null }) {
@@ -622,9 +686,9 @@ export const mockApi = {
   },
 
   // ---------------------------------------------------------------------
-  //  Circuit d'intervention (étapes / sous-étapes)
+  //  Circuit d'intervention (étape / sous-étape / sous-sous-étape)
   //  Reproduit à l'identique le comportement de steps.controller.js :
-  //  profondeur limitée à deux niveaux, parent du même projet, cascade.
+  //  profondeur limitée à trois niveaux, parent du même projet, cascade.
   // ---------------------------------------------------------------------
   async getSteps(boardId) {
     await delay(30);
@@ -640,8 +704,8 @@ export const mockApi = {
     if (parent_id != null) {
       const parent = target.steps.find((s) => s.id === Number(parent_id));
       if (!parent) throw new Error('Étape parente introuvable');
-      if (parent.parent_id != null) {
-        throw new Error('Le circuit est limité à deux niveaux (étape puis sous-étape)');
+      if (profondeurEtape(target.steps, parent.id) + 1 > PROFONDEUR_MAX_ETAPES) {
+        throw new Error(TROP_PROFOND_ETAPES);
       }
     }
     const freres = target.steps.filter((s) => (s.parent_id ?? null) === (parent_id ?? null));
@@ -668,13 +732,17 @@ export const mockApi = {
       if (pid != null) {
         const parent = (board.steps || []).find((s) => s.id === pid);
         if (!parent) throw new Error('Étape parente introuvable');
-        if (parent.parent_id != null) {
-          throw new Error('Le circuit est limité à deux niveaux (étape puis sous-étape)');
+        // Le sous-arbre descend avec l'étape : c'est sa feuille la plus basse
+        // qui doit rester dans la limite (même règle que le serveur).
+        const sousArbre = sousArbreEtapes(board.steps || [], step.id);
+        if (sousArbre.ids.has(pid)) {
+          throw new Error("Une étape ne peut pas être placée sous l'une de ses sous-étapes");
         }
-        if ((board.steps || []).some((s) => s.parent_id === step.id)) {
-          throw new Error(
-            'Cette étape porte des sous-étapes : elle ne peut pas devenir elle-même une sous-étape'
-          );
+        if (
+          profondeurEtape(board.steps || [], pid) + 1 + sousArbre.hauteur >
+          PROFONDEUR_MAX_ETAPES
+        ) {
+          throw new Error(TROP_PROFOND_ETAPES);
         }
       }
       step.parent_id = pid;
@@ -689,9 +757,9 @@ export const mockApi = {
   async deleteStep(id) {
     await delay(40);
     if (!board.steps) board.steps = [];
-    // Cascade : l'étape et ses sous-étapes disparaissent ensemble.
-    const supprimes = new Set([id]);
-    for (const s of board.steps) if (s.parent_id === id) supprimes.add(s.id);
+    // Cascade : l'étape et TOUTE sa descendance disparaissent ensemble
+    // (trois niveaux : une sous-sous-étape doit partir avec son étape).
+    const supprimes = sousArbreEtapes(board.steps, id).ids;
     board.steps = board.steps.filter((s) => !supprimes.has(s.id));
     board.stepProgress = (board.stepProgress || []).filter((p) => !supprimes.has(p.step_id));
     // Détache l'étape des tâches et sous-items (ON DELETE SET NULL).
@@ -705,14 +773,23 @@ export const mockApi = {
   async reorderSteps(items) {
     await delay(40);
     if (!Array.isArray(items)) throw new Error('items doit être un tableau');
+    // Instantané : comme la transaction serveur, un lot invalide n'est appliqué
+    // ni en partie ni du tout.
+    const avant = (board.steps || []).map((s) => ({ ...s }));
     for (const it of items) {
       const step = (board.steps || []).find((s) => s.id === Number(it.id));
       if (!step) continue;
       if (Number(it.parent_id) === step.id) {
+        board.steps = avant;
         throw new Error('Une étape ne peut pas être sa propre parente');
       }
       step.parent_id = it.parent_id == null ? null : Number(it.parent_id);
       step.position = Number(it.position);
+    }
+    const invalide = circuitInvalide(board.steps || []);
+    if (invalide) {
+      board.steps = avant;
+      throw new Error(invalide);
     }
     return { ok: true, updated: items.length };
   },
@@ -947,7 +1024,7 @@ export const mockApi = {
     await delay();
     const { task } = findTask(id);
     if (!task) throw new Error('Tâche introuvable');
-    const prev = { status: task.status, priority: task.priority, name: task.name, duedate: task.duedate, start_date: task.start_date, admin: task.admin };
+    const prev = { status: task.status, priority: task.priority, name: task.name, duedate: task.duedate, start_date: task.start_date, admin: task.admin, archived: !!task.archived };
 
     if (patch.name !== undefined) task.name = patch.name;
     if (patch.status !== undefined) task.status = patch.status;
@@ -957,6 +1034,10 @@ export const mockApi = {
     if (patch.etape_tag_id !== undefined) task.etape_tag_id = patch.etape_tag_id;
     if (patch.intervention_tag_id !== undefined) task.intervention_tag_id = patch.intervention_tag_id;
     if (patch.step_id !== undefined) task.step_id = patch.step_id;
+    if (typeof patch.archived === 'boolean') {
+      task.archived = patch.archived;
+      task.archived_at = patch.archived ? new Date().toISOString() : null;
+    }
     if (patch.admin_id !== undefined) task.admin = patch.admin_id ? adminShape(patch.admin_id) : null;
     if (patch.position !== undefined) task.position = patch.position;
     // Déplacement vers un autre groupe (même comportement que le serveur).
@@ -986,6 +1067,14 @@ export const mockApi = {
       logActivity(id, 'duedate', prev.duedate || '—', task.duedate || '—', actor);
     if (patch.admin_id !== undefined && (prev.admin?.id || null) !== (task.admin?.id || null))
       logActivity(id, 'admin', prev.admin?.name || 'Personne', task.admin?.name || 'Personne', actor);
+    if (typeof patch.archived === 'boolean' && prev.archived !== !!task.archived)
+      logActivity(
+        id,
+        'archived',
+        prev.archived ? 'archivée' : 'active',
+        task.archived ? 'archivée' : 'active',
+        actor
+      );
 
     // Contrainte de planning : repousse les successeurs si les dates changent
     let shifted = [];

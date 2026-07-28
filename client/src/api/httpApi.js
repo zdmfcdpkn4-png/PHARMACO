@@ -50,7 +50,9 @@ export const httpApi = {
   deleteUser: (id) => request(`/users/${id}`, { method: 'DELETE' }),
   getBoards: ({ include_archived = false } = {}) =>
     request(`/boards${include_archived ? '?include_archived=true' : ''}`),
-  getBoard: (id = 1) => request(`/boards/${id}`),
+  // include_archived : ramène aussi les tâches archivées (écran de corbeille).
+  getBoard: (id = 1, { include_archived = false } = {}) =>
+    request(`/boards/${id}${include_archived ? '?include_archived=true' : ''}`),
   createBoard: (data) => request('/boards', { method: 'POST', body: data }),
   updateBoard: (id, patch) => request(`/boards/${id}`, { method: 'PATCH', body: patch }),
   deleteBoard: (id) => request(`/boards/${id}`, { method: 'DELETE' }),

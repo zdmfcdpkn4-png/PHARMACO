@@ -7,6 +7,12 @@ import {
   Calendar,
   ShieldAlert,
   SlidersHorizontal,
+  ListChecks,
+  MessageSquare,
+  Plus,
+  Trash2,
+  Archive,
+  ArchiveRestore,
 } from 'lucide-react';
 import Avatar from './Avatar.jsx';
 import StatusBadge from './StatusBadge.jsx';
@@ -31,6 +37,11 @@ function Field({ icon: Icon, label, children }) {
 }
 
 // Panneau latéral de configuration détaillée d'une tâche (Item Detail).
+//
+// C'est LA fenêtre de gestion d'une tâche : toutes les vues (tableau, kanban,
+// calendrier, Gantt, planning, vue d'équipe, mobile) l'ouvrent au clic. Elle
+// porte donc l'ensemble des données rattachées — attributs, circuit, champs
+// personnalisés, sous-items, discussion — et les actions de cycle de vie.
 export default function TaskDetailPanel({
   task,
   groups,
@@ -54,9 +65,21 @@ export default function TaskDetailPanel({
   stepProgress = [],
   onSetTaskStep,
   onToggleTaskStep,
+  // Données rattachées
+  commentCount = 0,
+  onOpenComments,
+  onCreateSubtask,
+  onUpdateSubtask,
+  onDeleteSubtask,
+  // Cycle de vie de la tâche
+  canDelete = false,
+  onArchive,
+  onDelete,
 }) {
   const [name, setName] = useState(task.name);
   useEffect(() => setName(task.name), [task.id, task.name]);
+  const [nouveauSousItem, setNouveauSousItem] = useState('');
+  const [ajoutOuvert, setAjoutOuvert] = useState(false);
 
   const nameRef = useRef(null);
 
@@ -70,6 +93,14 @@ export default function TaskDetailPanel({
     const n = name.trim();
     if (n && n !== task.name) onRename(n);
     else setName(task.name);
+  };
+
+  const sousItems = task.subtasks || [];
+  const validerSousItem = () => {
+    const n = nouveauSousItem.trim();
+    if (n) onCreateSubtask?.(task.id, n);
+    setNouveauSousItem('');
+    setAjoutOuvert(false);
   };
 
   return (
@@ -89,6 +120,11 @@ export default function TaskDetailPanel({
             disabled={!canEdit}
             className="min-w-0 flex-1 rounded border border-transparent bg-transparent px-1 py-0.5 text-xl font-bold text-gray-800 outline-none transition hover:border-gray-200 focus:border-primary disabled:cursor-default"
           />
+          {task.archived && (
+            <span className="mt-1.5 shrink-0 rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-semibold text-gray-500">
+              Archivée
+            </span>
+          )}
           <button onClick={onClose} className="rounded-md p-1.5 text-gray-400 hover:bg-gray-100">
             <X size={18} />
           </button>
@@ -215,8 +251,130 @@ export default function TaskDetailPanel({
             </div>
           )}
 
+          {/* Sous-items : la descendance directe de la tâche, rendue ici en
+              liste compacte — SubtaskList est taillé pour le tableau large. */}
+          <div className="mt-4">
+            <div className="mb-1 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-gray-400">
+              <ListChecks size={13} /> Sous-items
+              {sousItems.length > 0 && <span className="normal-case">({sousItems.length})</span>}
+            </div>
+            {sousItems.length === 0 && !ajoutOuvert && (
+              <p className="py-2 text-sm text-gray-400">Aucun sous-item.</p>
+            )}
+            <ul className="space-y-1">
+              {sousItems.map((s) => (
+                <li
+                  key={s.id}
+                  className="group/sub flex items-center gap-2 rounded-md px-1 py-1.5 hover:bg-gray-50"
+                >
+                  <span className="min-w-0 flex-1 truncate text-sm text-gray-700">{s.name}</span>
+                  <div className="w-28 shrink-0">
+                    <StatusBadge
+                      status={s.status}
+                      readOnly={!canEdit}
+                      onChange={(st) => onUpdateSubtask?.(s.id, { status: st })}
+                    />
+                  </div>
+                  {canDelete && onDeleteSubtask && (
+                    <button
+                      type="button"
+                      onClick={() => onDeleteSubtask(s.id)}
+                      title="Supprimer le sous-item (admin)"
+                      className="shrink-0 rounded p-1 text-gray-300 opacity-0 transition hover:text-status-blocked group-hover/sub:opacity-100"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  )}
+                </li>
+              ))}
+            </ul>
+            {canEdit && onCreateSubtask && (
+              ajoutOuvert ? (
+                <div className="mt-1 flex gap-1.5">
+                  <input
+                    autoFocus
+                    value={nouveauSousItem}
+                    onChange={(e) => setNouveauSousItem(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') validerSousItem();
+                      if (e.key === 'Escape') setAjoutOuvert(false);
+                    }}
+                    placeholder="Nom du sous-item…"
+                    className="min-w-0 flex-1 rounded-md border border-gray-200 px-2 py-1.5 text-sm outline-none focus:border-primary"
+                  />
+                  <button
+                    type="button"
+                    onClick={validerSousItem}
+                    disabled={!nouveauSousItem.trim()}
+                    className="rounded-md bg-primary px-3 text-sm font-medium text-white disabled:opacity-50"
+                  >
+                    Ajouter
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setAjoutOuvert(true)}
+                  className="mt-1 flex w-full items-center gap-1 rounded-md border border-dashed border-gray-300 px-2 py-2 text-sm text-gray-500 hover:border-primary hover:text-primary"
+                >
+                  <Plus size={14} /> Ajouter un sous-item
+                </button>
+              )
+            )}
+          </div>
+
+          {/* Discussion : le fil vit dans TaskDrawer, on y renvoie. */}
+          {onOpenComments && (
+            <button
+              type="button"
+              onClick={onOpenComments}
+              className="mt-4 flex w-full items-center gap-2 rounded-lg border border-gray-200 px-3 py-2.5 text-sm text-gray-700 hover:border-primary hover:text-primary"
+            >
+              <MessageSquare size={16} className="text-gray-400" />
+              Discussion et historique
+              {commentCount > 0 && (
+                <span className="ml-auto rounded-full bg-primary px-2 py-0.5 text-[11px] font-bold text-white">
+                  {commentCount}
+                </span>
+              )}
+            </button>
+          )}
+
           <div className="h-6" />
         </div>
+
+        {/* Actions de cycle de vie — c'est ici, et depuis n'importe quelle vue,
+            qu'une tâche créée par erreur se range ou se supprime. */}
+        {(onArchive || (canDelete && onDelete)) && (
+          <div className="flex items-center gap-2 border-t border-gray-100 p-3">
+            {onArchive && (
+              <button
+                type="button"
+                onClick={() => onArchive(!task.archived)}
+                className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-gray-200 py-2.5 text-sm text-gray-700 hover:bg-gray-50"
+              >
+                {task.archived ? (
+                  <>
+                    <ArchiveRestore size={15} className="text-brand-teal" /> Sortir des archives
+                  </>
+                ) : (
+                  <>
+                    <Archive size={15} className="text-brand-orange" /> Archiver
+                  </>
+                )}
+              </button>
+            )}
+            {canDelete && onDelete && (
+              <button
+                type="button"
+                onClick={onDelete}
+                className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-gray-200 py-2.5 text-sm text-status-blocked hover:bg-red-50"
+              >
+                <Trash2 size={15} /> Supprimer
+              </button>
+            )}
+          </div>
+        )}
       </aside>
     </>
   );

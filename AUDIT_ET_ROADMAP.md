@@ -669,6 +669,10 @@ en phase 1.
 | B16 | **Un échec de migration ne bloque pas le démarrage** : l'API démarre sur un schéma désynchronisé et échoue ensuite en 500 à l'exécution | `index.js:78-82` | moyen |
 | ~~B17~~ | ~~**Aucune action de projet sur mobile** : renommer, personnaliser, archiver et supprimer ne vivent que dans le menu de `BoardHeader`, monté uniquement en branche bureau. Impasse complète — la corbeille du menu latéral ne vise que les projets *archivés*, et l'archivage n'existe pas non plus sur mobile.~~ **Corrigé** : feuille `ProjectActionsSheet` ouverte depuis le titre de `MobileHeader`. | `MobileHeader.jsx`, `ProjectActionsSheet.jsx`, `App.jsx` | fort |
 | ~~B18~~ | ~~**Le dernier projet supprimé réapparaît** : `handleDeleteProject` recharge la page, et l'effet de démarrage recrée aussitôt un projet « Suivi ». La suppression réussit en base mais semble échouer.~~ **Corrigé** : bascule sur l'écran « Aucun projet », doté d'un bouton « Créer un projet ». | `App.jsx` (`handleDeleteProject`) | fort |
+| ~~B19~~ | ~~**La configuration du circuit d'intervention est inatteignable sur mobile** : `StepEditor` (et `TagConfig`) vivent dans `RailPanel`, monté uniquement en branche bureau, et la branche mobile passait `canOpenRail={false}`.~~ **Corrigé** : `RailPanel` monté dans les deux branches (`variante="mobile"`, plein écran). | `RailPanel.jsx`, `Sidebar.jsx`, `App.jsx` | fort |
+| ~~B20~~ | ~~**Une tâche créée par erreur ne peut pas être retirée** : la corbeille de `TaskRow` est en `opacity-0 group-hover:opacity-100` — invisible sans survol, donc inatteignable au doigt — et la carte mobile n'en a aucune.~~ **Corrigé** : actions Archiver / Supprimer dans la fenêtre de tâche, ouverte depuis toutes les vues. | `TaskDetailPanel.jsx`, `App.jsx` | fort |
+| ~~B21~~ | ~~**Le clic sur une ligne n'ouvre pas la même chose selon la vue** : Kanban et Calendrier ouvraient le fil de commentaires, le planning dynamique la fiche, le Gantt et la vue d'équipe rien du tout.~~ **Corrigé** : toutes les vues ouvrent `TaskDetailPanel`. | `App.jsx`, `GanttChartView.jsx`, `TeamWorkloadView.jsx`, `AgentView.jsx` | moyen |
+| ~~B22~~ | ~~**Écran cassé au changement d'onglet sur mobile** : `KanbanView` et `CalendarView` sont paresseux mais étaient rendus hors de toute frontière `<Suspense>` → « A component suspended while responding to synchronous input ».~~ **Corrigé** : une frontière par onglet du tableau mobile. | `App.jsx` (branche mobile) | fort |
 
 ---
 
@@ -1084,6 +1088,11 @@ Tables `intervention_steps` et `task_step_progress`, reprise idempotente des
 étiquettes existantes, endpoints sous `/api/boards/steps`, parité mock/HTTP,
 composants `StepProgress.jsx` (stepper) et `StepEditor.jsx` (configuration du
 circuit), regroupement en accordéon dans la vue Tableau et sur mobile.
+
+Étendu depuis à **trois niveaux** (étape › sous-étape › sous-sous-étape) :
+profondeur et absence de cycle tenues par le contrôleur via des CTE
+récursives, rendu récursif du stepper et de l'éditeur, `rootStepOf` remontant
+toute la chaîne de parenté.
 
 Reste différé : le rattachement des **sous-items** au circuit dans les vues
 Kanban / Gantt / Planning, et la suppression de `project_tags` (deux versions

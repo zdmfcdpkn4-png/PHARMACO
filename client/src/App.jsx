@@ -125,6 +125,17 @@ function Board({ currentUser, onLogout, onUpdateCurrentUser }) {
   const [menuOpen, setMenuOpen] = useState(false); // sidebar coulissante (mobile)
   // Feuille d'actions du projet (mobile) : pendant du menu de BoardHeader.
   const [projectMenuOpen, setProjectMenuOpen] = useState(false);
+  // Affichage des tâches archivées (« corbeille » du projet courant). Le ref
+  // double l'état : tous les rechargements de projet doivent respecter le
+  // choix courant, y compris ceux déclenchés hors rendu (resynchronisation).
+  const [showArchived, setShowArchived] = useState(false);
+  const showArchivedRef = useRef(false);
+  // Chargement du projet COURANT : passe systématiquement par ce helper pour
+  // que l'option d'archivage soit appliquée partout de la même façon.
+  const chargerBoard = useCallback(
+    (id) => api.getBoard(id, { include_archived: showArchivedRef.current }),
+    []
+  );
 
   // Filtres / recherche
   const [search, setSearch] = useState('');
@@ -220,7 +231,7 @@ function Board({ currentUser, onLogout, onUpdateCurrentUser }) {
           setNoProjects(true);
           return;
         }
-        const [b, u] = await Promise.all([api.getBoard(firstId), api.getUsers()]);
+        const [b, u] = await Promise.all([chargerBoard(firstId), api.getUsers()]);
         setBoards(list.length ? list : [{ id: b.id, name: b.name, description: b.description }]);
         setCurrentBoardId(b.id);
         setBoard(b);
@@ -267,7 +278,7 @@ function Board({ currentUser, onLogout, onUpdateCurrentUser }) {
   const resynchroniserBoard = useCallback(async (boardId) => {
     if (!boardId) return;
     try {
-      const frais = await api.getBoard(boardId);
+      const frais = await chargerBoard(boardId);
       boardRef.current = frais;
       setBoard(frais);
     } catch {
@@ -415,13 +426,22 @@ function Board({ currentUser, onLogout, onUpdateCurrentUser }) {
     setAgentViewUser(user);
     setView('agent');
   };
+  // Ouvre la fiche d'une tâche depuis une vue multi-projets (« Mes tâches ») :
+  // il faut d'abord charger SON projet, sinon la fiche afficherait les groupes
+  // et le circuit d'un autre tableau.
+  const handleOpenTaskFromBoard = async (task) => {
+    if (task?._boardId && task._boardId !== currentBoardId) {
+      await handleSelectProject(task._boardId);
+    }
+    setDetailTask(task);
+  };
   // Ouvre directement la discussion d'une tâche depuis un message de la vue
   // d'ensemble (charge le bon projet si nécessaire).
   const handleOpenMessage = async (h) => {
     try {
       let b = board;
       if (h.board_id && h.board_id !== currentBoardId) {
-        b = await api.getBoard(h.board_id);
+        b = await chargerBoard(h.board_id);
         setBoard(b);
         setCurrentBoardId(h.board_id);
       }
@@ -450,7 +470,7 @@ function Board({ currentUser, onLogout, onUpdateCurrentUser }) {
       return;
     }
     try {
-      const b = await api.getBoard(id);
+      const b = await chargerBoard(id);
       setBoard(b);
       setCurrentBoardId(id);
       setTeamView(null);
@@ -490,7 +510,7 @@ function Board({ currentUser, onLogout, onUpdateCurrentUser }) {
         created_by: CURRENT_USER_ID,
       });
       await refreshBoards();
-      const b = await api.getBoard(created.id);
+      const b = await chargerBoard(created.id);
       setBoard(b);
       setCurrentBoardId(created.id);
       setNoProjects(false); // on sort de l'écran « aucun projet »
@@ -507,7 +527,7 @@ function Board({ currentUser, onLogout, onUpdateCurrentUser }) {
       if (archived && id === currentBoardId) {
         const next = (await api.getBoards().catch(() => [])).find((b) => b.id !== id);
         if (next) {
-          const b = await api.getBoard(next.id);
+          const b = await chargerBoard(next.id);
           setBoard(b);
           setCurrentBoardId(next.id);
           setView('overview');
@@ -532,7 +552,7 @@ function Board({ currentUser, onLogout, onUpdateCurrentUser }) {
       if (id === currentBoardId) {
         const next = (await api.getBoards().catch(() => [])).find((b) => b.id !== id);
         if (next) {
-          const b = await api.getBoard(next.id);
+          const b = await chargerBoard(next.id);
           setBoard(b);
           setCurrentBoardId(next.id);
           setView('overview');
@@ -556,7 +576,7 @@ function Board({ currentUser, onLogout, onUpdateCurrentUser }) {
   // Définit les équipes associées au projet courant (table project_teams).
   const handleSetBoardTeams = async (teamIds) => {
     await api.setBoardTeams(board.id, teamIds);
-    const fresh = await api.getBoard(board.id);
+    const fresh = await chargerBoard(board.id);
     setBoard(fresh);
     // Met à jour la liste « projets associés » de chaque équipe.
     api.getTeams().then(setTeams).catch(() => {});
@@ -823,16 +843,55 @@ function Board({ currentUser, onLogout, onUpdateCurrentUser }) {
     const task = board?.groups.flatMap((g) => g.tasks).find((t) => t.id === taskId);
     if (task && !canDeleteTask(task)) {
       signalerErreur('Vous n’êtes pas autorisé à supprimer cette tâche.');
-      return;
+      return false;
     }
-    if (!confirm(`Supprimer la tâche « ${task?.name || ''} » ?`)) return;
+    if (!confirm(`Supprimer la tâche « ${task?.name || ''} » ?`)) return false;
     optimistic(
       (b) => {
         for (const g of b.groups) g.tasks = g.tasks.filter((t) => t.id !== taskId);
         return b;
       },
-      () => api.deleteTask(taskId)
+      () => api.deleteTask(taskId),
+      'Suppression impossible (réservée aux administrateurs)'
     );
+    // Renvoie si la suppression a bien été lancée : la fenêtre de tâche s'en
+    // sert pour ne se fermer qu'en cas de confirmation.
+    return true;
+  };
+
+  // Archive / désarchive une tâche. Ouvert aux éditeurs : une tâche créée par
+  // erreur doit pouvoir être rangée sans attendre un administrateur — seule la
+  // SUPPRESSION définitive reste réservée aux admins.
+  const handleArchiveTask = (taskId, archived = true) =>
+    optimistic(
+      (b) => {
+        for (const g of b.groups) {
+          // La liste ne montre que les tâches actives : archiver = retirer.
+          if (archived) g.tasks = g.tasks.filter((t) => t.id !== taskId);
+          else for (const t of g.tasks) if (t.id === taskId) t.archived = false;
+        }
+        return b;
+      },
+      () => api.updateTask(taskId, { archived, ...actor }),
+      archived ? "Archivage impossible" : 'Restauration impossible'
+    );
+
+  // Bascule l'affichage des tâches archivées : le filtrage est fait par le
+  // serveur (et à l'identique par le mock), donc il faut recharger le projet.
+  const handleToggleArchived = async () => {
+    const suivant = !showArchived;
+    setShowArchived(suivant);
+    showArchivedRef.current = suivant;
+    if (!currentBoardId && !board) return;
+    try {
+      const frais = await chargerBoard(currentBoardId ?? board.id);
+      setBoard(frais);
+    } catch (e) {
+      // Retour arrière : l'affichage doit refléter ce qui est réellement chargé.
+      setShowArchived(!suivant);
+      showArchivedRef.current = !suivant;
+      signalerErreur(e, 'Impossible de charger les tâches archivées');
+    }
   };
 
   const handleAddTask = async (groupId, name) => {
@@ -1042,7 +1101,7 @@ function Board({ currentUser, onLogout, onUpdateCurrentUser }) {
       ],
     }));
     // Recharge pour récupérer l'id réel + d'éventuels recalages
-    const fresh = await api.getBoard(board.id);
+    const fresh = await chargerBoard(board.id);
     setBoard(fresh);
   };
 
@@ -1629,8 +1688,10 @@ function Board({ currentUser, onLogout, onUpdateCurrentUser }) {
                   handleOpenDirectory();
                   setMenuOpen(false);
                 }}
-                onSelectRail={(rail) => setActiveRail(rail)}
-                canOpenRail={false}
+                onSelectRail={(rail) => {
+                  setActiveRail(rail);
+                  setMenuOpen(false);
+                }}
                 shortcuts={shortcuts}
                 onAddShortcut={handleAddShortcut}
                 onDeleteShortcut={handleDeleteShortcut}
@@ -1642,6 +1703,32 @@ function Board({ currentUser, onLogout, onUpdateCurrentUser }) {
               />
             </div>
           </div>
+        )}
+
+        {/* Panneau du rail (agents, étiquettes, circuit d'intervention).
+            En plein écran sur mobile : sans lui, la configuration des étapes
+            et des étiquettes n'était atteignable que depuis un ordinateur. */}
+        {activeRail !== 'Espaces' && (
+          <RailPanel
+            rail={activeRail}
+            variante="mobile"
+            users={users}
+            onAddUser={handleAddUser}
+            onUpdateUser={handleUpdateUser}
+            onDeleteUser={handleDeleteUser}
+            onSetPassword={handleSetPassword}
+            tags={board.tags || []}
+            canManage={canManageBoard}
+            onCreateTag={handleCreateTag}
+            onDeleteTag={handleDeleteTag}
+            steps={board.steps || []}
+            canDeleteStep={isAdmin}
+            onCreateStep={handleCreateStep}
+            onUpdateStep={handleUpdateStep}
+            onDeleteStep={handleDeleteStep}
+            onReorderSteps={handleReorderSteps}
+            onClose={() => setActiveRail('Espaces')}
+          />
         )}
 
         {/* Bandeau d'erreur global (visible quelle que soit la vue mobile) */}
@@ -1668,6 +1755,8 @@ function Board({ currentUser, onLogout, onUpdateCurrentUser }) {
               steps={board.steps || []}
               groupByStep={groupByStep}
               onToggleGroupByStep={() => setViewPref('groupByStep', !groupByStep)}
+              showArchived={showArchived}
+              onToggleArchived={handleToggleArchived}
               onOpenProjectMenu={() => setProjectMenuOpen(true)}
             />
             <div className="overflow-x-auto">
@@ -1689,30 +1778,40 @@ function Board({ currentUser, onLogout, onUpdateCurrentUser }) {
                 onAddTask={(gid) => handleAddTask(gid, 'Nouvelle tâche')}
               />
             )}
+            {/* Kanban et Calendrier sont chargés à la demande : sans cette
+                frontière, React lève « A component suspended while responding
+                to synchronous input » au changement d'onglet (la branche
+                bureau, elle, les rend déjà dans son propre <Suspense>). */}
             {boardView === 'kanban' && (
-              <div className="flex-1 overflow-auto pb-20">
-                <KanbanView
-                  board={board}
-                  filterFn={filterFn}
-                  canEdit={canEdit}
-                  commentCounts={commentCounts}
-                  onChangeStatus={handleChangeStatus}
-                  onOpenTask={(t) => setDrawerTask(t)}
-                  onAddTask={() => board.groups[0] && handleAddTask(board.groups[0].id, 'Nouvelle tâche')}
-                />
-              </div>
+              <Suspense fallback={<><SqueletteVue variant="cards" /><AnnonceChargement /></>}>
+                <div className="flex-1 overflow-auto pb-20">
+                  <KanbanView
+                    board={board}
+                    filterFn={filterFn}
+                    canEdit={canEdit}
+                    commentCounts={commentCounts}
+                    onChangeStatus={handleChangeStatus}
+                    onOpenTask={(t) => setDetailTask(t)}
+                    onAddTask={() =>
+                      board.groups[0] && handleAddTask(board.groups[0].id, 'Nouvelle tâche')
+                    }
+                  />
+                </div>
+              </Suspense>
             )}
             {boardView === 'calendar' && (
-              <div className="flex flex-1 flex-col overflow-hidden pb-20">
-                <CalendarView
-                  board={board}
-                  filterFn={filterFn}
-                  canEdit={canEdit}
-                  onOpenTask={(t) => setDrawerTask(t)}
-                  onChangeDate={handleChangeDate}
-                  onAddTaskOnDate={handleCreateTaskOnDate}
-                />
-              </div>
+              <Suspense fallback={<><SqueletteVue variant="cards" /><AnnonceChargement /></>}>
+                <div className="flex flex-1 flex-col overflow-hidden pb-20">
+                  <CalendarView
+                    board={board}
+                    filterFn={filterFn}
+                    canEdit={canEdit}
+                    onOpenTask={(t) => setDetailTask(t)}
+                    onChangeDate={handleChangeDate}
+                    onAddTaskOnDate={handleCreateTaskOnDate}
+                  />
+                </div>
+              </Suspense>
             )}
           </>
         ) : (
@@ -1772,6 +1871,7 @@ function Board({ currentUser, onLogout, onUpdateCurrentUser }) {
                   loadFull={(id) => api.getBoard(id)}
                   onBack={handleOpenDirectory}
                   onOpenProject={(id) => handleSelectProject(id)}
+                  onOpenTask={handleOpenTaskFromBoard}
                 />
               )}
               {view === 'gantt' && (
@@ -1781,6 +1881,7 @@ function Board({ currentUser, onLogout, onUpdateCurrentUser }) {
                   onCreateTask={handleCreateTaskFull}
                   onAddDependency={handleAddDependency}
                   onDeleteDependency={handleDeleteDependency}
+                  onOpenTask={(t) => setDetailTask(t)}
                 />
               )}
               {view === 'timeline' && (
@@ -1791,13 +1892,20 @@ function Board({ currentUser, onLogout, onUpdateCurrentUser }) {
                 />
               )}
               {view === 'reporting' && <ReportingView board={board} users={users} />}
-              {view === 'workload' && <TeamWorkloadView board={board} users={users} />}
+              {view === 'workload' && (
+                <TeamWorkloadView board={board} users={users} onOpenTask={(t) => setDetailTask(t)} />
+              )}
               {view === 'team-project' &&
                 (() => {
                   const [tid, section] = (teamView || '').split(':');
                   const team = (board.teams || []).find((t) => String(t.id) === tid);
                   return team ? (
-                    <TeamProjectView board={board} team={team} section={section} />
+                    <TeamProjectView
+                      board={board}
+                      team={team}
+                      section={section}
+                      onOpenTask={(t) => setDetailTask(t)}
+                    />
                   ) : (
                     <div className="p-6 text-sm text-gray-400">Équipe introuvable.</div>
                   );
@@ -1918,6 +2026,19 @@ function Board({ currentUser, onLogout, onUpdateCurrentUser }) {
               stepProgress={board.stepProgress || []}
               onSetTaskStep={handleSetTaskStep}
               onToggleTaskStep={handleToggleTaskStep}
+              commentCount={commentCounts[live.id] || 0}
+              onOpenComments={() => setDrawerTask(live)}
+              onCreateSubtask={handleCreateSubtask}
+              onUpdateSubtask={handleUpdateSubtask}
+              onDeleteSubtask={handleDeleteSubtask}
+              canDelete={canDeleteTask(live)}
+              onArchive={(archived) => {
+                handleArchiveTask(live.id, archived);
+                setDetailTask(null);
+              }}
+              onDelete={() => {
+                if (handleDeleteTask(live.id)) setDetailTask(null);
+              }}
             />
           );
         })()}
@@ -2070,6 +2191,7 @@ function Board({ currentUser, onLogout, onUpdateCurrentUser }) {
               loadFull={(id) => api.getBoard(id)}
               onBack={handleOpenDirectory}
               onOpenProject={handleSelectProject}
+              onOpenTask={handleOpenTaskFromBoard}
             />
           </>
         ) : view === 'overview' ? (
@@ -2142,6 +2264,7 @@ function Board({ currentUser, onLogout, onUpdateCurrentUser }) {
               onCreateTask={handleCreateTaskFull}
               onAddDependency={handleAddDependency}
               onDeleteDependency={handleDeleteDependency}
+              onOpenTask={(t) => setDetailTask(t)}
             />
           </>
         ) : view === 'reporting' ? (
@@ -2172,7 +2295,12 @@ function Board({ currentUser, onLogout, onUpdateCurrentUser }) {
                   </p>
                 </div>
                 {team ? (
-                  <TeamProjectView board={board} team={team} section={section} />
+                  <TeamProjectView
+                    board={board}
+                    team={team}
+                    section={section}
+                    onOpenTask={(t) => setDetailTask(t)}
+                  />
                 ) : (
                   <div className="p-6 text-sm text-gray-400">Équipe introuvable.</div>
                 )}
@@ -2186,7 +2314,7 @@ function Board({ currentUser, onLogout, onUpdateCurrentUser }) {
                 Charge de travail de l'équipe
               </h2>
             </div>
-            <TeamWorkloadView board={board} users={users} />
+            <TeamWorkloadView board={board} users={users} onOpenTask={(t) => setDetailTask(t)} />
           </>
         ) : (
           <>
@@ -2215,6 +2343,8 @@ function Board({ currentUser, onLogout, onUpdateCurrentUser }) {
               onToggleSort={cycleSort}
               showDone={showDone}
               onToggleShowDone={() => setShowDone((v) => !v)}
+              showArchived={showArchived}
+              onToggleArchived={handleToggleArchived}
               onExportCsv={handleExportCsv}
               onExportPdf={handleExportPdf}
               onPrint={handlePrint}
@@ -2332,7 +2462,7 @@ function Board({ currentUser, onLogout, onUpdateCurrentUser }) {
                 canEdit={canEdit}
                 commentCounts={commentCounts}
                 onChangeStatus={handleChangeStatus}
-                onOpenTask={(t) => setDrawerTask(t)}
+                onOpenTask={(t) => setDetailTask(t)}
                 onAddTask={() => board.groups[0] && handleAddTask(board.groups[0].id, 'Nouvelle tâche')}
               />
             )}
@@ -2342,7 +2472,7 @@ function Board({ currentUser, onLogout, onUpdateCurrentUser }) {
                 board={board}
                 filterFn={filterFn}
                 canEdit={canEdit}
-                onOpenTask={(t) => setDrawerTask(t)}
+                onOpenTask={(t) => setDetailTask(t)}
                 onChangeDate={handleChangeDate}
                 onAddTaskOnDate={handleCreateTaskOnDate}
               />
@@ -2401,6 +2531,19 @@ function Board({ currentUser, onLogout, onUpdateCurrentUser }) {
               stepProgress={board.stepProgress || []}
               onSetTaskStep={handleSetTaskStep}
               onToggleTaskStep={handleToggleTaskStep}
+              commentCount={commentCounts[live.id] || 0}
+              onOpenComments={() => setDrawerTask(live)}
+              onCreateSubtask={handleCreateSubtask}
+              onUpdateSubtask={handleUpdateSubtask}
+              onDeleteSubtask={handleDeleteSubtask}
+              canDelete={canDeleteTask(live)}
+              onArchive={(archived) => {
+                handleArchiveTask(live.id, archived);
+                setDetailTask(null);
+              }}
+              onDelete={() => {
+                if (handleDeleteTask(live.id)) setDetailTask(null);
+              }}
             />
           </div>
         );

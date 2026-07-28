@@ -5,8 +5,64 @@ const SELECT_STEP = `
   SELECT id, board_id, parent_id, name, color, position, is_terminal
     FROM intervention_steps`;
 
-// Profondeur maximale du circuit : Étape -> Sous-étape.
-// Une sous-étape ne peut donc pas être parente à son tour.
+// Profondeur maximale du circuit, en index :
+//   0 = étape, 1 = sous-étape, 2 = sous-sous-étape.
+const PROFONDEUR_MAX = 2;
+const TROP_PROFOND = 'Le circuit est limité à trois niveaux (étape, sous-étape, sous-sous-étape)';
+
+// Garde-fou commun aux parcours récursifs : borne le nombre d'itérations pour
+// qu'une donnée cyclique fasse échouer la requête au lieu de la faire tourner
+// indéfiniment.
+const BORNE_RECURSION = 16;
+
+// Profondeur d'une étape : nombre d'ancêtres (0 pour une étape de 1er niveau).
+const profondeurDe = async (client, id) => {
+  const { rows } = await client.query(
+    `WITH RECURSIVE chaine AS (
+         SELECT id, parent_id, 0 AS niveau
+           FROM intervention_steps WHERE id = $1
+       UNION ALL
+         SELECT p.id, p.parent_id, c.niveau + 1
+           FROM intervention_steps p
+           JOIN chaine c ON p.id = c.parent_id
+          WHERE c.niveau < $2
+     )
+     SELECT COALESCE(MAX(niveau), 0) AS profondeur FROM chaine`,
+    [id, BORNE_RECURSION]
+  );
+  const profondeur = Number(rows[0].profondeur);
+  if (profondeur >= BORNE_RECURSION) {
+    const err = new Error('Circuit incohérent : chaîne de parenté cyclique');
+    err.status = 409;
+    throw err;
+  }
+  return profondeur;
+};
+
+// Descendants d'une étape (elle-même incluse) et hauteur du sous-arbre.
+// Sert à deux contrôles lors d'un re-parentage : interdire de placer une étape
+// sous l'un de ses propres descendants (cycle), et vérifier que le sous-arbre
+// déplacé tient encore dans la profondeur maximale.
+const sousArbreDe = async (client, id) => {
+  const { rows } = await client.query(
+    `WITH RECURSIVE sous AS (
+         SELECT id, 0 AS niveau
+           FROM intervention_steps WHERE id = $1
+       UNION ALL
+         SELECT e.id, s.niveau + 1
+           FROM intervention_steps e
+           JOIN sous s ON e.parent_id = s.id
+          WHERE s.niveau < $2
+     )
+     SELECT id, niveau FROM sous`,
+    [id, BORNE_RECURSION]
+  );
+  return {
+    ids: new Set(rows.map((r) => Number(r.id))),
+    hauteur: rows.reduce((m, r) => Math.max(m, Number(r.niveau)), 0),
+  };
+};
+
 const assertParentValide = async (client, boardId, parentId, selfId = null) => {
   if (parentId == null) return null;
   const id = Number(parentId);
@@ -35,8 +91,22 @@ const assertParentValide = async (client, boardId, parentId, selfId = null) => {
     err.status = 400;
     throw err;
   }
-  if (parent.parent_id != null) {
-    const err = new Error('Le circuit est limité à deux niveaux (étape puis sous-étape)');
+
+  // Le sous-arbre déplacé descend avec l'étape : c'est sa feuille la plus
+  // basse qui doit rester dans la limite, pas seulement l'étape elle-même.
+  let hauteur = 0;
+  if (selfId != null) {
+    const sousArbre = await sousArbreDe(client, Number(selfId));
+    if (sousArbre.ids.has(id)) {
+      const err = new Error("Une étape ne peut pas être placée sous l'une de ses sous-étapes");
+      err.status = 400;
+      throw err;
+    }
+    hauteur = sousArbre.hauteur;
+  }
+
+  if ((await profondeurDe(client, id)) + 1 + hauteur > PROFONDEUR_MAX) {
+    const err = new Error(TROP_PROFOND);
     err.status = 400;
     throw err;
   }
@@ -108,24 +178,11 @@ export const updateStep = asyncHandler(async (req, res) => {
     }
     const boardId = current[0].board_id;
 
-    // Re-parenter : on vérifie la profondeur et l'appartenance au projet.
+    // Re-parenter : profondeur, appartenance au projet et absence de cycle.
+    // `assertParentValide` tient compte du sous-arbre emporté par l'étape.
     let parentId = current[0].parent_id;
     if (parent_id !== undefined) {
       parentId = await assertParentValide(client, boardId, parent_id, id);
-      // Une étape qui a déjà des sous-étapes ne peut pas devenir sous-étape.
-      if (parentId != null) {
-        const { rows: enfants } = await client.query(
-          'SELECT 1 FROM intervention_steps WHERE parent_id = $1 LIMIT 1',
-          [id]
-        );
-        if (enfants.length) {
-          const err = new Error(
-            "Cette étape porte des sous-étapes : elle ne peut pas devenir elle-même une sous-étape"
-          );
-          err.status = 400;
-          throw err;
-        }
-      }
     }
 
     const { rows } = await client.query(
@@ -205,16 +262,32 @@ export const reorderSteps = asyncHandler(async (req, res) => {
         WHERE s.id = v.id`,
       [ids, parents, positions]
     );
-    // Garde-fou : le circuit reste à deux niveaux après réordonnancement.
+    // Garde-fou : après réordonnancement, le circuit doit rester un arbre de
+    // trois niveaux au plus. On descend depuis les racines : toute étape non
+    // atteinte appartient à un cycle, toute étape trop basse casse la limite.
     const { rows } = await client.query(
-      `SELECT 1
-         FROM intervention_steps enfant
-         JOIN intervention_steps parent ON parent.id = enfant.parent_id
-        WHERE parent.parent_id IS NOT NULL
-        LIMIT 1`
+      `WITH RECURSIVE arbre AS (
+           SELECT id, 0 AS niveau
+             FROM intervention_steps WHERE parent_id IS NULL
+         UNION ALL
+           SELECT e.id, a.niveau + 1
+             FROM intervention_steps e
+             JOIN arbre a ON e.parent_id = a.id
+            WHERE a.niveau < $1
+       )
+       SELECT (SELECT COALESCE(MAX(niveau), 0) FROM arbre)        AS profondeur,
+              (SELECT count(*) FROM arbre)                        AS atteignables,
+              (SELECT count(*) FROM intervention_steps)           AS total`,
+      [BORNE_RECURSION]
     );
-    if (rows.length) {
-      const err = new Error('Le circuit est limité à deux niveaux (étape puis sous-étape)');
+    const { profondeur, atteignables, total } = rows[0];
+    if (Number(atteignables) !== Number(total)) {
+      const err = new Error('Circuit incohérent : chaîne de parenté cyclique');
+      err.status = 409;
+      throw err; // la transaction est annulée
+    }
+    if (Number(profondeur) > PROFONDEUR_MAX) {
+      const err = new Error(TROP_PROFOND);
       err.status = 400;
       throw err; // la transaction est annulée
     }

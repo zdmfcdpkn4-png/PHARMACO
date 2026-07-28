@@ -86,7 +86,6 @@ export default function Sidebar({
   onOpenTeams,
   onOpenDirectory,
   onSelectRail,
-  canOpenRail = true,
   // Raccourcis
   shortcuts = [],
   onAddShortcut,
@@ -294,15 +293,14 @@ export default function Sidebar({
           <RailIcon icon={BookUser} label="Annuaire" onClick={() => onOpenDirectory?.()} />
           {/* Seul chemin d'accès à la configuration des étiquettes et du
               circuit d'intervention : sans cette entrée, le panneau reste
-              inatteignable. Masqué là où RailPanel n'est pas rendu (mobile),
-              pour ne pas exposer un bouton sans effet. */}
-          {canOpenRail && (
-            <RailIcon
-              icon={Route}
-              label="Agents & étiquettes"
-              onClick={() => onSelectRail?.('Agents')}
-            />
-          )}
+              inatteignable. RailPanel est désormais monté dans les DEUX
+              branches d'App.jsx (colonne sur ordinateur, plein écran sur
+              mobile) : l'entrée est donc toujours proposée. */}
+          <RailIcon
+            icon={Route}
+            label="Agents & étiquettes"
+            onClick={() => onSelectRail?.('Agents')}
+          />
           <RailIcon icon={Heart} label="Favoris" onClick={() => onSelectRail?.('Favoris')} />
 
           {/* Réduction du panneau */}

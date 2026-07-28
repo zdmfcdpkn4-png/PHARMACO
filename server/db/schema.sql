@@ -124,6 +124,14 @@ CREATE INDEX IF NOT EXISTS idx_tasks_group ON tasks(group_id);
 ALTER TABLE tasks ADD COLUMN IF NOT EXISTS priority task_priority NOT NULL DEFAULT 'P3 - Normal';
 ALTER TABLE tasks ADD COLUMN IF NOT EXISTS start_date DATE;
 
+-- Archivage d'une tâche : elle sort des vues sans être détruite. Pendant de
+-- boards.archived, mais ouvert aux éditeurs (une tâche créée par erreur doit
+-- pouvoir être rangée par qui l'a créée) ; la SUPPRESSION reste admin.
+ALTER TABLE tasks ADD COLUMN IF NOT EXISTS archived BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE tasks ADD COLUMN IF NOT EXISTS archived_at TIMESTAMPTZ;
+-- Index partiel : la lecture courante ne veut QUE les tâches actives.
+CREATE INDEX IF NOT EXISTS idx_tasks_group_actives ON tasks(group_id) WHERE NOT archived;
+
 -- ---------------------------------------------------------------------
 --  Table : task_columns (les valeurs des colonnes d'une tâche)
 --  Relation 1-1 avec tasks (une ligne de colonnes par tâche).
@@ -209,8 +217,14 @@ ALTER TABLE sub_tasks  ADD COLUMN IF NOT EXISTS intervention_tag_id INTEGER REFE
 --  Table : intervention_steps (circuit d'intervention ordonné du projet)
 --
 --  Remplace à terme les étiquettes plates project_tags, qui n'ont ni ordre
---  ni lien de parenté. parent_id porte la hiérarchie Étape -> Sous-étape
---  (deux niveaux maximum, comme tasks -> sub_tasks).
+--  ni lien de parenté. parent_id porte la hiérarchie
+--  Étape -> Sous-étape -> Sous-sous-étape (TROIS niveaux maximum).
+--
+--  La profondeur n'est pas exprimable en contrainte SQL simple : elle est
+--  tenue par steps.controller.js (assertParentValide + garde-fou récursif
+--  après réordonnancement). La base garantit en revanche qu'une sous-étape
+--  reste dans le projet de sa parente (FK composite ci-dessous) et qu'aucune
+--  étape n'est sa propre parente (ck_intervention_steps_no_self).
 --
 --  legacy_tag_id fait le pont avec l'ancienne étiquette d'origine : il rend
 --  la reprise de données rejouable (un projet déjà repris ne crée pas de

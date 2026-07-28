@@ -31,7 +31,7 @@ function ymd(date) {
 
 // Vue "Charge de travail de l'équipe" : une ligne par agent, frise des
 // 7 jours de la semaine en cours, indicateur de saturation.
-export default function TeamWorkloadView({ board, users }) {
+export default function TeamWorkloadView({ board, users, onOpenTask }) {
   const [agentFilter, setAgentFilter] = useState(null);
   const [hideDone, setHideDone] = useState(true);
   const [weekOffset, setWeekOffset] = useState(0); // 0 = semaine en cours
@@ -369,17 +369,19 @@ export default function TeamWorkloadView({ board, users }) {
                       }`}
                     >
                       {dayTasks.map((t) => (
-                        <div
+                        <button
                           key={t.id}
-                          title={`${t.name} — ${t.status}`}
-                          className="truncate rounded px-1.5 py-0.5 text-[11px] font-medium"
+                          type="button"
+                          onClick={() => onOpenTask?.(t)}
+                          title={`${t.name} — ${t.status} · ouvrir la fiche`}
+                          className="w-full truncate rounded px-1.5 py-0.5 text-left text-[11px] font-medium hover:opacity-80"
                           style={{
                             backgroundColor: STATUS_META[t.status]?.bg || '#9aadbd',
                             color: STATUS_META[t.status]?.text || '#fff',
                           }}
                         >
                           {t.name}
-                        </div>
+                        </button>
                       ))}
                       {dayOver && (
                         <div className="flex items-center justify-center gap-0.5 text-[10px] font-bold text-status-blocked">

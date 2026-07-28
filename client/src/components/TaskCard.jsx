@@ -116,7 +116,9 @@ export default function TaskCard({
           if (selectionMode) onToggleSelect?.();
           else if (revealed === -1) resetSwipe();
         }}
-        className="relative flex h-full gap-3 border-l-4 bg-white p-3 shadow-sm transition-transform"
+        className={`relative flex h-full gap-3 border-l-4 bg-white p-3 shadow-sm transition-transform ${
+          task.archived ? 'opacity-60' : ''
+        }`}
         style={{
           borderLeftColor: groupColor,
           transform: `translateX(${dx}px)`,

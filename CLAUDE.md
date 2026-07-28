@@ -66,19 +66,30 @@ server/                    # Express (ESM) + pg — API sous /api, santé : /api
   src/routes/ src/controllers/ src/middleware/ (auth, error) src/utils/ (authConfig, password)
 ```
 
-### Circuit d'intervention (étapes et sous-étapes)
+### Circuit d'intervention (étapes, sous-étapes, sous-sous-étapes)
 
 `intervention_steps` porte l'enchaînement **ordonné** des étapes d'un projet,
-sur deux niveaux (`parent_id` : étape → sous-étape), et `task_step_progress`
-trace leur franchissement (qui, quand). Une tâche pointe l'étape où elle en
-est via `tasks.step_id` (idem `sub_tasks.step_id`).
+sur **trois niveaux** (`parent_id` : étape → sous-étape → sous-sous-étape), et
+`task_step_progress` trace leur franchissement (qui, quand). Une tâche pointe
+l'étape où elle en est via `tasks.step_id` (idem `sub_tasks.step_id`).
 
 - La hiérarchie est garantie **en base** : la clé étrangère est composite
   (`parent_id, board_id`) → une sous-étape ne peut pas appartenir à un autre
   projet que son étape parente.
+- La **profondeur**, elle, n'est pas exprimable en contrainte SQL simple :
+  elle est tenue par `steps.controller.js`. `assertParentValide` remonte la
+  chaîne d'ancêtres (CTE récursive) et vérifie que le **sous-arbre déplacé**
+  tient encore dans la limite ; `reorderSteps` revalide l'arbre entier après
+  coup. Les deux détectent aussi les cycles. `mockApi.js` reproduit ces règles
+  à l'identique.
 - `client/src/lib/steps.js` est la **source unique** de l'ordre de parcours :
   le stepper (`StepProgress.jsx`), le regroupement en accordéon
-  (`GroupTable.jsx`) et les compteurs s'en servent tous.
+  (`GroupTable.jsx`) et les compteurs s'en servent tous. `rootStepOf` remonte
+  **toute** la chaîne (une sous-sous-étape se regroupe sous son étape racine,
+  pas sous sa sous-étape).
+- La configuration du circuit vit dans `StepEditor.jsx`, hébergé par
+  `RailPanel` — monté dans les **deux** branches d'App.jsx : colonne latérale
+  sur ordinateur, superposition plein écran sur mobile (`variante="mobile"`).
 - **Cohabitation** : les étiquettes `project_tags` (colonnes Étape / Type)
   restent en place et fonctionnelles. Le circuit est un **ajout**, pas un
   remplacement. Les étiquettes existantes ont été reprises une seule fois par
@@ -122,6 +133,11 @@ pendant mobile est `ProjectActionsSheet.jsx`, ouvert depuis le titre de
 tout éditeur, personnaliser = propriétaire ou admin, archiver/supprimer = admin),
 et calées sur le serveur — c'est lui qui tranche.
 
+Autre exemple : `RailPanel` (agents, étiquettes, **circuit d'intervention**)
+n'existait que côté bureau — la configuration des étapes était donc
+inatteignable depuis un téléphone. Il est désormais monté dans les deux
+branches, avec `variante="mobile"` pour le rendu plein écran.
+
 Corollaire : ne **jamais** répondre à une suppression par `window.location.reload()`.
 Au redémarrage, l'effet de chargement recrée automatiquement un projet « Suivi »
 quand la base est vide (`App.jsx`) : la suppression du dernier projet semblait
@@ -157,6 +173,12 @@ morceau : son chargement différé est sans risque.
 Chaque branche de rendu d'`App.jsx` a **sa propre** frontière `<Suspense>`, dont
 le repli est un écran fantôme (`Skeleton.jsx`, gabarit choisi selon l'appareil).
 
+**Piège vécu** : une vue paresseuse rendue HORS de toute frontière lève
+« A component suspended while responding to synchronous input » et casse
+l'écran au changement d'onglet. C'était le cas de `KanbanView` et
+`CalendarView` dans la branche mobile : chaque onglet du tableau mobile porte
+désormais sa propre frontière.
+
 ## Rôles et sécurité
 
 Trois rôles globaux : `admin`, `member`, `viewer`. Matrice complète :
@@ -164,6 +186,10 @@ Trois rôles globaux : `admin`, `member`, `viewer`. Matrice complète :
 
 - **Toute suppression (tâche, sous-item, groupe, projet) = admin uniquement**
   (`canDeleteTask`, `canDeleteGroup` côté UI ; `requireAdmin` côté serveur).
+- **L'archivage d'une TÂCHE est ouvert aux éditeurs** (`tasks.archived`, via
+  `PATCH /tasks/:id` sous `requireEditor`) : une tâche créée par erreur doit
+  pouvoir être rangée sans attendre un administrateur. C'est la seule
+  exception ; l'archivage d'un **projet** reste admin, comme sa suppression.
 - `viewer` = lecture seule (`canEdit` false côté UI ; `requireEditor` refuse
   ses mutations côté serveur).
 - Structure (groupes, colonnes, équipes du projet) : propriétaire du projet ou admin.

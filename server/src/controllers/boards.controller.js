@@ -25,6 +25,9 @@ export const listBoards = asyncHandler(async (req, res) => {
  */
 export const getBoardFull = asyncHandler(async (req, res) => {
   const boardId = req.params.id;
+  // Les tâches archivées sont masquées par défaut, comme les projets archivés
+  // dans listBoards. `?include_archived=true` les ramène (écran de corbeille).
+  const avecArchivees = req.query.include_archived === 'true';
 
   const boardRes = await query('SELECT * FROM boards WHERE id = $1', [boardId]);
   if (!boardRes.rows.length) {
@@ -48,6 +51,7 @@ export const getBoardFull = asyncHandler(async (req, res) => {
         t.intervention_tag_id,
         t.step_id,
         t.created_at,
+        t.archived,
         tc.admin_id,
         tc.status,
         tc.duedate,
@@ -59,8 +63,9 @@ export const getBoardFull = asyncHandler(async (req, res) => {
      LEFT JOIN task_columns tc ON tc.task_id = t.id
      LEFT JOIN users u   ON u.id = tc.admin_id
      WHERE g.board_id = $1
+       AND ($2 OR NOT t.archived)
      ORDER BY t.position, t.id`,
-    [boardId]
+    [boardId, avecArchivees]
   );
 
   // Regroupement des tâches par groupe + mise en forme de l'admin
@@ -77,6 +82,7 @@ export const getBoardFull = asyncHandler(async (req, res) => {
       intervention_tag_id: row.intervention_tag_id,
       step_id: row.step_id,
       created_at: row.created_at,
+      archived: row.archived === true,
       status: row.status || 'À faire',
       duedate: row.duedate,
       admin: row.admin_user_id

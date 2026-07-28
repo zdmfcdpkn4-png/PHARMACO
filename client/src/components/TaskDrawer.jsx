@@ -42,6 +42,10 @@ function activityLabel(a) {
       return `${who} a modifié l'échéance (${a.old_value} → ${a.new_value})`;
     case 'admin':
       return `${who} a réassigné : ${a.old_value} → ${a.new_value}`;
+    case 'archived':
+      return a.new_value === 'archivée'
+        ? `${who} a archivé la tâche`
+        : `${who} a sorti la tâche des archives`;
     default:
       return `${who} a mis à jour ${a.action_type}`;
   }

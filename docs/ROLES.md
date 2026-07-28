@@ -15,6 +15,7 @@ Trois rôles globaux : **Observateur** (`viewer`), **Membre** (`member`),
 | Personnaliser un projet (nom, couleur, vignette) | ❌ | ✅ ¹ | ✅ |
 | Associer des équipes à un projet | ❌ | ✅ ¹ | ✅ |
 | Créer des groupes / colonnes personnalisées | ❌ | ✅ ¹ | ✅ |
+| Archiver / restaurer une **tâche** | ❌ | ✅ ³ | ✅ |
 | **Supprimer une tâche** | ❌ | ❌ | ✅ |
 | **Supprimer un groupe** | ❌ | ❌ | ✅ |
 | **Archiver un projet** | ❌ | ❌ | ✅ |
@@ -26,6 +27,11 @@ Trois rôles globaux : **Observateur** (`viewer`), **Membre** (`member`),
 ¹ Réservé au **propriétaire du projet** (celui qui l'a créé) ou à un **admin**.
 ² La restauration est proposée à tous depuis la liste des archivés ; la
   suppression définitive depuis cette liste reste réservée aux admins.
+³ Volontairement ouvert aux éditeurs (`tasks.archived`, via `PATCH /tasks/:id`
+  sous `requireEditor`) : une tâche créée par erreur doit pouvoir être rangée
+  sans attendre un administrateur. Rien n'est perdu — la tâche reste en base
+  et se retrouve avec « Afficher les archivées ». La **suppression**, elle,
+  reste admin. À ne pas confondre avec l'archivage d'un **projet**, admin.
 
 ## Où c'est appliqué
 
@@ -45,7 +51,7 @@ Trois rôles globaux : **Observateur** (`viewer`), **Membre** (`member`),
   - Cas particuliers : `PUT /boards/:id/teams` vérifie propriétaire-ou-admin ;
     alertes et raccourcis sont cloisonnés à l'utilisateur authentifié.
 
-### Circuit d'intervention (étapes / sous-étapes)
+### Circuit d'intervention (étape / sous-étape / sous-sous-étape)
 
 | Route | Droit |
 |---|---|
@@ -56,8 +62,14 @@ Trois rôles globaux : **Observateur** (`viewer`), **Membre** (`member`),
 | `POST /boards/steps/progress` (franchissement) | `requireEditor` |
 | `DELETE /boards/steps/:id` | **`requireAdmin`** |
 
-Supprimer une étape retire en cascade ses sous-étapes et les franchissements
-associés, et détache les tâches concernées (leur `step_id` repasse à `NULL`).
+Le circuit compte **trois niveaux** au plus. La profondeur et l'absence de
+cycle sont vérifiées par le contrôleur (`assertParentValide` à la création et
+au re-parentage, revalidation de l'arbre entier après un réordonnancement) :
+un lot invalide est refusé en bloc, la transaction est annulée.
+
+Supprimer une étape retire en cascade **toute sa descendance** et les
+franchissements associés, et détache les tâches concernées (leur `step_id`
+repasse à `NULL`).
 
 > La sécurité réelle est imposée côté serveur (middlewares ci-dessus). Les
 > masquages côté interface ne sont qu'un confort d'usage.

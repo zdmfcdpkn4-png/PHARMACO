@@ -35,6 +35,7 @@ export default function GanttChartView({
   onCreateTask,
   onAddDependency,
   onDeleteDependency,
+  onOpenTask,
 }) {
   const [mode, setMode] = useState('week'); // 'week' | 'month'
   const [anchor, setAnchor] = useState(() => mondayOf(new Date())); // début de fenêtre
@@ -338,14 +339,16 @@ export default function GanttChartView({
                   {r.group.name}
                 </div>
               ) : (
-                <div
+                <button
                   key={`t-${r.task.id}`}
-                  className="flex items-center truncate border-t border-gray-50 px-3 pl-7 text-sm text-gray-700"
+                  type="button"
+                  onClick={() => onOpenTask?.(r.task)}
+                  className="flex w-full items-center truncate border-t border-gray-50 px-3 pl-7 text-left text-sm text-gray-700 hover:bg-gray-50 hover:text-primary"
                   style={{ height: ROW_H }}
-                  title={r.task.name}
+                  title={`${r.task.name} — ouvrir la fiche`}
                 >
                   <span className="truncate">{r.task.name}</span>
-                </div>
+                </button>
               )
             )}
           </div>

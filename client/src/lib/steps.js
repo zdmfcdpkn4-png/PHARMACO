@@ -4,8 +4,16 @@
 // (position, id) : une étape a `parent_id === null`, une sous-étape porte
 // l'id de son étape. La profondeur est donc déduite, jamais stockée.
 //
+// Le circuit compte TROIS niveaux : étape › sous-étape › sous-sous-étape.
+// La profondeur est bornée par le serveur (steps.controller.js), mais toutes
+// les fonctions ci-dessous s'arrêtent d'elles-mêmes en cas de donnée
+// aberrante (cycle) : elles ne doivent jamais figer l'interface.
+//
 // Ces fonctions sont la source unique de l'ordre du parcours : elles servent
 // à la fois au stepper, au regroupement en accordéon et aux compteurs.
+
+// Profondeur maximale autorisée, en index (0 = étape, 2 = sous-sous-étape).
+export const PROFONDEUR_MAX = 2;
 
 // Étapes de premier niveau, triées.
 export function rootSteps(steps = []) {
@@ -14,7 +22,7 @@ export function rootSteps(steps = []) {
     .sort((a, b) => a.position - b.position || a.id - b.id);
 }
 
-// Sous-étapes d'une étape donnée, triées.
+// Sous-étapes directes d'une étape donnée, triées.
 export function childSteps(steps = [], parentId) {
   if (parentId == null) return [];
   return steps
@@ -23,15 +31,19 @@ export function childSteps(steps = [], parentId) {
 }
 
 // Parcours complet à plat, dans l'ordre de lecture, avec la profondeur.
-// -> [{ ...step, depth: 0 | 1 }]
+// -> [{ ...step, depth: 0 | 1 | 2 }]
 export function flattenSteps(steps = []) {
   const out = [];
-  for (const racine of rootSteps(steps)) {
-    out.push({ ...racine, depth: 0 });
-    for (const enfant of childSteps(steps, racine.id)) {
-      out.push({ ...enfant, depth: 1 });
+  const vus = new Set(); // garde-fou : une étape n'est visitée qu'une fois
+  const descendre = (liste, depth) => {
+    for (const s of liste) {
+      if (vus.has(s.id)) continue;
+      vus.add(s.id);
+      out.push({ ...s, depth });
+      descendre(childSteps(steps, s.id), depth + 1);
     }
-  }
+  };
+  descendre(rootSteps(steps), 0);
   return out;
 }
 
@@ -42,24 +54,42 @@ export function indexSteps(steps = []) {
   return map;
 }
 
-// Étape de premier niveau dont dépend une étape (elle-même si c'en est une).
-// C'est la clé de regroupement de l'accordéon.
-export function rootStepOf(steps = [], stepId) {
-  if (stepId == null) return null;
+// Chaîne des ancêtres, de la racine jusqu'à l'étape elle-même (incluse).
+// -> [racine, …, étape]. Tableau vide si l'étape est inconnue.
+export function stepPath(steps = [], stepId) {
+  if (stepId == null) return [];
   const map = indexSteps(steps);
-  const step = map.get(stepId);
-  if (!step) return null;
-  return step.parent_id == null ? step : map.get(step.parent_id) || null;
+  const chaine = [];
+  const vus = new Set();
+  let courant = map.get(stepId);
+  while (courant && !vus.has(courant.id)) {
+    vus.add(courant.id);
+    chaine.unshift(courant);
+    courant = courant.parent_id == null ? null : map.get(courant.parent_id);
+  }
+  return chaine;
 }
 
-// Libellé hiérarchique : « Production › Logistique ».
+// Profondeur d'une étape : 0 pour une étape de premier niveau.
+export function stepDepth(steps = [], stepId) {
+  const chaine = stepPath(steps, stepId);
+  return chaine.length ? chaine.length - 1 : 0;
+}
+
+// Étape de premier niveau dont dépend une étape (elle-même si c'en est une).
+// C'est la clé de regroupement de l'accordéon : elle remonte TOUTE la chaîne,
+// pas seulement d'un cran — sans quoi une sous-sous-étape serait rattachée à
+// sa sous-étape et non à son étape racine.
+export function rootStepOf(steps = [], stepId) {
+  const chaine = stepPath(steps, stepId);
+  return chaine[0] || null;
+}
+
+// Libellé hiérarchique complet : « Production › Conditionnement › Étiquetage ».
 export function stepPathLabel(steps = [], stepId) {
-  if (stepId == null) return '';
-  const map = indexSteps(steps);
-  const step = map.get(stepId);
-  if (!step) return '';
-  const parent = step.parent_id == null ? null : map.get(step.parent_id);
-  return parent ? `${parent.name} › ${step.name}` : step.name;
+  return stepPath(steps, stepId)
+    .map((s) => s.name)
+    .join(' › ');
 }
 
 // Identifiants des étapes franchies par une tâche.

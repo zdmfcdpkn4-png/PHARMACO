@@ -11,7 +11,7 @@ const STATUSES = ['À faire', 'En cours', 'Bloqué', 'Fait'];
 // Le `board` reçu ne contient que les tâches de ce projet : la charge et la
 // répartition sont donc automatiquement filtrées au projet courant, et l'on
 // restreint en plus aux seuls membres de l'équipe.
-export default function TeamProjectView({ board, team, section = 'workload' }) {
+export default function TeamProjectView({ board, team, section = 'workload', onOpenTask }) {
   const members = team?.members || [];
   // On normalise les membres au format attendu par TeamWorkloadView.
   const memberUsers = useMemo(
@@ -55,7 +55,7 @@ export default function TeamProjectView({ board, team, section = 'workload' }) {
   const grandTotal = distribution.reduce((s, r) => s + r.total, 0);
 
   if (section === 'workload') {
-    return <TeamWorkloadView board={board} users={memberUsers} />;
+    return <TeamWorkloadView board={board} users={memberUsers} onOpenTask={onOpenTask} />;
   }
 
   // ---- Répartition des tâches ----

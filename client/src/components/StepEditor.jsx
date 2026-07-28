@@ -1,14 +1,18 @@
 import { useState } from 'react';
 import { ChevronDown, ChevronUp, Flag, Plus, Route, Trash2 } from 'lucide-react';
-import { childSteps, rootSteps } from '../lib/steps.js';
+import { PROFONDEUR_MAX, childSteps, rootSteps } from '../lib/steps.js';
 
 // Palette de la charte CHD (design.tokens.js) — volontairement différente de
 // celle de TagConfig, qui a hérité des couleurs Monday.
 const COULEURS = ['#005586', '#46b4b3', '#f4c137', '#e82a63', '#9aadbd', '#00415f'];
 
+// Libellé du bouton d'ajout selon le niveau de l'enfant à créer.
+const LIBELLE_AJOUT = ['Ajouter une étape', 'Ajouter une sous-étape', 'Ajouter une sous-sous-étape'];
+
 /**
  * Configuration du circuit d'intervention d'un projet : étapes ordonnées et
- * leurs sous-étapes (deux niveaux, comme tâche -> sous-item).
+ * leur descendance, sur TROIS niveaux (étape › sous-étape › sous-sous-étape).
+ * La profondeur maximale est celle du serveur, via `PROFONDEUR_MAX`.
  */
 export default function StepEditor({
   steps = [],
@@ -32,6 +36,43 @@ export default function StepEditor({
     );
   };
 
+  // Rendu récursif de la descendance d'une étape. `depth` est le niveau des
+  // ENFANTS rendus (1 = sous-étape, 2 = sous-sous-étape) : au-delà de
+  // PROFONDEUR_MAX, on ne propose plus d'ajout — c'est la limite du serveur.
+  const rendreEnfants = (parent, depth) => {
+    if (depth > PROFONDEUR_MAX) return null;
+    const enfants = childSteps(steps, parent.id);
+    return (
+      <ul className="ml-3 border-l border-gray-200 pl-2">
+        {enfants.map((enfant, j) => (
+          <li key={enfant.id}>
+            <LigneEditable
+              step={enfant}
+              canManage={canManage}
+              canDelete={canDelete}
+              premier={j === 0}
+              dernier={j === enfants.length - 1}
+              onMonter={() => deplacer(enfants, j, -1)}
+              onDescendre={() => deplacer(enfants, j, 1)}
+              onUpdate={onUpdate}
+              onDelete={onDelete}
+            />
+            {rendreEnfants(enfant, depth + 1)}
+          </li>
+        ))}
+        {canManage && (
+          <li>
+            <FormulaireAjout
+              libelle={LIBELLE_AJOUT[depth]}
+              parentId={parent.id}
+              onCreate={onCreate}
+            />
+          </li>
+        )}
+      </ul>
+    );
+  };
+
   return (
     <div className="space-y-3">
       <div className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-gray-400">
@@ -45,54 +86,26 @@ export default function StepEditor({
       )}
 
       <ul className="space-y-1">
-        {racines.map((etape, i) => {
-          const enfants = childSteps(steps, etape.id);
-          return (
-            <li key={etape.id}>
-              <LigneEditable
-                step={etape}
-                canManage={canManage}
-                canDelete={canDelete}
-                premier={i === 0}
-                dernier={i === racines.length - 1}
-                onMonter={() => deplacer(racines, i, -1)}
-                onDescendre={() => deplacer(racines, i, 1)}
-                onUpdate={onUpdate}
-                onDelete={onDelete}
-              />
-              <ul className="ml-3 border-l border-gray-200 pl-2">
-                {enfants.map((enfant, j) => (
-                  <li key={enfant.id}>
-                    <LigneEditable
-                      step={enfant}
-                      canManage={canManage}
-                      canDelete={canDelete}
-                      premier={j === 0}
-                      dernier={j === enfants.length - 1}
-                      onMonter={() => deplacer(enfants, j, -1)}
-                      onDescendre={() => deplacer(enfants, j, 1)}
-                      onUpdate={onUpdate}
-                      onDelete={onDelete}
-                    />
-                  </li>
-                ))}
-                {canManage && (
-                  <li>
-                    <FormulaireAjout
-                      libelle="Ajouter une sous-étape"
-                      parentId={etape.id}
-                      onCreate={onCreate}
-                    />
-                  </li>
-                )}
-              </ul>
-            </li>
-          );
-        })}
+        {racines.map((etape, i) => (
+          <li key={etape.id}>
+            <LigneEditable
+              step={etape}
+              canManage={canManage}
+              canDelete={canDelete}
+              premier={i === 0}
+              dernier={i === racines.length - 1}
+              onMonter={() => deplacer(racines, i, -1)}
+              onDescendre={() => deplacer(racines, i, 1)}
+              onUpdate={onUpdate}
+              onDelete={onDelete}
+            />
+            {rendreEnfants(etape, 1)}
+          </li>
+        ))}
       </ul>
 
       {canManage && (
-        <FormulaireAjout libelle="Ajouter une étape" parentId={null} onCreate={onCreate} />
+        <FormulaireAjout libelle={LIBELLE_AJOUT[0]} parentId={null} onCreate={onCreate} />
       )}
     </div>
   );

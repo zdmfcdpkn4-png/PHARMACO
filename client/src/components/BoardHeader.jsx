@@ -37,6 +37,8 @@ export default function BoardHeader({
   onToggleSort,
   showDone,
   onToggleShowDone,
+  showArchived = false,
+  onToggleArchived,
   onExportCsv,
   onExportPdf,
   onPrint,
@@ -332,6 +334,19 @@ export default function BoardHeader({
         >
           {showDone ? <EyeOff size={16} /> : <Eye size={16} />}
           {showDone ? 'Masquer' : 'Masqué'}
+        </button>
+
+        {/* Tâches archivées : elles ne sont pas chargées par défaut, ce bouton
+            recharge le projet avec elles (voir handleToggleArchived). */}
+        <button
+          type="button"
+          onClick={onToggleArchived}
+          title="Afficher / masquer les tâches archivées"
+          className={`flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm transition ${
+            showArchived ? 'bg-blue-50 text-primary' : 'text-gray-600 hover:bg-gray-100'
+          }`}
+        >
+          <Archive size={16} /> Archivées
         </button>
 
         {/* Exporter (menu déroulant) */}

@@ -24,6 +24,8 @@ export default function MobileHeader({
   steps = [],
   groupByStep = false,
   onToggleGroupByStep,
+  showArchived = false,
+  onToggleArchived,
   // Ouvre la feuille d'actions du projet (renommer / personnaliser / archiver /
   // supprimer). Absent → le titre reste un simple libellé.
   onOpenProjectMenu,
@@ -189,17 +191,22 @@ export default function MobileHeader({
             </div>
           )}
 
-          {/* Regroupement par étape du circuit */}
-          {steps.length > 0 && (
-            <div>
-              <label className="mb-1 block text-xs font-semibold uppercase text-gray-400">
-                Affichage
-              </label>
-              <Chip active={groupByStep} onClick={() => onToggleGroupByStep?.()}>
-                {groupByStep ? 'Groupé par étape' : 'Grouper par étape'}
+          {/* Affichage : regroupement par étape + tâches archivées */}
+          <div>
+            <label className="mb-1 block text-xs font-semibold uppercase text-gray-400">
+              Affichage
+            </label>
+            <div className="flex flex-wrap gap-2">
+              {steps.length > 0 && (
+                <Chip active={groupByStep} onClick={() => onToggleGroupByStep?.()}>
+                  {groupByStep ? 'Groupé par étape' : 'Grouper par étape'}
+                </Chip>
+              )}
+              <Chip active={showArchived} onClick={() => onToggleArchived?.()}>
+                {showArchived ? 'Archivées affichées' : 'Afficher les archivées'}
               </Chip>
             </div>
-          )}
+          </div>
 
           <button
             onClick={() => setFiltersOpen(false)}

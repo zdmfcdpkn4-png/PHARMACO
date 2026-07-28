@@ -17,7 +17,7 @@ const isOverdue = (t) => !isDone(t) && t.duedate && t.duedate.slice(0, 10) < tod
 
 // Vue agent : tâches affectées à un agent sur l'ensemble des projets,
 // classées par priorité (P1 > P2 > P3), avec une synthèse en tête.
-export default function AgentView({ agent, boards, loadFull, onBack, onOpenProject }) {
+export default function AgentView({ agent, boards, loadFull, onBack, onOpenProject, onOpenTask }) {
   const [fullBoards, setFullBoards] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -102,10 +102,14 @@ export default function AgentView({ agent, boards, loadFull, onBack, onOpenProje
     </div>
   );
 
+  // La ligne ouvre la fiche de la tâche. Comme la vue agrège plusieurs
+  // projets, c'est App.jsx qui bascule d'abord sur le bon projet — sans quoi
+  // la fiche s'ouvrirait sur les groupes et le circuit d'un autre tableau.
   const TaskRow = ({ t }) => (
     <button
       type="button"
-      onClick={() => onOpenProject?.(t._boardId)}
+      onClick={() => (onOpenTask ? onOpenTask(t) : onOpenProject?.(t._boardId))}
+      title={`${t.name} — ouvrir la fiche`}
       className={`flex w-full items-center gap-3 border-b border-gray-50 px-3 py-2.5 text-left last:border-b-0 hover:bg-gray-50 ${
         isDone(t) ? 'opacity-60' : ''
       }`}

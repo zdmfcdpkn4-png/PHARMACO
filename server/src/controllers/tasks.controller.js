@@ -6,7 +6,7 @@ const fetchTaskShaped = async (taskId, client = { query }) => {
   const { rows } = await client.query(
     `SELECT
         t.id, t.group_id, t.name, t.position, t.priority, t.start_date, t.created_at,
-        t.etape_tag_id, t.intervention_tag_id, t.step_id,
+        t.etape_tag_id, t.intervention_tag_id, t.step_id, t.archived,
         tc.admin_id, tc.status, tc.duedate,
         u.id AS admin_user_id, u.name AS admin_name, u.avatar_url AS admin_avatar_url
      FROM tasks t
@@ -28,6 +28,7 @@ const fetchTaskShaped = async (taskId, client = { query }) => {
     intervention_tag_id: row.intervention_tag_id,
     step_id: row.step_id,
     created_at: row.created_at,
+    archived: row.archived === true,
     status: row.status || 'À faire',
     duedate: row.duedate,
     admin: row.admin_user_id
@@ -176,7 +177,7 @@ export const updateTask = asyncHandler(async (req, res) => {
   const taskId = req.params.id;
   const {
     name, position, group_id, admin_id, status, duedate, priority, start_date,
-    etape_tag_id, intervention_tag_id, step_id, actor_id,
+    etape_tag_id, intervention_tag_id, step_id, archived, actor_id,
   } = req.body;
 
   const task = await withTransaction(async (client) => {
@@ -200,7 +201,8 @@ export const updateTask = asyncHandler(async (req, res) => {
       start_date !== undefined ||
       etape_tag_id !== undefined ||
       intervention_tag_id !== undefined ||
-      step_id !== undefined
+      step_id !== undefined ||
+      archived !== undefined
     ) {
       await client.query(
         `UPDATE tasks
@@ -211,7 +213,10 @@ export const updateTask = asyncHandler(async (req, res) => {
              start_date = CASE WHEN $6 THEN $5 ELSE start_date END,
              etape_tag_id = CASE WHEN $8 THEN $9 ELSE etape_tag_id END,
              intervention_tag_id = CASE WHEN $10 THEN $11 ELSE intervention_tag_id END,
-             step_id = CASE WHEN $12 THEN $13 ELSE step_id END
+             step_id = CASE WHEN $12 THEN $13 ELSE step_id END,
+             archived = CASE WHEN $14 THEN $15 ELSE archived END,
+             archived_at = CASE WHEN $14 THEN (CASE WHEN $15 THEN now() ELSE NULL END)
+                                ELSE archived_at END
          WHERE id = $7`,
         [
           name ?? null,
@@ -227,6 +232,8 @@ export const updateTask = asyncHandler(async (req, res) => {
           intervention_tag_id ?? null,
           step_id !== undefined,
           step_id ?? null,
+          typeof archived === 'boolean',
+          archived === true,
         ]
       );
     }
@@ -272,6 +279,12 @@ export const updateTask = asyncHandler(async (req, res) => {
       logs.push(['duedate', before.duedate || '—', after.duedate || '—']);
     if (admin_id !== undefined && (before.admin?.id || null) !== (after.admin?.id || null))
       logs.push(['admin', before.admin?.name || 'Personne', after.admin?.name || 'Personne']);
+    if (archived !== undefined && before.archived !== after.archived)
+      logs.push([
+        'archived',
+        before.archived ? 'archivée' : 'active',
+        after.archived ? 'archivée' : 'active',
+      ]);
 
     for (const [action, oldV, newV] of logs) {
       await client.query(

@@ -66,7 +66,8 @@ export default function TaskRow({
     <div
       className={`group flex min-w-max items-stretch border-b border-gray-100 bg-white text-sm transition-shadow hover:bg-gray-50 ${
         isDragging ? 'rotate-[1.5deg] rounded-lg shadow-2xl ring-1 ring-primary/30' : ''
-      }`}
+      } ${task.archived ? 'opacity-60' : ''}`}
+      title={task.archived ? 'Tâche archivée' : undefined}
     >
       {/* Barre de couleur du groupe */}
       <div className="w-1 shrink-0" style={{ backgroundColor: groupColor }} />

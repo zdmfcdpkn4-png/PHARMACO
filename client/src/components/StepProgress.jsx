@@ -5,10 +5,10 @@ import {
   childSteps,
   completedStepIds,
   flattenSteps,
-  indexSteps,
   progressEntry,
   rootSteps,
   stepCounts,
+  stepPath,
   stepPathLabel,
   stepState,
 } from '../lib/steps.js';
@@ -128,9 +128,9 @@ function FriseCompacte({
           <span
             key={s.id}
             title={`${s.name} — ${etat === 'franchi' ? 'franchie' : etat === 'en-cours' ? 'en cours' : 'à venir'}`}
-            className={`h-2 rounded-full ${s.depth === 1 ? 'w-2' : 'w-3.5'} ${
-              etat === 'en-cours' ? 'ring-2 ring-primary/30' : ''
-            }`}
+            className={`h-2 rounded-full ${
+              s.depth === 0 ? 'w-3.5' : s.depth === 1 ? 'w-2' : 'w-1.5'
+            } ${etat === 'en-cours' ? 'ring-2 ring-primary/30' : ''}`}
             style={{ backgroundColor: couleur }}
           />
         );
@@ -190,7 +190,7 @@ function SelecteurEtape({ steps, currentStepId, completed, onSelect }) {
             type="button"
             onClick={() => onSelect(actif ? null : s.id)}
             className={`flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm hover:opacity-90 ${
-              s.depth === 1 ? 'pl-5' : ''
+              s.depth === 1 ? 'pl-5' : s.depth >= 2 ? 'pl-8' : ''
             }`}
             style={{ backgroundColor: actif ? c.bg : 'transparent', color: c.text }}
           >
@@ -218,7 +218,8 @@ function SelecteurEtape({ steps, currentStepId, completed, onSelect }) {
 }
 
 // ---------------------------------------------------------------------------
-//  Variante détaillée : arbre Phase > Étape > Sous-étape, avec franchissement.
+//  Variante détaillée : arbre Étape > Sous-étape > Sous-sous-étape, avec
+//  franchissement de chaque niveau.
 // ---------------------------------------------------------------------------
 function ArbreDetaille({
   steps,
@@ -234,15 +235,13 @@ function ArbreDetaille({
   onSelectStep,
   onToggleStep,
 }) {
-  const map = indexSteps(steps);
-  // L'étape courante est dépliée d'office ; les autres suivent le clic.
-  const racineCourante =
-    currentStepId != null
-      ? map.get(currentStepId)?.parent_id ?? currentStepId
-      : null;
-  const [ouverts, setOuverts] = useState(() =>
-    racineCourante != null ? { [racineCourante]: true } : {}
-  );
+  // Toute la chaîne d'ancêtres de l'étape courante est dépliée d'office — sur
+  // trois niveaux, ouvrir la seule racine ne suffirait pas à la faire voir.
+  const [ouverts, setOuverts] = useState(() => {
+    const etat = {};
+    for (const a of stepPath(steps, currentStepId)) etat[a.id] = true;
+    return etat;
+  });
 
   return (
     <div className="rounded-lg border border-gray-200 bg-gray-50/60 p-3">
@@ -263,44 +262,81 @@ function ArbreDetaille({
       </div>
 
       <ul className="space-y-0.5">
-        {rootSteps(steps).map((racine, i) => {
-          const enfants = childSteps(steps, racine.id);
-          const ouvert = !!ouverts[racine.id];
-          return (
-            <li key={racine.id}>
-              <LigneEtape
-                step={racine}
-                numero={i + 1}
-                etat={stepState(racine, { currentStepId, completed })}
-                entree={progressEntry(progress, taskId, racine.id)}
-                canEdit={canEdit}
-                pliable={enfants.length > 0}
-                ouvert={ouvert}
-                onTogglePli={() => setOuverts((o) => ({ ...o, [racine.id]: !o[racine.id] }))}
-                onSelectStep={onSelectStep}
-                onToggleStep={onToggleStep}
-              />
-              {ouvert && enfants.length > 0 && (
-                <ul className="ml-4 border-l border-gray-200 pl-2">
-                  {enfants.map((enfant) => (
-                    <li key={enfant.id}>
-                      <LigneEtape
-                        step={enfant}
-                        etat={stepState(enfant, { currentStepId, completed })}
-                        entree={progressEntry(progress, taskId, enfant.id)}
-                        canEdit={canEdit}
-                        onSelectStep={onSelectStep}
-                        onToggleStep={onToggleStep}
-                      />
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </li>
-          );
-        })}
+        {rootSteps(steps).map((racine, i) => (
+          <Branche
+            key={racine.id}
+            step={racine}
+            numero={i + 1}
+            steps={steps}
+            completed={completed}
+            currentStepId={currentStepId}
+            progress={progress}
+            taskId={taskId}
+            canEdit={canEdit}
+            ouverts={ouverts}
+            onTogglePli={(id) => setOuverts((o) => ({ ...o, [id]: !o[id] }))}
+            onSelectStep={onSelectStep}
+            onToggleStep={onToggleStep}
+          />
+        ))}
       </ul>
     </div>
+  );
+}
+
+// Une étape et sa descendance. Récursif : les trois niveaux du circuit
+// partagent exactement le même rendu, seule l'indentation s'ajoute.
+function Branche({
+  step,
+  numero = null,
+  steps,
+  completed,
+  currentStepId,
+  progress,
+  taskId,
+  canEdit,
+  ouverts,
+  onTogglePli,
+  onSelectStep,
+  onToggleStep,
+}) {
+  const enfants = childSteps(steps, step.id);
+  const ouvert = !!ouverts[step.id];
+  return (
+    <li>
+      <LigneEtape
+        step={step}
+        numero={numero}
+        etat={stepState(step, { currentStepId, completed })}
+        entree={progressEntry(progress, taskId, step.id)}
+        canEdit={canEdit}
+        pliable={enfants.length > 0}
+        ouvert={ouvert}
+        onTogglePli={() => onTogglePli(step.id)}
+        onSelectStep={onSelectStep}
+        onToggleStep={onToggleStep}
+      />
+      {ouvert && enfants.length > 0 && (
+        <ul className="ml-4 border-l border-gray-200 pl-2">
+          {enfants.map((enfant) => (
+            <Branche
+              key={enfant.id}
+              step={enfant}
+              steps={steps}
+              completed={completed}
+              currentStepId={currentStepId}
+              progress={progress}
+              taskId={taskId}
+              canEdit={canEdit}
+              ouverts={ouverts}
+              onTogglePli={onTogglePli}
+              onSelectStep={onSelectStep}
+              onToggleStep={onToggleStep}
+            />
+          ))}
+        </ul>
+      )}
+    </li>
   );
 }
 
