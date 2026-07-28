@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { Fragment, useMemo, useState } from 'react';
 import { ChevronDown, ChevronRight, Plus, Trash2, GripVertical } from 'lucide-react';
 import { Droppable, Draggable } from '@hello-pangea/dnd';
 import TaskRow from './TaskRow.jsx';
@@ -7,6 +7,7 @@ import GroupSummary from './GroupSummary.jsx';
 import AddColumnButton from './AddColumnButton.jsx';
 import TagCell from './TagCell.jsx';
 import { minColWidth } from '../lib/constants.js';
+import { flattenSteps, rootStepOf } from '../lib/steps.js';
 
 // Poignée de redimensionnement (bord droit d'une colonne).
 // Glisser = ajuster ; double-clic = réinitialiser la largeur par défaut.
@@ -76,6 +77,8 @@ export default function GroupTable({
   onSetCategoryValue,
   tags = [],
   onChangeTaskTag,
+  steps = [],
+  groupByStep = false,
   onCreateSubtask,
   onUpdateSubtask,
   onDeleteSubtask,
@@ -94,6 +97,7 @@ export default function GroupTable({
   };
   const [collapsed, setCollapsed] = useState(false);
   const [expanded, setExpanded] = useState({}); // sous-items développés par task id
+  const [collapsedSteps, setCollapsedSteps] = useState({}); // sections d'étape repliées
   const [adding, setAdding] = useState(false);
   const [newName, setNewName] = useState('');
   const [editingTitle, setEditingTitle] = useState(false);
@@ -103,6 +107,26 @@ export default function GroupTable({
     ? [...group.tasks].filter(filterFn).sort(sortFn)
     : group.tasks.filter(filterFn);
 
+  // Regroupement par étape : les tâches sont réparties selon l'étape de
+  // premier niveau dont dépend leur étape courante, dans l'ordre du circuit.
+  // Les tâches non rattachées tombent dans une section « Sans étape ».
+  const sections = useMemo(() => {
+    if (!groupByStep) return null;
+    const racines = flattenSteps(steps).filter((s) => s.depth === 0);
+    const parRacine = new Map(racines.map((s) => [s.id, []]));
+    const sansEtape = [];
+    for (const t of tasks) {
+      const racine = rootStepOf(steps, t.step_id);
+      if (racine && parRacine.has(racine.id)) parRacine.get(racine.id).push(t);
+      else sansEtape.push(t);
+    }
+    const out = racines
+      .map((s) => ({ step: s, tasks: parRacine.get(s.id) }))
+      .filter((sec) => sec.tasks.length > 0);
+    if (sansEtape.length) out.push({ step: null, tasks: sansEtape });
+    return out;
+  }, [groupByStep, steps, tasks]);
+
   const submitNew = () => {
     const name = newName.trim();
     if (name) onAddTask(name);
@@ -111,6 +135,60 @@ export default function GroupTable({
   };
 
   const groupDragging = groupDragSnapshot?.isDragging;
+
+  // Rendu d'une ligne (tâche + ses sous-items dépliés). Factorisé pour être
+  // identique dans les deux modes d'affichage — à plat ou groupé par étape.
+  // En mode groupé, dragProvided/dragSnapshot sont absents : TaskRow masque
+  // alors la poignée puisque dragEnabled est false.
+  const renderTaskRow = (task, dragProvided = null, dragSnapshot = null) => (
+    <Fragment key={task.id}>
+      <TaskRow
+        task={task}
+        users={users}
+        groupColor={group.color}
+        selected={selectedIds.has(task.id)}
+        dragEnabled={dragEnabled}
+        dragHandleProps={dragProvided?.dragHandleProps}
+        dragSnapshot={dragSnapshot}
+        commentCount={commentCounts[task.id] || 0}
+        subtaskCount={(task.subtasks || []).length}
+        expanded={!!expanded[task.id]}
+        onToggleExpand={() => setExpanded((e) => ({ ...e, [task.id]: !e[task.id] }))}
+        onToggleSelect={() => onToggleSelect(task.id)}
+        onRename={(name) => onRenameTask(task.id, name)}
+        onChangeStatus={(status) => onChangeStatus(task.id, status)}
+        onChangePriority={(priority) => onChangePriority(task.id, priority)}
+        onAssign={(adminId) => onAssign(task.id, adminId)}
+        onSetAssignees={(ids) => onSetAssignees?.(task.id, ids)}
+        onChangeDate={(date) => onChangeDate(task.id, date)}
+        onDelete={() => onDeleteTask(task.id)}
+        canDelete={canDeleteTask ? canDeleteTask(task) : true}
+        onOpenDrawer={(tabKey) => onOpenDrawer?.(task, tabKey)}
+        onOpenDetail={() => onOpenDetail?.(task)}
+        categories={categories}
+        categoryValue={categoryValue}
+        onSetCategoryValue={onSetCategoryValue}
+        tags={tags}
+        onChangeTag={(field, tagId) => onChangeTaskTag?.(task.id, field, tagId)}
+        getColWidth={getColWidth}
+        canEdit={canEdit}
+      />
+      {expanded[task.id] && (
+        <SubtaskList
+          parentId={task.id}
+          subtasks={task.subtasks || []}
+          users={users}
+          groupColor={group.color}
+          canEdit={canEdit}
+          onCreate={onCreateSubtask}
+          onUpdate={onUpdateSubtask}
+          onDelete={onDeleteSubtask}
+          onSetAssignees={onSetSubtaskAssignees}
+          tags={tags}
+        />
+      )}
+    </Fragment>
+  );
 
   return (
     <section
@@ -239,7 +317,12 @@ export default function GroupTable({
             )}
           </div>
 
-          {/* Lignes de tâches (zone de dépôt) */}
+          {/* Lignes de tâches (zone de dépôt).
+              En mode « groupé par étape », les lignes sont rendues SANS
+              <Draggable> : l'ordre affiché ne correspond plus à group.tasks,
+              et handleDragEnd raisonne sur les index de la liste brute. Le
+              glisser-déposer est donc désactivé, exactement comme il l'est
+              déjà quand un filtre ou un tri est actif (cf. dragEnabled). */}
           <Droppable droppableId={String(group.id)} type="TASK">
             {(provided, snapshot) => (
               <div
@@ -247,66 +330,60 @@ export default function GroupTable({
                 {...provided.droppableProps}
                 className={snapshot.isDraggingOver ? 'bg-primary-light/40' : ''}
               >
-                {tasks.map((task, index) => (
-                  <Draggable
-                    key={task.id}
-                    draggableId={String(task.id)}
-                    index={index}
-                    isDragDisabled={!dragEnabled}
-                  >
-                    {(dragProvided, dragSnapshot) => (
-                      <div ref={dragProvided.innerRef} {...dragProvided.draggableProps}>
-                        <TaskRow
-                          task={task}
-                          users={users}
-                          groupColor={group.color}
-                          selected={selectedIds.has(task.id)}
-                          dragEnabled={dragEnabled}
-                          dragHandleProps={dragProvided.dragHandleProps}
-                          dragSnapshot={dragSnapshot}
-                          commentCount={commentCounts[task.id] || 0}
-                          subtaskCount={(task.subtasks || []).length}
-                          expanded={!!expanded[task.id]}
-                          onToggleExpand={() =>
-                            setExpanded((e) => ({ ...e, [task.id]: !e[task.id] }))
-                          }
-                          onToggleSelect={() => onToggleSelect(task.id)}
-                          onRename={(name) => onRenameTask(task.id, name)}
-                          onChangeStatus={(status) => onChangeStatus(task.id, status)}
-                          onChangePriority={(priority) => onChangePriority(task.id, priority)}
-                          onAssign={(adminId) => onAssign(task.id, adminId)}
-                          onSetAssignees={(ids) => onSetAssignees?.(task.id, ids)}
-                          onChangeDate={(date) => onChangeDate(task.id, date)}
-                          onDelete={() => onDeleteTask(task.id)}
-                          canDelete={canDeleteTask ? canDeleteTask(task) : true}
-                          onOpenDrawer={(tabKey) => onOpenDrawer?.(task, tabKey)}
-                          onOpenDetail={() => onOpenDetail?.(task)}
-                          categories={categories}
-                          categoryValue={categoryValue}
-                          onSetCategoryValue={onSetCategoryValue}
-                          tags={tags}
-                          onChangeTag={(field, tagId) => onChangeTaskTag?.(task.id, field, tagId)}
-                          getColWidth={getColWidth}
-                          canEdit={canEdit}
-                        />
-                        {expanded[task.id] && (
-                          <SubtaskList
-                            parentId={task.id}
-                            subtasks={task.subtasks || []}
-                            users={users}
-                            groupColor={group.color}
-                            canEdit={canEdit}
-                            onCreate={onCreateSubtask}
-                            onUpdate={onUpdateSubtask}
-                            onDelete={onDeleteSubtask}
-                            onSetAssignees={onSetSubtaskAssignees}
-                            tags={tags}
-                          />
+                {sections
+                  ? sections.map((sec) => {
+                      const cle = sec.step ? sec.step.id : 'sans-etape';
+                      const ouvert = !collapsedSteps[cle];
+                      return (
+                        <div key={cle} className="print-group">
+                          {/* En-tête de section d'étape : même gabarit de ligne
+                              que le tableau, pour rester aligné dans le
+                              conteneur à défilement horizontal. */}
+                          <div className="flex min-w-max items-stretch border-b border-gray-100 bg-gray-50">
+                            <div
+                              className="w-1 shrink-0"
+                              style={{ backgroundColor: group.color }}
+                            />
+                            <div className="w-6 shrink-0" />
+                            <div className="flex flex-1 items-center gap-2 py-1.5 pl-2 pr-4">
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setCollapsedSteps((c) => ({ ...c, [cle]: !c[cle] }))
+                                }
+                                title={ouvert ? "Replier l'étape" : "Déplier l'étape"}
+                                className="no-print rounded p-0.5 text-gray-400 hover:bg-gray-200"
+                              >
+                                {ouvert ? <ChevronDown size={15} /> : <ChevronRight size={15} />}
+                              </button>
+                              <span
+                                className="h-2.5 w-2.5 shrink-0 rounded-full"
+                                style={{ backgroundColor: sec.step ? sec.step.color : '#9aadbd' }}
+                              />
+                              <span className="truncate text-sm font-medium text-gray-700">
+                                {sec.step ? sec.step.name : 'Sans étape'}
+                              </span>
+                              <span className="text-xs text-gray-400">{sec.tasks.length}</span>
+                            </div>
+                          </div>
+                          {ouvert && sec.tasks.map((task) => renderTaskRow(task))}
+                        </div>
+                      );
+                    })
+                  : tasks.map((task, index) => (
+                      <Draggable
+                        key={task.id}
+                        draggableId={String(task.id)}
+                        index={index}
+                        isDragDisabled={!dragEnabled}
+                      >
+                        {(dragProvided, dragSnapshot) => (
+                          <div ref={dragProvided.innerRef} {...dragProvided.draggableProps}>
+                            {renderTaskRow(task, dragProvided, dragSnapshot)}
+                          </div>
                         )}
-                      </div>
-                    )}
-                  </Draggable>
-                ))}
+                      </Draggable>
+                    ))}
                 {provided.placeholder}
               </div>
             )}

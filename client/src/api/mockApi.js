@@ -62,6 +62,23 @@ const board1 = {
     { id: 705, board_id: 1, name: 'Rapport / Synthèse', color: '#0073ea', tag_type: 'intervention' },
     { id: 706, board_id: 1, name: 'Logistique', color: '#fdab3d', tag_type: 'intervention' },
   ],
+  // Circuit d'intervention : étapes ordonnées (parent_id null) et leurs
+  // sous-étapes. Le mode démo doit montrer la fonctionnalité complète.
+  steps: [
+    { id: 801, board_id: 1, parent_id: null, name: 'Cadrage', color: '#005586', position: 0, is_terminal: false },
+    { id: 802, board_id: 1, parent_id: null, name: 'Production', color: '#46b4b3', position: 1, is_terminal: false },
+    { id: 803, board_id: 1, parent_id: null, name: 'Contrôle', color: '#f4c137', position: 2, is_terminal: false },
+    { id: 804, board_id: 1, parent_id: null, name: 'Libération', color: '#e82a63', position: 3, is_terminal: true },
+    { id: 811, board_id: 1, parent_id: 802, name: 'Ajustement technique', color: '#46b4b3', position: 0, is_terminal: false },
+    { id: 812, board_id: 1, parent_id: 802, name: 'Logistique', color: '#46b4b3', position: 1, is_terminal: false },
+    { id: 813, board_id: 1, parent_id: 803, name: 'Rapport / Synthèse', color: '#f4c137', position: 0, is_terminal: false },
+  ],
+  stepProgress: [
+    { task_id: 11, step_id: 801, completed_at: daysAgo(3), completed_by: 1, note: null },
+    { task_id: 12, step_id: 801, completed_at: daysAgo(5), completed_by: 2, note: null },
+    { task_id: 12, step_id: 802, completed_at: daysAgo(2), completed_by: 2, note: null },
+    { task_id: 14, step_id: 801, completed_at: daysAgo(6), completed_by: 1, note: null },
+  ],
   groups: [
     {
       id: 1,
@@ -70,15 +87,15 @@ const board1 = {
       color: '#579bfc',
       position: 0,
       tasks: [
-        { id: 11, group_id: 1, name: 'Tâche 1', position: 0, status: 'En cours', priority: 'P1 - Urgent', start_date: weekday(0), duedate: weekday(2), created_at: daysAgo(10), admin: adminShape(1), assignees: [adminShape(1), adminShape(2)], etape_tag_id: 701, intervention_tag_id: null, subtasks: [
+        { id: 11, group_id: 1, name: 'Tâche 1', position: 0, status: 'En cours', priority: 'P1 - Urgent', start_date: weekday(0), duedate: weekday(2), created_at: daysAgo(10), admin: adminShape(1), assignees: [adminShape(1), adminShape(2)], etape_tag_id: 701, step_id: 801, intervention_tag_id: null, subtasks: [
           { id: 510, parent_task_id: 11, name: 'Préparer le dossier', position: 0, status: 'Fait', duedate: weekday(0), admin: adminShape(1), etape_tag_id: 701, intervention_tag_id: 705 },
           { id: 511, parent_task_id: 11, name: 'Valider avec Alice', position: 1, status: 'En cours', duedate: weekday(1), admin: adminShape(2), etape_tag_id: null, intervention_tag_id: 706 },
         ] },
-        { id: 12, group_id: 1, name: 'Tâche 2', position: 1, status: 'Fait', priority: 'P3 - Normal', start_date: weekday(1), duedate: weekday(3), created_at: daysAgo(9), admin: adminShape(2) },
-        { id: 13, group_id: 1, name: 'Tâche 3', position: 2, status: 'Bloqué', priority: 'P2 - Élevé', start_date: weekday(2), duedate: weekday(4), created_at: daysAgo(7), admin: null },
+        { id: 12, group_id: 1, name: 'Tâche 2', position: 1, status: 'Fait', priority: 'P3 - Normal', start_date: weekday(1), duedate: weekday(3), created_at: daysAgo(9), admin: adminShape(2), step_id: 802 },
+        { id: 13, group_id: 1, name: 'Tâche 3', position: 2, status: 'Bloqué', priority: 'P2 - Élevé', start_date: weekday(2), duedate: weekday(4), created_at: daysAgo(7), admin: null, step_id: 811 },
         // Erwin chargé sur mardi (pour illustrer la saturation > 3)
-        { id: 14, group_id: 1, name: 'Audit qualité', position: 3, status: 'En cours', priority: 'P2 - Élevé', start_date: weekday(1), duedate: weekday(1), created_at: daysAgo(5), admin: adminShape(1) },
-        { id: 15, group_id: 1, name: 'Revue lots', position: 4, status: 'À faire', priority: 'P3 - Normal', start_date: weekday(3), duedate: weekday(5), created_at: daysAgo(3), admin: adminShape(1) },
+        { id: 14, group_id: 1, name: 'Audit qualité', position: 3, status: 'En cours', priority: 'P2 - Élevé', start_date: weekday(1), duedate: weekday(1), created_at: daysAgo(5), admin: adminShape(1), step_id: 803 },
+        { id: 15, group_id: 1, name: 'Revue lots', position: 4, status: 'À faire', priority: 'P3 - Normal', start_date: weekday(3), duedate: weekday(5), created_at: daysAgo(3), admin: adminShape(1), step_id: 813 },
         { id: 16, group_id: 1, name: 'Contrôle péremption', position: 5, status: 'En cours', priority: 'P3 - Normal', start_date: weekday(0), duedate: weekday(1), created_at: daysAgo(1), admin: adminShape(1) },
       ],
     },
@@ -110,6 +127,12 @@ const board2 = {
     { id: 752, board_id: 2, name: 'Réception', color: '#00c875', tag_type: 'etape' },
     { id: 753, board_id: 2, name: 'Urgent fournisseur', color: '#e2445c', tag_type: 'intervention' },
   ],
+  steps: [
+    { id: 851, board_id: 2, parent_id: null, name: 'Commande', color: '#005586', position: 0, is_terminal: false },
+    { id: 852, board_id: 2, parent_id: null, name: 'Réception', color: '#46b4b3', position: 1, is_terminal: true },
+    { id: 861, board_id: 2, parent_id: 851, name: 'Urgent fournisseur', color: '#e82a63', position: 0, is_terminal: false },
+  ],
+  stepProgress: [],
   groups: [
     {
       id: 21,
@@ -118,8 +141,8 @@ const board2 = {
       color: '#fdab3d',
       position: 0,
       tasks: [
-        { id: 211, group_id: 21, name: 'Commande antibiotiques', position: 0, status: 'À faire', priority: 'P2 - Élevé', start_date: weekday(0), duedate: weekday(3), created_at: daysAgo(4), admin: adminShape(3), assignees: [adminShape(3)], etape_tag_id: 751, intervention_tag_id: null, subtasks: [] },
-        { id: 212, group_id: 21, name: 'Inventaire mensuel', position: 1, status: 'En cours', priority: 'P3 - Normal', start_date: weekday(1), duedate: weekday(4), created_at: daysAgo(3), admin: adminShape(4), assignees: [adminShape(4)], etape_tag_id: null, intervention_tag_id: 753, subtasks: [] },
+        { id: 211, group_id: 21, name: 'Commande antibiotiques', position: 0, status: 'À faire', priority: 'P2 - Élevé', start_date: weekday(0), duedate: weekday(3), created_at: daysAgo(4), admin: adminShape(3), assignees: [adminShape(3)], etape_tag_id: 751, step_id: 851, intervention_tag_id: null, subtasks: [] },
+        { id: 212, group_id: 21, name: 'Inventaire mensuel', position: 1, status: 'En cours', priority: 'P3 - Normal', start_date: weekday(1), duedate: weekday(4), created_at: daysAgo(3), admin: adminShape(4), assignees: [adminShape(4)], etape_tag_id: null, step_id: 861, intervention_tag_id: 753, subtasks: [] },
       ],
     },
     {
@@ -129,7 +152,7 @@ const board2 = {
       color: '#00c875',
       position: 1,
       tasks: [
-        { id: 221, group_id: 22, name: 'Réception solutés', position: 0, status: 'Fait', priority: 'P3 - Normal', start_date: weekday(-2), duedate: weekday(0), created_at: daysAgo(6), admin: adminShape(3), assignees: [adminShape(3)], etape_tag_id: 752, intervention_tag_id: null, subtasks: [] },
+        { id: 221, group_id: 22, name: 'Réception solutés', position: 0, status: 'Fait', priority: 'P3 - Normal', start_date: weekday(-2), duedate: weekday(0), created_at: daysAgo(6), admin: adminShape(3), assignees: [adminShape(3)], etape_tag_id: 752, step_id: 852, intervention_tag_id: null, subtasks: [] },
       ],
     },
   ],
@@ -361,6 +384,9 @@ export const mockApi = {
       const found = boards.find((b) => b.id === Number(id));
       if (found) board = found;
     }
+    // Garantit le circuit d'intervention même sur un projet créé avant lui.
+    if (!board.steps) board.steps = [];
+    if (!board.stepProgress) board.stepProgress = [];
     // Garantit subtasks + assignees (dérivés de admin si absents)
     for (const g of board.groups)
       for (const t of g.tasks) {
@@ -398,6 +424,8 @@ export const mockApi = {
       categories: [],
       categoryValues: [],
       tags: [],
+      steps: [],
+      stepProgress: [],
       groups: [
         { id: uid(), board_id: 0, name: 'À faire', color: '#579bfc', position: 0, tasks: [] },
         { id: uid(), board_id: 0, name: 'Terminé', color: '#00c875', position: 1, tasks: [] },
@@ -514,6 +542,7 @@ export const mockApi = {
     if (patch.duedate !== undefined) sub.duedate = patch.duedate;
     if (patch.etape_tag_id !== undefined) sub.etape_tag_id = patch.etape_tag_id;
     if (patch.intervention_tag_id !== undefined) sub.intervention_tag_id = patch.intervention_tag_id;
+    if (patch.step_id !== undefined) sub.step_id = patch.step_id;
     if (patch.admin_id !== undefined) sub.admin = patch.admin_id ? adminShape(patch.admin_id) : null;
 
     // Auto-complétion : tous les sous-items "Fait" -> parent "Fait"
@@ -590,6 +619,124 @@ export const mockApi = {
           if (s.intervention_tag_id === id) s.intervention_tag_id = null;
         }
       }
+  },
+
+  // ---------------------------------------------------------------------
+  //  Circuit d'intervention (étapes / sous-étapes)
+  //  Reproduit à l'identique le comportement de steps.controller.js :
+  //  profondeur limitée à deux niveaux, parent du même projet, cascade.
+  // ---------------------------------------------------------------------
+  async getSteps(boardId) {
+    await delay(30);
+    const target = boards.find((b) => b.id === Number(boardId)) || board;
+    return clone([...(target.steps || [])].sort((a, b) => a.position - b.position || a.id - b.id));
+  },
+
+  async createStep(boardId, { name, color, parent_id = null, is_terminal = false }) {
+    await delay(50);
+    const target = boards.find((b) => b.id === Number(boardId)) || board;
+    if (!target.steps) target.steps = [];
+    if (!name || !name.trim()) throw new Error('name est requis');
+    if (parent_id != null) {
+      const parent = target.steps.find((s) => s.id === Number(parent_id));
+      if (!parent) throw new Error('Étape parente introuvable');
+      if (parent.parent_id != null) {
+        throw new Error('Le circuit est limité à deux niveaux (étape puis sous-étape)');
+      }
+    }
+    const freres = target.steps.filter((s) => (s.parent_id ?? null) === (parent_id ?? null));
+    const step = {
+      id: uid(),
+      board_id: target.id,
+      parent_id: parent_id ?? null,
+      name: name.trim(),
+      color: color || '#005586',
+      position: freres.reduce((m, s) => Math.max(m, s.position), -1) + 1,
+      is_terminal: is_terminal === true,
+    };
+    target.steps.push(step);
+    return clone(step);
+  },
+
+  async updateStep(id, patch) {
+    await delay(40);
+    const step = (board.steps || []).find((s) => s.id === id);
+    if (!step) throw new Error('Étape introuvable');
+    if (patch.parent_id !== undefined) {
+      const pid = patch.parent_id == null ? null : Number(patch.parent_id);
+      if (pid === step.id) throw new Error('Une étape ne peut pas être sa propre parente');
+      if (pid != null) {
+        const parent = (board.steps || []).find((s) => s.id === pid);
+        if (!parent) throw new Error('Étape parente introuvable');
+        if (parent.parent_id != null) {
+          throw new Error('Le circuit est limité à deux niveaux (étape puis sous-étape)');
+        }
+        if ((board.steps || []).some((s) => s.parent_id === step.id)) {
+          throw new Error(
+            'Cette étape porte des sous-étapes : elle ne peut pas devenir elle-même une sous-étape'
+          );
+        }
+      }
+      step.parent_id = pid;
+    }
+    if (patch.name != null && String(patch.name).trim()) step.name = String(patch.name).trim();
+    if (patch.color) step.color = patch.color;
+    if (patch.position != null) step.position = Number(patch.position);
+    if (typeof patch.is_terminal === 'boolean') step.is_terminal = patch.is_terminal;
+    return clone(step);
+  },
+
+  async deleteStep(id) {
+    await delay(40);
+    if (!board.steps) board.steps = [];
+    // Cascade : l'étape et ses sous-étapes disparaissent ensemble.
+    const supprimes = new Set([id]);
+    for (const s of board.steps) if (s.parent_id === id) supprimes.add(s.id);
+    board.steps = board.steps.filter((s) => !supprimes.has(s.id));
+    board.stepProgress = (board.stepProgress || []).filter((p) => !supprimes.has(p.step_id));
+    // Détache l'étape des tâches et sous-items (ON DELETE SET NULL).
+    for (const g of board.groups)
+      for (const t of g.tasks) {
+        if (supprimes.has(t.step_id)) t.step_id = null;
+        for (const s of t.subtasks || []) if (supprimes.has(s.step_id)) s.step_id = null;
+      }
+  },
+
+  async reorderSteps(items) {
+    await delay(40);
+    if (!Array.isArray(items)) throw new Error('items doit être un tableau');
+    for (const it of items) {
+      const step = (board.steps || []).find((s) => s.id === Number(it.id));
+      if (!step) continue;
+      if (Number(it.parent_id) === step.id) {
+        throw new Error('Une étape ne peut pas être sa propre parente');
+      }
+      step.parent_id = it.parent_id == null ? null : Number(it.parent_id);
+      step.position = Number(it.position);
+    }
+    return { ok: true, updated: items.length };
+  },
+
+  async setStepProgress(task_id, step_id, completed = true, actor_id = null, note = null) {
+    await delay(40);
+    if (!board.stepProgress) board.stepProgress = [];
+    const idx = board.stepProgress.findIndex(
+      (p) => p.task_id === Number(task_id) && p.step_id === Number(step_id)
+    );
+    if (!completed) {
+      if (idx >= 0) board.stepProgress.splice(idx, 1);
+      return null;
+    }
+    const ligne = {
+      task_id: Number(task_id),
+      step_id: Number(step_id),
+      completed_at: new Date().toISOString(),
+      completed_by: actor_id ?? null,
+      note: note ?? (idx >= 0 ? board.stepProgress[idx].note : null),
+    };
+    if (idx >= 0) board.stepProgress[idx] = ligne;
+    else board.stepProgress.push(ligne);
+    return clone(ligne);
   },
 
   async getTeams() {
@@ -809,6 +956,7 @@ export const mockApi = {
     if (patch.start_date !== undefined) task.start_date = patch.start_date;
     if (patch.etape_tag_id !== undefined) task.etape_tag_id = patch.etape_tag_id;
     if (patch.intervention_tag_id !== undefined) task.intervention_tag_id = patch.intervention_tag_id;
+    if (patch.step_id !== undefined) task.step_id = patch.step_id;
     if (patch.admin_id !== undefined) task.admin = patch.admin_id ? adminShape(patch.admin_id) : null;
     if (patch.position !== undefined) task.position = patch.position;
     // Déplacement vers un autre groupe (même comportement que le serveur).

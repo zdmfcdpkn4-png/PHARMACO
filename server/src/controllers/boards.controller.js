@@ -46,6 +46,7 @@ export const getBoardFull = asyncHandler(async (req, res) => {
         t.start_date,
         t.etape_tag_id,
         t.intervention_tag_id,
+        t.step_id,
         t.created_at,
         tc.admin_id,
         tc.status,
@@ -74,6 +75,7 @@ export const getBoardFull = asyncHandler(async (req, res) => {
       start_date: row.start_date,
       etape_tag_id: row.etape_tag_id,
       intervention_tag_id: row.intervention_tag_id,
+      step_id: row.step_id,
       created_at: row.created_at,
       status: row.status || 'À faire',
       duedate: row.duedate,
@@ -93,7 +95,7 @@ export const getBoardFull = asyncHandler(async (req, res) => {
   // Sous-items de toutes les tâches du board
   const subsRes = await query(
     `SELECT s.id, s.parent_task_id, s.name, s.position,
-            s.etape_tag_id, s.intervention_tag_id,
+            s.etape_tag_id, s.intervention_tag_id, s.step_id,
             c.status, c.duedate,
             u.id AS admin_user_id, u.name AS admin_name, u.avatar_url AS admin_avatar_url
      FROM sub_tasks s
@@ -116,6 +118,7 @@ export const getBoardFull = asyncHandler(async (req, res) => {
       duedate: r.duedate,
       etape_tag_id: r.etape_tag_id,
       intervention_tag_id: r.intervention_tag_id,
+      step_id: r.step_id,
       admin: r.admin_user_id
         ? { id: r.admin_user_id, name: r.admin_name, avatar_url: r.admin_avatar_url }
         : null,
@@ -204,6 +207,25 @@ export const getBoardFull = asyncHandler(async (req, res) => {
     [boardId]
   );
 
+  // Circuit d'intervention : étapes ordonnées + franchissements.
+  // Les deux requêtes sont indépendantes : on les lance de front pour ne pas
+  // rallonger la chaîne d'allers-retours déjà longue de cette route.
+  const [stepsRes, progressRes] = await Promise.all([
+    query(
+      `SELECT id, board_id, parent_id, name, color, position, is_terminal
+         FROM intervention_steps WHERE board_id = $1 ORDER BY position, id`,
+      [boardId]
+    ),
+    query(
+      `SELECT p.task_id, p.step_id, p.completed_at, p.completed_by
+         FROM task_step_progress p
+         JOIN tasks t  ON t.id = p.task_id
+         JOIN groups g ON g.id = t.group_id
+        WHERE g.board_id = $1`,
+      [boardId]
+    ),
+  ]);
+
   // Équipes impliquées dans ce projet (avec leurs membres)
   const projTeamsRes = await query(
     `SELECT t.id, t.name, t.description
@@ -234,6 +256,8 @@ export const getBoardFull = asyncHandler(async (req, res) => {
     categories: catsRes.rows,
     categoryValues: valsRes.rows,
     tags: tagsRes.rows,
+    steps: stepsRes.rows,
+    stepProgress: progressRes.rows,
     teams: involvedTeams,
   });
 });
@@ -266,9 +290,11 @@ export const createBoard = asyncHandler(async (req, res) => {
       wsId = created.rows[0].id;
     }
 
+    // steps_seeded_at est renseigné dès la création : un projet neuf n'a pas
+    // d'étiquettes à reprendre, la reprise du schéma doit donc l'ignorer.
     const { rows } = await client.query(
-      `INSERT INTO boards (workspace_id, name, description, created_by, color, icon)
-       VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
+      `INSERT INTO boards (workspace_id, name, description, created_by, color, icon, steps_seeded_at)
+       VALUES ($1, $2, $3, $4, $5, $6, now()) RETURNING *`,
       [wsId, name, description || null, created_by || null, color || null, icon || null]
     );
     // Groupes de départ (comportement identique au mode démo) : un projet

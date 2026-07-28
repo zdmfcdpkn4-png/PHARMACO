@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Check, Plus, X } from 'lucide-react';
 
 // Convertit une couleur hex en versions pastel (fond) + soutenue (texte).
-function pastel(hex) {
+export function pastel(hex) {
   const h = (hex || '#579bfc').replace('#', '');
   const r = parseInt(h.slice(0, 2), 16);
   const g = parseInt(h.slice(2, 4), 16);

@@ -2,6 +2,7 @@ import { useRef, useState } from 'react';
 import { MessageSquare, Check, CheckCircle2, Circle } from 'lucide-react';
 import Avatar from './Avatar.jsx';
 import { TagPill } from './TagCell.jsx';
+import StepProgress from './StepProgress.jsx';
 import { STATUS_META, PRIORITY_META, formatShortDate } from '../lib/constants.js';
 
 // Carte de tâche mobile avec gestes : swipe droite = commentaires,
@@ -10,6 +11,8 @@ export default function TaskCard({
   task,
   groupColor,
   tags = [],
+  steps = [],
+  stepProgress = [],
   commentCount = 0,
   selectionMode,
   selected,
@@ -180,6 +183,21 @@ export default function TaskCard({
             <div className="mt-2 flex flex-wrap gap-1.5">
               <TagPill tag={tags.find((t) => t.id === task.etape_tag_id)} />
               <TagPill tag={tags.find((t) => t.id === task.intervention_tag_id)} />
+            </div>
+          )}
+
+          {/* Ligne 4 : position dans le circuit d'intervention (lecture seule ;
+              le franchissement se fait depuis la fiche de tâche). */}
+          {steps.length > 0 && (
+            <div className="mt-2">
+              <StepProgress
+                variant="compact"
+                steps={steps}
+                taskId={task.id}
+                currentStepId={task.step_id ?? null}
+                progress={stepProgress}
+                canEdit={false}
+              />
             </div>
           )}
         </div>

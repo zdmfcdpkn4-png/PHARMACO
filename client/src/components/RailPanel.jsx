@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import Avatar from './Avatar.jsx';
 import TagConfig from './TagConfig.jsx';
+import StepEditor from './StepEditor.jsx';
 
 const ROLE_LABELS = { member: 'Membre', admin: 'Admin', viewer: 'Observateur' };
 
@@ -328,6 +329,12 @@ export default function RailPanel({
   canManage = true,
   onCreateTag,
   onDeleteTag,
+  steps = [],
+  canDeleteStep = false,
+  onCreateStep,
+  onUpdateStep,
+  onDeleteStep,
+  onReorderSteps,
 }) {
   const config = {
     Agents: {
@@ -362,6 +369,21 @@ export default function RailPanel({
                 canManage={canManage}
                 onCreate={onCreateTag}
                 onDelete={onDeleteTag}
+              />
+            </div>
+          )}
+
+          {/* Configuration du circuit d'intervention */}
+          {onCreateStep && (
+            <div className="mt-5 border-t border-gray-100 pt-4">
+              <StepEditor
+                steps={steps}
+                canManage={canManage}
+                canDelete={canDeleteStep}
+                onCreate={onCreateStep}
+                onUpdate={onUpdateStep}
+                onDelete={onDeleteStep}
+                onReorder={onReorderSteps}
               />
             </div>
           )}

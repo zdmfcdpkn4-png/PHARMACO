@@ -88,7 +88,7 @@ assumées, dont la roadmap propose l'amortissement progressif, sans réécriture
 ```
 client/src        12 676 lignes    41 composants   169 useState (tous fichiers)
 server/src         2 686 lignes    15 contrôleurs, 11 routeurs, 49 endpoints
-server/db/schema.sql  358 lignes    22 tables, 5 énumérations, 20 index
+server/db/schema.sql  ~480 lignes   24 tables, 5 énumérations, 26 index
 ```
 
 Les plus gros fichiers concentrent le risque de maintenance :
@@ -192,7 +192,7 @@ Transverse : users, teams, team_members, alerts, sidebar_shortcuts,
              task_dependencies (:318), activity_log (:332)
 ```
 
-22 tables, 20 index, 5 énumérations, 1 déclencheur (`set_updated_at` sur `task_columns`).
+24 tables, 26 index, 5 énumérations, 1 déclencheur (`set_updated_at` sur `task_columns`).
 
 ### Correspondance avec le vocabulaire métier demandé
 
@@ -204,8 +204,8 @@ Transverse : users, teams, team_members, alerts, sidebar_shortcuts,
 | Item | `tasks` | ✅ |
 | Colonnes | `task_columns` (figées) + `custom_categories`/`custom_values` (libres) | ⚠️ modèle hybride, 4 types |
 | **Phase de projet** | assimilée au **groupe** | ⚠️ implicite, sans dates ni jalons |
-| **Étape d'intervention** | `project_tags` (`tag_type = 'etape'`) | ❌ étiquette plate, **sans ordre** (pas de `position`) |
-| **Sous-étape / type secondaire** | `project_tags` (`tag_type = 'intervention'`) | ❌ étiquette indépendante, **aucun lien de parenté** |
+| **Étape d'intervention** | `intervention_steps` (niveau 1, ordonné) | ✅ **livré** — `project_tags` conservé en cohabitation |
+| **Sous-étape / type secondaire** | `intervention_steps` (`parent_id`) | ✅ **livré** — parenté garantie en base (FK composite) |
 | Sous-item | `sub_tasks` | ⚠️ un seul niveau, et fortement incomplet (voir plus bas) |
 
 **C'est le point structurant de cet audit.** Les notions d'*étape* et de
@@ -643,7 +643,7 @@ en phase 1.
 
 | # | Bug | Référence | Impact |
 |---|---|---|---|
-| B1 | **La suppression et la recoloration des étiquettes Étape/Type sont impossibles depuis l'interface.** `TagConfig` n'existe que dans `RailPanel` en mode `'Agents'`, or `onSelectRail` n'est jamais appelé qu'avec `'Favoris'` | `RailPanel.jsx:333-370`, `Sidebar.jsx:293` | fort |
+| ~~B1~~ | ~~La suppression des étiquettes Étape/Type est impossible depuis l'interface : `TagConfig` n'existe que dans `RailPanel` en mode `'Agents'`, or `onSelectRail` n'est jamais appelé qu'avec `'Favoris'`.~~ **Corrigé** : entrée de rail « Agents & étiquettes » ajoutée (`Sidebar.jsx`). | `RailPanel.jsx`, `Sidebar.jsx` | ~~fort~~ |
 | B2 | **La vue « charge d'équipe » globale est inatteignable** : `setView('workload')` n'est appelé nulle part | `App.jsx:125,1569,1932` | fort |
 | B3 | **Création de dépendance en *fire-and-forget*** : appel sans `await` ni `catch`, et handler sans `try/catch`. Un 409 « dépendance circulaire » provoque une *unhandled rejection*, rien n'est signalé, et la flèche optimiste reste affichée | `GanttChartView.jsx:181-183`, `App.jsx:839-851` | fort |
 | B4 | **Le « +N autres » du calendrier n'est pas cliquable** : au-delà de 4 tâches, les suivantes sont inaccessibles ce jour-là | `CalendarView.jsx:164-166` | fort |
@@ -1068,10 +1068,18 @@ supprime au passage les cinq duplications divergentes côté client.
   de la transition. **Ne pas** faire d'`ALTER TYPE` : c'est irréversible et
   incompatible avec la migration en transaction unique.
 
-### 2.2 Modéliser les étapes et sous-étapes d'intervention — complexité **Élevé**
+### 2.2 Modéliser les étapes et sous-étapes d'intervention — ✅ **LIVRÉ**
 
-**La tâche la plus importante de la roadmap**, et la seule que personne d'autre
-ne peut spécifier à votre place.
+Tables `intervention_steps` et `task_step_progress`, reprise idempotente des
+étiquettes existantes, endpoints sous `/api/boards/steps`, parité mock/HTTP,
+composants `StepProgress.jsx` (stepper) et `StepEditor.jsx` (configuration du
+circuit), regroupement en accordéon dans la vue Tableau et sur mobile.
+
+Reste différé : le rattachement des **sous-items** au circuit dans les vues
+Kanban / Gantt / Planning, et la suppression de `project_tags` (deux versions
+de cohabitation prévues).
+
+<details><summary>Spécification d'origine</summary>
 
 - **À modifier :** `server/db/schema.sql`
 
@@ -1123,6 +1131,8 @@ ne peut spécifier à votre place.
 - **À corriger au passage :** les FK actuelles ne garantissent ni la famille
   (`tag_type`) ni l'appartenance au projet ; le nouveau modèle doit poser ces
   contraintes.
+
+</details>
 
 ### 2.3 Enrichir les types de colonnes — complexité **Moyen**
 

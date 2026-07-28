@@ -4,6 +4,7 @@ import TaskCard from './TaskCard.jsx';
 import BottomSheet from './BottomSheet.jsx';
 import Avatar from './Avatar.jsx';
 import { STATUSES, STATUS_META } from '../lib/constants.js';
+import { flattenSteps, rootStepOf } from '../lib/steps.js';
 
 // Vue board mobile : groupes pliables de cartes verticales.
 export default function MobileBoard({
@@ -11,6 +12,8 @@ export default function MobileBoard({
   users,
   filterFn,
   tags = [],
+  steps = [],
+  groupByStep = false,
   commentCounts,
   onOpenComments,
   onOpenDetail,
@@ -19,6 +22,24 @@ export default function MobileBoard({
   onAddTask,
 }) {
   const [collapsed, setCollapsed] = useState({});
+  const [collapsedSteps, setCollapsedSteps] = useState({});
+
+  // Répartit les tâches par étape de premier niveau, dans l'ordre du circuit.
+  const partitionner = (liste) => {
+    const racines = flattenSteps(steps).filter((s) => s.depth === 0);
+    const parRacine = new Map(racines.map((s) => [s.id, []]));
+    const sans = [];
+    for (const t of liste) {
+      const racine = rootStepOf(steps, t.step_id);
+      if (racine && parRacine.has(racine.id)) parRacine.get(racine.id).push(t);
+      else sans.push(t);
+    }
+    const out = racines
+      .map((s) => ({ step: s, tasks: parRacine.get(s.id) }))
+      .filter((sec) => sec.tasks.length > 0);
+    if (sans.length) out.push({ step: null, tasks: sans });
+    return out;
+  };
   const [statusSheet, setStatusSheet] = useState(null); // tâche dont on change le statut
   const [adminSheet, setAdminSheet] = useState(null); // tâche dont on change l'admin
   const [selectionMode, setSelectionMode] = useState(false);
@@ -78,35 +99,69 @@ export default function MobileBoard({
             </button>
 
             {!isCollapsed && (
-              <div className="space-y-2 sm:grid sm:grid-cols-2 sm:gap-3 sm:space-y-0 lg:grid-cols-3">
-                {tasks.map((task) => (
-                  <TaskCard
-                    key={task.id}
-                    task={task}
-                    groupColor={group.color}
-                    tags={tags}
-                    commentCount={commentCounts[task.id] || 0}
-                    selectionMode={selectionMode}
-                    selected={selected.has(task.id)}
-                    onOpenComments={() => onOpenComments(task)}
-                    onOpenDetail={() => onOpenDetail?.(task)}
-                    onMarkDone={() => onChangeStatus(task.id, 'Fait')}
-                    onOpenStatusSheet={() => setStatusSheet({ task })}
-                    onToggleSelect={() => toggleSel(task.id)}
-                    onEnterSelection={() => {
-                      setSelectionMode(true);
-                      toggleSel(task.id);
-                    }}
-                  />
-                ))}
+              <>
+                {(groupByStep ? partitionner(tasks) : [{ step: null, tasks, brut: true }]).map(
+                  (sec) => {
+                    const cle = `${group.id}:${sec.step ? sec.step.id : 'sans'}`;
+                    const ouvert = !collapsedSteps[cle];
+                    return (
+                      <div key={cle} className={sec.brut ? '' : 'mb-3'}>
+                        {!sec.brut && (
+                          <button
+                            onClick={() =>
+                              setCollapsedSteps((c) => ({ ...c, [cle]: !c[cle] }))
+                            }
+                            className="mb-1.5 flex w-full items-center gap-1.5 text-sm font-medium text-gray-600"
+                          >
+                            {ouvert ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+                            <span
+                              className="h-2.5 w-2.5 shrink-0 rounded-full"
+                              style={{ backgroundColor: sec.step ? sec.step.color : '#9aadbd' }}
+                            />
+                            <span className="truncate">
+                              {sec.step ? sec.step.name : 'Sans étape'}
+                            </span>
+                            <span className="text-xs text-gray-400">{sec.tasks.length}</span>
+                          </button>
+                        )}
+                        {(sec.brut || ouvert) && (
+                          <div className="space-y-2 sm:grid sm:grid-cols-2 sm:gap-3 sm:space-y-0 lg:grid-cols-3">
+                            {sec.tasks.map((task) => (
+                              <TaskCard
+                                key={task.id}
+                                task={task}
+                                groupColor={group.color}
+                                tags={tags}
+                                steps={steps}
+                                stepProgress={board.stepProgress || []}
+                                commentCount={commentCounts[task.id] || 0}
+                                selectionMode={selectionMode}
+                                selected={selected.has(task.id)}
+                                onOpenComments={() => onOpenComments(task)}
+                                onOpenDetail={() => onOpenDetail?.(task)}
+                                onMarkDone={() => onChangeStatus(task.id, 'Fait')}
+                                onOpenStatusSheet={() => setStatusSheet({ task })}
+                                onToggleSelect={() => toggleSel(task.id)}
+                                onEnterSelection={() => {
+                                  setSelectionMode(true);
+                                  toggleSel(task.id);
+                                }}
+                              />
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  }
+                )}
 
                 <button
                   onClick={() => onAddTask(group.id)}
-                  className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-dashed border-gray-300 py-2.5 text-sm text-gray-500 sm:col-span-2 lg:col-span-3"
+                  className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-dashed border-gray-300 py-2.5 text-sm text-gray-500"
                 >
                   <Plus size={16} /> Ajouter une tâche
                 </button>
-              </div>
+              </>
             )}
           </section>
         );

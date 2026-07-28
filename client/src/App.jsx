@@ -28,6 +28,7 @@ import BottomSheet from './components/BottomSheet.jsx';
 import Login from './components/Login.jsx';
 import useIsMobile from './lib/useIsMobile.js';
 import { useColumnWidths } from './lib/useColumnWidths.js';
+import { useViewPreferences } from './lib/useViewPreferences.js';
 import { api, IS_MOCK } from './api/index.js';
 import { GROUP_COLORS, STATUS_META, PRIORITY_META } from './lib/constants.js';
 
@@ -103,6 +104,9 @@ function Board({ currentUser, onLogout, onUpdateCurrentUser }) {
     setWidth: setColWidth,
     resetWidth: resetColWidth,
   } = useColumnWidths(currentBoardId);
+  // Préférences d'affichage du tableau (persistées par projet).
+  const { prefs: viewPrefs, setPref: setViewPref } = useViewPreferences(currentBoardId);
+  const groupByStep = viewPrefs.groupByStep;
   const [users, setUsers] = useState([]);
   const [alerts, setAlerts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -555,6 +559,117 @@ function Board({ currentUser, onLogout, onUpdateCurrentUser }) {
       await api.deleteTag(tagId);
     } catch {
       /* ignore */
+    }
+  };
+
+  // -------- Circuit d'intervention (étapes / sous-étapes) --------
+  const handleCreateStep = async (name, color, parent_id = null) => {
+    const created = await api.createStep(board.id, { name, color, parent_id });
+    setBoard((b) => ({ ...b, steps: [...(b.steps || []), created] }));
+    return created;
+  };
+
+  const handleUpdateStep = async (stepId, patch) => {
+    const snapshot = board;
+    setBoard((b) => ({
+      ...b,
+      steps: (b.steps || []).map((s) => (s.id === stepId ? { ...s, ...patch } : s)),
+    }));
+    try {
+      await api.updateStep(stepId, patch);
+    } catch (e) {
+      setBoard(snapshot);
+      setError(e.message || "Échec de la modification de l'étape");
+      setTimeout(() => setError(null), 3000);
+    }
+  };
+
+  const handleDeleteStep = async (stepId) => {
+    const snapshot = board;
+    // La suppression est en cascade côté serveur : sous-étapes, franchissements
+    // et rattachements des tâches. On reproduit exactement le même effet.
+    const supprimes = new Set([stepId]);
+    for (const s of board.steps || []) if (s.parent_id === stepId) supprimes.add(s.id);
+    setBoard((b) => ({
+      ...b,
+      steps: (b.steps || []).filter((s) => !supprimes.has(s.id)),
+      stepProgress: (b.stepProgress || []).filter((p) => !supprimes.has(p.step_id)),
+      groups: (b.groups || []).map((g) => ({
+        ...g,
+        tasks: g.tasks.map((t) => ({
+          ...t,
+          step_id: supprimes.has(t.step_id) ? null : t.step_id,
+          subtasks: (t.subtasks || []).map((s) => ({
+            ...s,
+            step_id: supprimes.has(s.step_id) ? null : s.step_id,
+          })),
+        })),
+      })),
+    }));
+    try {
+      await api.deleteStep(stepId);
+    } catch (e) {
+      setBoard(snapshot);
+      setError(e.message || "Échec de la suppression de l'étape");
+      setTimeout(() => setError(null), 3000);
+    }
+  };
+
+  const handleReorderSteps = async (items) => {
+    const snapshot = board;
+    const parIds = new Map(items.map((it) => [it.id, it]));
+    setBoard((b) => ({
+      ...b,
+      steps: (b.steps || []).map((s) =>
+        parIds.has(s.id)
+          ? { ...s, parent_id: parIds.get(s.id).parent_id, position: parIds.get(s.id).position }
+          : s
+      ),
+    }));
+    try {
+      await api.reorderSteps(items);
+    } catch (e) {
+      setBoard(snapshot);
+      setError(e.message || 'Échec du réordonnancement des étapes');
+      setTimeout(() => setError(null), 3000);
+    }
+  };
+
+  // Étape courante d'une tâche.
+  const handleSetTaskStep = (taskId, stepId) =>
+    optimistic(
+      (b) => patchTaskLocal(b, taskId, { step_id: stepId }),
+      () => api.updateTask(taskId, { step_id: stepId })
+    );
+
+  // Franchissement d'une étape par une tâche (traçabilité qui / quand).
+  const handleToggleTaskStep = async (taskId, stepId, completed) => {
+    const snapshot = board;
+    setBoard((b) => {
+      const autres = (b.stepProgress || []).filter(
+        (p) => !(p.task_id === taskId && p.step_id === stepId)
+      );
+      return {
+        ...b,
+        stepProgress: completed
+          ? [
+              ...autres,
+              {
+                task_id: taskId,
+                step_id: stepId,
+                completed_at: new Date().toISOString(),
+                completed_by: CURRENT_USER_ID,
+              },
+            ]
+          : autres,
+      };
+    });
+    try {
+      await api.setStepProgress(taskId, stepId, completed, CURRENT_USER_ID);
+    } catch (e) {
+      setBoard(snapshot);
+      setError(e.message || "Échec de l'enregistrement du franchissement");
+      setTimeout(() => setError(null), 3000);
     }
   };
 
@@ -1149,7 +1264,10 @@ function Board({ currentUser, onLogout, onUpdateCurrentUser }) {
     !statusFilter &&
     showDone &&
     !etapeFilter &&
-    !interventionFilter;
+    !interventionFilter &&
+    // Le regroupement par étape repartitionne les lignes : les index affichés
+    // ne correspondent plus à group.tasks, sur lequel raisonne handleDragEnd.
+    !groupByStep;
 
   // -------- Export --------
   // Construit les lignes visibles (filtres + tri actifs appliqués), groupe par groupe.
@@ -1411,6 +1529,7 @@ function Board({ currentUser, onLogout, onUpdateCurrentUser }) {
                   setMenuOpen(false);
                 }}
                 onSelectRail={(rail) => setActiveRail(rail)}
+                canOpenRail={false}
                 shortcuts={shortcuts}
                 onAddShortcut={handleAddShortcut}
                 onDeleteShortcut={handleDeleteShortcut}
@@ -1447,6 +1566,9 @@ function Board({ currentUser, onLogout, onUpdateCurrentUser }) {
               onEtapeFilter={setEtapeFilter}
               interventionFilter={interventionFilter}
               onInterventionFilter={setInterventionFilter}
+              steps={board.steps || []}
+              groupByStep={groupByStep}
+              onToggleGroupByStep={() => setViewPref('groupByStep', !groupByStep)}
             />
             <div className="overflow-x-auto">
               <BoardTabs active={boardView} onChange={setBoardView} />
@@ -1457,6 +1579,8 @@ function Board({ currentUser, onLogout, onUpdateCurrentUser }) {
                 users={users}
                 filterFn={filterFn}
                 tags={board.tags || []}
+                steps={board.steps || []}
+                groupByStep={groupByStep}
                 commentCounts={commentCounts}
                 onOpenComments={(t) => setDrawerTask(t)}
                 onOpenDetail={(t) => setDetailTask(t)}
@@ -1688,6 +1812,10 @@ function Board({ currentUser, onLogout, onUpdateCurrentUser }) {
               onChangeTag={(field, tagId) => handleChangeTaskTag(live.id, field, tagId)}
               onCreateTag={handleCreateTagInline}
               onSetCategoryValue={handleSetCategoryValue}
+              steps={board.steps || []}
+              stepProgress={board.stepProgress || []}
+              onSetTaskStep={handleSetTaskStep}
+              onToggleTaskStep={handleToggleTaskStep}
             />
           );
         })()}
@@ -1750,6 +1878,12 @@ function Board({ currentUser, onLogout, onUpdateCurrentUser }) {
             canManage={canManageBoard}
             onCreateTag={handleCreateTag}
             onDeleteTag={handleDeleteTag}
+            steps={board.steps || []}
+            canDeleteStep={isAdmin}
+            onCreateStep={handleCreateStep}
+            onUpdateStep={handleUpdateStep}
+            onDeleteStep={handleDeleteStep}
+            onReorderSteps={handleReorderSteps}
             onClose={() => setActiveRail('Espaces')}
           />
         </div>
@@ -1976,6 +2110,9 @@ function Board({ currentUser, onLogout, onUpdateCurrentUser }) {
               onEtapeFilter={setEtapeFilter}
               interventionFilter={interventionFilter}
               onInterventionFilter={setInterventionFilter}
+              steps={board.steps || []}
+              groupByStep={groupByStep}
+              onToggleGroupByStep={() => setViewPref('groupByStep', !groupByStep)}
             />
 
             {/* Onglets de vue : Tableau / Kanban / Calendrier */}
@@ -2045,6 +2182,8 @@ function Board({ currentUser, onLogout, onUpdateCurrentUser }) {
                               onSetCategoryValue={handleSetCategoryValue}
                               tags={board.tags || []}
                               onChangeTaskTag={handleChangeTaskTag}
+                              steps={board.steps || []}
+                              groupByStep={groupByStep}
                               onCreateSubtask={handleCreateSubtask}
                               onUpdateSubtask={handleUpdateSubtask}
                               onDeleteSubtask={handleDeleteSubtask}
@@ -2147,6 +2286,10 @@ function Board({ currentUser, onLogout, onUpdateCurrentUser }) {
               onChangeTag={(field, tagId) => handleChangeTaskTag(live.id, field, tagId)}
               onCreateTag={handleCreateTagInline}
               onSetCategoryValue={handleSetCategoryValue}
+              steps={board.steps || []}
+              stepProgress={board.stepProgress || []}
+              onSetTaskStep={handleSetTaskStep}
+              onToggleTaskStep={handleToggleTaskStep}
             />
           </div>
         );

@@ -14,6 +14,7 @@ import PriorityBadge from './PriorityBadge.jsx';
 import AdminCell from './AdminCell.jsx';
 import CustomCell from './CustomCell.jsx';
 import TagCell from './TagCell.jsx';
+import StepProgress from './StepProgress.jsx';
 import { Tag } from 'lucide-react';
 import { formatShortDate } from '../lib/constants.js';
 
@@ -49,6 +50,10 @@ export default function TaskDetailPanel({
   onChangeTag,
   onCreateTag,
   onSetCategoryValue,
+  steps = [],
+  stepProgress = [],
+  onSetTaskStep,
+  onToggleTaskStep,
 }) {
   const [name, setName] = useState(task.name);
   useEffect(() => setName(task.name), [task.id, task.name]);
@@ -91,6 +96,26 @@ export default function TaskDetailPanel({
 
         {/* Corps : attributs principaux */}
         <div className="flex-1 overflow-auto px-4">
+          {/* Position de la tâche dans le circuit d'intervention. La « phase »
+              affichée est le groupe courant : c'est lui qui structure le projet. */}
+          {steps.length > 0 && (
+            <div className="pt-3">
+              <StepProgress
+                variant="detail"
+                steps={steps}
+                taskId={task.id}
+                currentStepId={task.step_id ?? null}
+                progress={stepProgress}
+                phaseName={groups.find((g) => g.id === task.group_id)?.name || null}
+                canEdit={canEdit}
+                onSelectStep={(id) => onSetTaskStep?.(task.id, id)}
+                onToggleStep={(stepId, completed) =>
+                  onToggleTaskStep?.(task.id, stepId, completed)
+                }
+              />
+            </div>
+          )}
+
           <Field icon={LayoutGrid} label="Groupe">
             <select
               value={task.group_id}

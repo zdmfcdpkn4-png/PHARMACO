@@ -116,6 +116,18 @@ export const httpApi = {
   deleteTag: (id) => request(`/boards/tags/${id}`, { method: 'DELETE' }),
   updateSubtaskTags: (id, patch) => request(`/subtasks/${id}`, { method: 'PUT', body: patch }),
 
+  // Circuit d'intervention (étapes / sous-étapes)
+  getSteps: (boardId) => request(`/boards/${boardId}/steps`),
+  createStep: (boardId, data) => request(`/boards/${boardId}/steps`, { method: 'POST', body: data }),
+  updateStep: (id, patch) => request(`/boards/steps/${id}`, { method: 'PATCH', body: patch }),
+  deleteStep: (id) => request(`/boards/steps/${id}`, { method: 'DELETE' }),
+  reorderSteps: (items) => request('/boards/steps/reorder', { method: 'PUT', body: { items } }),
+  setStepProgress: (task_id, step_id, completed = true, actor_id = null, note = null) =>
+    request('/boards/steps/progress', {
+      method: 'POST',
+      body: { task_id, step_id, completed, actor_id, note },
+    }),
+
   getDependencies: (board_id) => request(`/dependencies?board_id=${board_id}`),
   addDependency: (predecessor_id, successor_id) =>
     request('/dependencies', { method: 'POST', body: { predecessor_id, successor_id } }),

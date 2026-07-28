@@ -55,6 +55,8 @@ client/                    # React 18 + Vite 5 + Tailwind 3 + lucide-react
     httpApi.js             # implémentation HTTP (VITE_API_URL, défaut http://localhost:4000/api)
   src/lib/constants.js     # STATUS_META / PRIORITY_META (bg + text), helpers dates, avatars
   src/lib/useColumnWidths.js  # largeurs de colonnes persistées par projet (localStorage)
+  src/lib/useViewPreferences.js # préférences d'affichage du tableau (dont groupByStep)
+  src/lib/steps.js         # circuit d'intervention : ordre, parenté, avancement
   src/components/          # ~40 composants (vues + cellules + modales)
   src/App.jsx              # GROS fichier : état global, handlers, rendus desktop ET mobile
 
@@ -63,6 +65,28 @@ server/                    # Express (ESM) + pg — API sous /api, santé : /api
   db/seed.sql              # données de démo
   src/routes/ src/controllers/ src/middleware/ (auth, error) src/utils/ (authConfig, password)
 ```
+
+### Circuit d'intervention (étapes et sous-étapes)
+
+`intervention_steps` porte l'enchaînement **ordonné** des étapes d'un projet,
+sur deux niveaux (`parent_id` : étape → sous-étape), et `task_step_progress`
+trace leur franchissement (qui, quand). Une tâche pointe l'étape où elle en
+est via `tasks.step_id` (idem `sub_tasks.step_id`).
+
+- La hiérarchie est garantie **en base** : la clé étrangère est composite
+  (`parent_id, board_id`) → une sous-étape ne peut pas appartenir à un autre
+  projet que son étape parente.
+- `client/src/lib/steps.js` est la **source unique** de l'ordre de parcours :
+  le stepper (`StepProgress.jsx`), le regroupement en accordéon
+  (`GroupTable.jsx`) et les compteurs s'en servent tous.
+- **Cohabitation** : les étiquettes `project_tags` (colonnes Étape / Type)
+  restent en place et fonctionnelles. Le circuit est un **ajout**, pas un
+  remplacement. Les étiquettes existantes ont été reprises une seule fois par
+  projet comme étapes de niveau 1 (marqueur `boards.steps_seeded_at`,
+  correspondance conservée dans `intervention_steps.legacy_tag_id`).
+- **Piège** : le mode « Grouper par étape » repartitionne les lignes, donc
+  `dragEnabled` le désactive — comme il le fait déjà pour un filtre ou un tri
+  (`handleDragEnd` raisonne sur les index de `group.tasks` brut).
 
 ### Règle d'or : toute fonctionnalité de données = 4 endroits
 

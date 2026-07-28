@@ -20,7 +20,9 @@ export default function BottomSheet({ open, title, onClose, children }) {
         onClick={onClose}
       />
       {/* Panneau */}
-      <div className="relative max-h-[80vh] overflow-auto rounded-t-2xl bg-white pb-[env(safe-area-inset-bottom)] shadow-2xl animate-[sheetUp_.2s_ease-out]">
+      {/* La marge basse dégage la barre de navigation mobile (fixe, ~56 px),
+          qui recouvrait sinon les derniers éléments de la feuille. */}
+      <div className="relative max-h-[80vh] overflow-auto rounded-t-2xl bg-white pb-[calc(env(safe-area-inset-bottom)+4.5rem)] shadow-2xl animate-[sheetUp_.2s_ease-out]">
         {/* Poignée */}
         <div className="sticky top-0 z-10 bg-white pt-2">
           <div className="mx-auto mb-2 h-1.5 w-10 rounded-full bg-gray-300" />

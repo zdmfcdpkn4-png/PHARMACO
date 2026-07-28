@@ -39,11 +39,25 @@ Trois rôles globaux : **Observateur** (`viewer`), **Membre** (`member`),
     `AUTH_TOKEN_TTL_DAYS`).
   - `requireEditor` : toutes les mutations (POST/PATCH/PUT) refusent les
     observateurs (`viewer` = lecture seule).
-  - `requireAdmin` : suppressions de tâche / sous-item / groupe / projet,
-    archivage d'un projet, `POST /auth/set-password`, gestion `users` /
-    `teams`.
+  - `requireAdmin` : suppressions de tâche / sous-item / groupe / projet /
+    **étape du circuit**, archivage d'un projet, `POST /auth/set-password`,
+    gestion `users` / `teams`.
   - Cas particuliers : `PUT /boards/:id/teams` vérifie propriétaire-ou-admin ;
     alertes et raccourcis sont cloisonnés à l'utilisateur authentifié.
+
+### Circuit d'intervention (étapes / sous-étapes)
+
+| Route | Droit |
+|---|---|
+| `GET /boards/:boardId/steps` | authentifié |
+| `POST /boards/:boardId/steps` | `requireEditor` |
+| `PATCH /boards/steps/:id` | `requireEditor` |
+| `PUT /boards/steps/reorder` | `requireEditor` |
+| `POST /boards/steps/progress` (franchissement) | `requireEditor` |
+| `DELETE /boards/steps/:id` | **`requireAdmin`** |
+
+Supprimer une étape retire en cascade ses sous-étapes et les franchissements
+associés, et détache les tâches concernées (leur `step_id` repasse à `NULL`).
 
 > La sécurité réelle est imposée côté serveur (middlewares ci-dessus). Les
 > masquages côté interface ne sont qu'un confort d'usage.

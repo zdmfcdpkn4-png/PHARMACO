@@ -206,6 +206,167 @@ ALTER TABLE sub_tasks  ADD COLUMN IF NOT EXISTS etape_tag_id        INTEGER REFE
 ALTER TABLE sub_tasks  ADD COLUMN IF NOT EXISTS intervention_tag_id INTEGER REFERENCES project_tags(id) ON DELETE SET NULL;
 
 -- ---------------------------------------------------------------------
+--  Table : intervention_steps (circuit d'intervention ordonné du projet)
+--
+--  Remplace à terme les étiquettes plates project_tags, qui n'ont ni ordre
+--  ni lien de parenté. parent_id porte la hiérarchie Étape -> Sous-étape
+--  (deux niveaux maximum, comme tasks -> sub_tasks).
+--
+--  legacy_tag_id fait le pont avec l'ancienne étiquette d'origine : il rend
+--  la reprise de données rejouable (un projet déjà repris ne crée pas de
+--  doublon) et permet de retrouver la correspondance après coup.
+-- ---------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS intervention_steps (
+    id            SERIAL PRIMARY KEY,
+    board_id      INTEGER      NOT NULL REFERENCES boards(id) ON DELETE CASCADE,
+    parent_id     INTEGER,     -- FK composite posée plus bas (voir DO $$)
+    name          VARCHAR(160) NOT NULL,
+    color         VARCHAR(20)  NOT NULL DEFAULT '#005586',
+    position      INTEGER      NOT NULL DEFAULT 0,
+    is_terminal   BOOLEAN      NOT NULL DEFAULT false, -- marque la fin de parcours
+    legacy_tag_id INTEGER      REFERENCES project_tags(id) ON DELETE SET NULL,
+    created_at    TIMESTAMPTZ  NOT NULL DEFAULT now()
+);
+
+-- Assainissement préalable : ADD CONSTRAINT échoue si une seule ligne viole
+-- la règle, et l'API refuserait alors de démarrer. On neutralise donc les cas
+-- aberrants héritables avant de poser les contraintes (sans effet sur une
+-- base saine, donc rejouable).
+UPDATE intervention_steps SET parent_id = NULL WHERE parent_id = id;
+UPDATE intervention_steps s SET parent_id = NULL
+  WHERE s.parent_id IS NOT NULL
+    AND NOT EXISTS (
+      SELECT 1 FROM intervention_steps p
+       WHERE p.id = s.parent_id AND p.board_id = s.board_id
+    );
+
+-- Contraintes posées séparément et gardées par pg_constraint : une base déjà
+-- créée par une version antérieure ignorerait des contraintes déclarées dans
+-- le CREATE TABLE (que « IF NOT EXISTS » saute intégralement).
+--
+-- La clé étrangère est COMPOSITE : (parent_id, board_id) -> (id, board_id).
+-- Elle garantit EN BASE qu'une sous-étape appartient au même projet que son
+-- étape parente — c'est précisément la garantie qui manque aux quatre clés
+-- d'étiquetage historiques (tasks/sub_tasks -> project_tags).
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ck_intervention_steps_no_self') THEN
+        ALTER TABLE intervention_steps
+            ADD CONSTRAINT ck_intervention_steps_no_self
+            CHECK (parent_id IS DISTINCT FROM id);
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'uq_intervention_steps_id_board') THEN
+        ALTER TABLE intervention_steps
+            ADD CONSTRAINT uq_intervention_steps_id_board UNIQUE (id, board_id);
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'fk_intervention_steps_parent') THEN
+        ALTER TABLE intervention_steps
+            ADD CONSTRAINT fk_intervention_steps_parent
+            FOREIGN KEY (parent_id, board_id)
+            REFERENCES intervention_steps (id, board_id) ON DELETE CASCADE;
+    END IF;
+END$$;
+
+CREATE INDEX IF NOT EXISTS idx_intervention_steps_board  ON intervention_steps(board_id, position);
+CREATE INDEX IF NOT EXISTS idx_intervention_steps_parent ON intervention_steps(parent_id);
+CREATE UNIQUE INDEX IF NOT EXISTS uq_intervention_steps_legacy
+    ON intervention_steps(legacy_tag_id) WHERE legacy_tag_id IS NOT NULL;
+
+-- Étape courante d'une tâche / d'un sous-item (la plus fine du circuit).
+ALTER TABLE tasks     ADD COLUMN IF NOT EXISTS step_id INTEGER REFERENCES intervention_steps(id) ON DELETE SET NULL;
+ALTER TABLE sub_tasks ADD COLUMN IF NOT EXISTS step_id INTEGER REFERENCES intervention_steps(id) ON DELETE SET NULL;
+CREATE INDEX IF NOT EXISTS idx_tasks_step     ON tasks(step_id);
+CREATE INDEX IF NOT EXISTS idx_sub_tasks_step ON sub_tasks(step_id);
+
+-- ---------------------------------------------------------------------
+--  Table : task_step_progress (franchissement d'une étape : qui, quand)
+--  Une ligne par couple (tâche, étape) franchi. L'absence de ligne — ou
+--  une ligne à completed_at NULL — vaut « non franchi ».
+-- ---------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS task_step_progress (
+    id           SERIAL PRIMARY KEY,
+    task_id      INTEGER NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
+    step_id      INTEGER NOT NULL REFERENCES intervention_steps(id) ON DELETE CASCADE,
+    completed_at TIMESTAMPTZ,
+    completed_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    note         TEXT,
+    UNIQUE (task_id, step_id)
+);
+CREATE INDEX IF NOT EXISTS idx_task_step_progress_task ON task_step_progress(task_id);
+
+-- ---------------------------------------------------------------------
+--  Reprise des étiquettes existantes en étapes — UNE SEULE FOIS par projet.
+--
+--  Le marqueur boards.steps_seeded_at garantit qu'un projet déjà repris
+--  n'est jamais retouché : les re-parentages et affectations faits par le
+--  responsable de projet ne peuvent donc pas être écrasés au redémarrage.
+--
+--  Limite assumée : rien, dans le modèle d'origine, n'indique quelle
+--  « intervention » appartient à quelle « étape ». Les deux familles sont
+--  donc reprises à plat au niveau 1, à charge pour le responsable de
+--  projet de les re-rattacher dans l'éditeur de circuit.
+-- ---------------------------------------------------------------------
+ALTER TABLE boards ADD COLUMN IF NOT EXISTS steps_seeded_at TIMESTAMPTZ;
+
+DO $$
+DECLARE
+    b RECORD;
+BEGIN
+    FOR b IN SELECT id FROM boards WHERE steps_seeded_at IS NULL LOOP
+        -- 1) Une étape de niveau 1 par étiquette, dans l'ordre étape puis type.
+        INSERT INTO intervention_steps (board_id, parent_id, name, color, position, legacy_tag_id)
+        SELECT t.board_id,
+               NULL,
+               t.name,
+               t.color,
+               (ROW_NUMBER() OVER (ORDER BY t.tag_type, t.id))::int - 1,
+               t.id
+        FROM project_tags t
+        WHERE t.board_id = b.id
+        ON CONFLICT DO NOTHING;
+
+        -- 2) Étape courante des tâches : le type d'intervention est plus fin
+        --    que l'étape, il prime donc quand les deux sont renseignés.
+        UPDATE tasks tk
+           SET step_id = s.id
+          FROM intervention_steps s, groups g
+         WHERE g.id = tk.group_id
+           AND g.board_id = b.id
+           AND s.legacy_tag_id = tk.intervention_tag_id
+           AND tk.step_id IS NULL;
+
+        UPDATE tasks tk
+           SET step_id = s.id
+          FROM intervention_steps s, groups g
+         WHERE g.id = tk.group_id
+           AND g.board_id = b.id
+           AND s.legacy_tag_id = tk.etape_tag_id
+           AND tk.step_id IS NULL;
+
+        -- 3) Idem pour les sous-items.
+        UPDATE sub_tasks st
+           SET step_id = s.id
+          FROM intervention_steps s, tasks tk, groups g
+         WHERE tk.id = st.parent_task_id
+           AND g.id = tk.group_id
+           AND g.board_id = b.id
+           AND s.legacy_tag_id = st.intervention_tag_id
+           AND st.step_id IS NULL;
+
+        UPDATE sub_tasks st
+           SET step_id = s.id
+          FROM intervention_steps s, tasks tk, groups g
+         WHERE tk.id = st.parent_task_id
+           AND g.id = tk.group_id
+           AND g.board_id = b.id
+           AND s.legacy_tag_id = st.etape_tag_id
+           AND st.step_id IS NULL;
+
+        UPDATE boards SET steps_seeded_at = now() WHERE id = b.id;
+    END LOOP;
+END$$;
+
+-- ---------------------------------------------------------------------
 --  Tables de jointure : multi-assignation (tâches & sous-items)
 -- ---------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS task_assignments (

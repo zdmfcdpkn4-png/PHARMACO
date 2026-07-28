@@ -17,6 +17,7 @@ import {
   Palette,
   Archive,
   Trash2,
+  Route,
 } from 'lucide-react';
 import { STATUSES } from '../lib/constants.js';
 
@@ -44,6 +45,10 @@ export default function BoardHeader({
   onEtapeFilter,
   interventionFilter,
   onInterventionFilter,
+  // Circuit d'intervention
+  steps = [],
+  groupByStep = false,
+  onToggleGroupByStep,
   // Projet : apparence + cycle de vie
   boardColor,
   boardIcon,
@@ -299,6 +304,22 @@ export default function BoardHeader({
           <ArrowUpDown size={16} />
           {sortBy ? `Trié : ${sortBy}` : 'Trier'}
         </button>
+
+        {/* Grouper par étape du circuit — seulement si un circuit existe,
+            comme les filtres Étape / Type. */}
+        {steps.length > 0 && (
+          <button
+            type="button"
+            onClick={onToggleGroupByStep}
+            title="Regrouper les lignes par étape du circuit d'intervention"
+            className={`flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm transition ${
+              groupByStep ? 'bg-blue-50 text-primary' : 'text-gray-600 hover:bg-gray-100'
+            }`}
+          >
+            <Route size={16} />
+            {groupByStep ? 'Groupé par étape' : 'Grouper par étape'}
+          </button>
+        )}
 
         {/* Masquer (tâches terminées) */}
         <button

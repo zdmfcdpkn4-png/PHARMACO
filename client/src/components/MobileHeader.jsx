@@ -21,6 +21,9 @@ export default function MobileHeader({
   onEtapeFilter,
   interventionFilter,
   onInterventionFilter,
+  steps = [],
+  groupByStep = false,
+  onToggleGroupByStep,
 }) {
   const [filtersOpen, setFiltersOpen] = useState(false);
   const etapeTags = tags.filter((t) => t.tag_type === 'etape');
@@ -165,6 +168,18 @@ export default function MobileHeader({
                   </Chip>
                 ))}
               </div>
+            </div>
+          )}
+
+          {/* Regroupement par étape du circuit */}
+          {steps.length > 0 && (
+            <div>
+              <label className="mb-1 block text-xs font-semibold uppercase text-gray-400">
+                Affichage
+              </label>
+              <Chip active={groupByStep} onClick={() => onToggleGroupByStep?.()}>
+                {groupByStep ? 'Groupé par étape' : 'Grouper par étape'}
+              </Chip>
             </div>
           )}
 

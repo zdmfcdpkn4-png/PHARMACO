@@ -29,6 +29,9 @@ export default function TagConfig({ tags = [], canManage = true, onCreate, onDel
 }
 
 function Section({ title, type, tags, canManage, onCreate, onDelete }) {
+  // Libellé d'ajout propre à la section (il était codé en dur sur « étape »,
+  // y compris dans « Types d'intervention »).
+  const addLabel = type === 'etape' ? 'Ajouter une étiquette d’étape' : "Ajouter un type d'intervention";
   const [name, setName] = useState('');
   const [color, setColor] = useState(COLORS[0]);
   const [adding, setAdding] = useState(false);
@@ -107,7 +110,7 @@ function Section({ title, type, tags, canManage, onCreate, onDelete }) {
             onClick={() => setAdding(true)}
             className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-lg border border-dashed border-gray-300 py-1.5 text-xs text-gray-500 hover:border-primary hover:text-primary"
           >
-            <Plus size={13} /> Ajouter une étape
+            <Plus size={13} /> {addLabel}
           </button>
         ))}
     </div>
