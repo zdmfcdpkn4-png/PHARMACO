@@ -92,6 +92,43 @@ depuis l'annuaire de l'application (réservé admin).
 - Connexion sur le frontend avec le compte admin initial (§ 4) : l'interface
   impose de choisir un nouveau mot de passe, puis ouvre l'espace de travail.
 
+## 6. Sécurité : l'API REST de Supabase est verrouillée automatiquement
+
+Supabase publie une API REST (PostgREST) sur
+`https://<ref>.supabase.co/rest/v1/`, ouverte avec la clé `anon` — **publique
+par conception**. Sans *Row-Level Security*, elle donne un accès complet en
+lecture et en écriture à toutes les tables, en court-circuitant l'API Express
+et ses contrôles de rôles. C'est exactement ce que signale l'alerte
+« Table publicly accessible / `rls_disabled_in_public` » du Security Advisor.
+
+Le dernier bloc de `server/db/schema.sql` ferme cet accès : RLS activée sur
+toutes les tables (sans aucune politique → tout est refusé) et retrait des
+droits de `anon` / `authenticated`. PHARMACO n'utilise Supabase que comme
+PostgreSQL managé — aucune clé `anon` dans le code, aucun `supabase-js` — donc
+ces rôles n'ont besoin d'aucun droit et rien ne casse.
+
+**Le verrou s'applique au démarrage de l'API** (les migrations tournent
+automatiquement, sauf `RUN_MIGRATIONS=false`). Sur une base déjà en ligne :
+redéployer ou redémarrer `pharmaco-api` suffit.
+
+Vérification, dans le SQL Editor de Supabase :
+
+```sql
+-- Doit renvoyer 0 : aucune table de `public` sans RLS.
+SELECT count(*) FROM pg_tables WHERE schemaname = 'public' AND NOT rowsecurity;
+
+-- Doit renvoyer 0 : aucun droit résiduel pour les rôles de l'API REST.
+SELECT count(*) FROM information_schema.role_table_grants
+ WHERE grantee IN ('anon', 'authenticated') AND table_schema = 'public';
+```
+
+Puis relancer le Security Advisor : l'alerte doit disparaître.
+
+> Si la base a été exposée un certain temps, considérer les hachages de mots
+> de passe comme potentiellement lus : imposer un changement à tout le monde
+> via `UPDATE users SET must_change_password = true;` (la page de connexion
+> enchaîne alors sur l'écran « nouveau mot de passe »).
+
 ## Dépannage
 
 L'API journalise une ligne `PISTE : …` sous la plupart de ces erreurs, avec

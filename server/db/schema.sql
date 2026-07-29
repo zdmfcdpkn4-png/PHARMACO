@@ -531,3 +531,62 @@ CREATE TRIGGER trg_task_columns_updated_at
     BEFORE UPDATE ON task_columns
     FOR EACH ROW
     EXECUTE FUNCTION set_updated_at();
+
+-- =====================================================================
+--  VERROUILLAGE DE L'ACCÈS DIRECT À LA BASE
+--  (doit rester le DERNIER bloc du fichier : il balaie les tables
+--   créées plus haut, y compris celles ajoutées par une future migration)
+--
+--  Un projet Supabase publie automatiquement une API REST (PostgREST) sur
+--  `https://<ref>.supabase.co/rest/v1/`, ouverte avec la clé `anon` — une
+--  clé PUBLIQUE par conception. Sans RLS, cette API donne un accès complet
+--  en lecture ET en écriture à toutes les tables du schéma `public` :
+--  elle court-circuite entièrement l'API Express, ses jetons et ses
+--  contrôles de rôles (requireAuth / requireEditor / requireAdmin).
+--  `users.password_hash` en fait partie.
+--
+--  PHARMACO ne se sert de Supabase que comme PostgreSQL managé : le client
+--  ne parle jamais à Supabase directement (aucune clé `anon` dans le code,
+--  aucun `supabase-js`). Les rôles `anon` et `authenticated` n'ont donc
+--  besoin d'AUCUN droit.
+--
+--  Deux verrous complémentaires :
+--   1. RLS active sur toutes les tables, SANS aucune politique -> tout est
+--      refusé par défaut. Le propriétaire des tables (le rôle qui exécute
+--      cette migration, c'est-à-dire celui de l'API) n'est PAS soumis à RLS
+--      tant que FORCE ROW LEVEL SECURITY n'est pas posé : l'application
+--      continue de fonctionner à l'identique.
+--   2. Retrait des droits de `anon` / `authenticated`, ceinture et
+--      bretelles : même si une politique était ajoutée par erreur un jour,
+--      ces rôles n'auraient toujours aucun privilège.
+-- =====================================================================
+DO $$
+DECLARE
+    t     record;
+    r     text;
+    roles text[] := ARRAY['anon', 'authenticated'];
+BEGIN
+    -- 1) RLS partout dans public (idempotent : ENABLE sur une table déjà
+    --    protégée ne fait rien).
+    FOR t IN SELECT tablename FROM pg_tables WHERE schemaname = 'public'
+    LOOP
+        EXECUTE format('ALTER TABLE public.%I ENABLE ROW LEVEL SECURITY', t.tablename);
+    END LOOP;
+
+    -- 2) Aucun privilège pour les rôles exposés par PostgREST. Ces rôles
+    --    n'existent que sur Supabase : sur une base locale, on ne fait rien.
+    FOREACH r IN ARRAY roles
+    LOOP
+        IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = r) THEN
+            EXECUTE format('REVOKE ALL ON ALL TABLES IN SCHEMA public FROM %I', r);
+            EXECUTE format('REVOKE ALL ON ALL SEQUENCES IN SCHEMA public FROM %I', r);
+            EXECUTE format('REVOKE ALL ON ALL FUNCTIONS IN SCHEMA public FROM %I', r);
+            EXECUTE format('REVOKE ALL ON SCHEMA public FROM %I', r);
+            -- Et pour les tables créées par de futures migrations.
+            EXECUTE format(
+                'ALTER DEFAULT PRIVILEGES IN SCHEMA public REVOKE ALL ON TABLES FROM %I', r);
+            EXECUTE format(
+                'ALTER DEFAULT PRIVILEGES IN SCHEMA public REVOKE ALL ON SEQUENCES FROM %I', r);
+        END IF;
+    END LOOP;
+END$$;

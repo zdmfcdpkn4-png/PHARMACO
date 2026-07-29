@@ -199,9 +199,44 @@ Trois rôles globaux : `admin`, `member`, `viewer`. Matrice complète :
   masquages UI ne sont qu'un confort. Toute nouvelle route doit être
   protégée serveur, pas seulement cachée.
 
+### Accès direct à la base : la RLS n'est pas optionnelle
+
+Un projet Supabase publie **automatiquement** une API REST (PostgREST) sur
+`https://<ref>.supabase.co/rest/v1/`, ouverte avec la clé `anon` — clé
+**publique par conception**. Sans *Row-Level Security*, cette API donne un
+accès complet en lecture **et en écriture** à toutes les tables de `public`,
+en court-circuitant l'API Express et tous ses contrôles de rôles.
+`users.password_hash` comprise.
+
+Le dernier bloc de `server/db/schema.sql` verrouille cela, et **doit rester
+le dernier** (il balaie les tables créées plus haut) :
+
+1. `ENABLE ROW LEVEL SECURITY` sur **toutes** les tables de `public`, sans
+   aucune politique → tout est refusé par défaut. Le propriétaire des tables
+   (le rôle qui exécute la migration, donc celui de l'API) n'y est pas soumis
+   tant que `FORCE ROW LEVEL SECURITY` n'est pas posé : **aucun impact
+   fonctionnel**. Vérifié avec un propriétaire non-superutilisateur.
+2. Retrait de tous les droits de `anon` et `authenticated` (ceinture et
+   bretelles ; ces rôles n'existent pas sur une base locale, le bloc les
+   ignore alors).
+
+**Toute nouvelle table hérite du verrou** au redémarrage suivant de l'API.
+Ne jamais créer de politique RLS « pour faire marcher quelque chose » : le
+client ne parle jamais à Supabase directement, tout passe par l'API Express.
+
 Authentification : jetons HMAC signés avec `AUTH_SECRET`
 (`server/src/utils/authConfig.js`). **En production, le serveur refuse de
 démarrer sans `AUTH_SECRET`** (échappatoire explicite : `ALLOW_INSECURE_AUTH=true`).
+Les deux routes où un mot de passe peut être deviné (`/auth/login` et
+`/auth/change-password`) sont limitées en débit par
+`server/src/middleware/rateLimit.js` : 8 échecs par compte et 40 par adresse IP
+sur 10 minutes, puis `429` + `Retry-After`. **Seuls les échecs sont comptés**,
+donc l'usage normal n'est jamais ralenti. Compteurs en mémoire : ils repartent
+à zéro au redémarrage et ne sont pas partagés entre instances — c'est un
+ralentisseur, assumé comme tel. `app.set('trust proxy', 1)` est indispensable :
+sans lui, `req.ip` vaut l'adresse du proxy Render et tout le monde partage le
+même compteur.
+
 `POST /auth/set-password` (réinitialisation d'un tiers) est réservé aux admins
 et déclenche `must_change_password` ; `POST /auth/change-password` (son propre
 mot de passe, vérifié par l'actuel) est ouvert et lève ce verrou. La page de

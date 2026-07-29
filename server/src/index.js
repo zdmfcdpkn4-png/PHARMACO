@@ -25,6 +25,11 @@ dotenv.config();
 
 const app = express();
 
+// Render (comme tout hébergeur) place un proxy devant l'API : sans cette
+// ligne, `req.ip` vaut l'adresse du proxy et TOUS les utilisateurs partagent
+// le même compteur de tentatives. On ne fait confiance qu'au dernier saut.
+app.set('trust proxy', 1);
+
 app.use(cors({ origin: process.env.CLIENT_ORIGIN || '*' }));
 app.use(express.json());
 app.use(morgan('dev'));
