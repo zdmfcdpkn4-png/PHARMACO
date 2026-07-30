@@ -21,6 +21,7 @@ Trois rôles globaux : **Observateur** (`viewer`), **Membre** (`member`),
 | **Archiver un projet** | ❌ | ❌ | ✅ |
 | **Supprimer un projet** | ❌ | ❌ | ✅ |
 | Restaurer un projet archivé | ❌ | ❌ | ✅ ² |
+| **Consulter la traçabilité d'une tâche** (qui / quoi / quand) | ❌ | ❌ | ✅ ⁴ |
 | Gérer les agents (annuaire : créer, modifier, mot de passe, supprimer) | ❌ | ❌ | ✅ |
 | Gérer les équipes (créer, renommer, supprimer, membres) | ❌ | ❌ | ✅ |
 
@@ -32,6 +33,12 @@ Trois rôles globaux : **Observateur** (`viewer`), **Membre** (`member`),
   sans attendre un administrateur. Rien n'est perdu — la tâche reste en base
   et se retrouve avec « Afficher les archivées ». La **suppression**, elle,
   reste admin. À ne pas confondre avec l'archivage d'un **projet**, admin.
+⁴ `GET /tasks/:id/activity` sous `requireAdmin`. C'est une donnée de
+  **contrôle**, pas de travail : elle dit qui a fait quoi. Les **deux**
+  affichages qui la lisent suivent la règle — la section « Traçabilité des
+  modifications » de la fiche de tâche et l'onglet « Historique » du tiroir de
+  discussion sont l'un et l'autre masqués aux non-admins. Le tiroir ne demande
+  même pas le journal dans ce cas, pour ne pas se solder par un 403.
 
 ## Où c'est appliqué
 
@@ -47,7 +54,8 @@ Trois rôles globaux : **Observateur** (`viewer`), **Membre** (`member`),
     observateurs (`viewer` = lecture seule).
   - `requireAdmin` : suppressions de tâche / sous-item / groupe / projet /
     **étape du circuit**, archivage d'un projet, `POST /auth/set-password`,
-    gestion `users` / `teams`.
+    gestion `users` / `teams`, **lecture du journal d'activité**
+    (`GET /tasks/:id/activity`).
   - Cas particuliers : `PUT /boards/:id/teams` vérifie propriétaire-ou-admin ;
     alertes et raccourcis sont cloisonnés à l'utilisateur authentifié.
 

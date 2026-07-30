@@ -34,6 +34,28 @@ function computeIsMobile(breakpoint) {
   return window.innerWidth < breakpoint;
 }
 
+// Pointeur grossier (doigt / stylet) — indépendant de la largeur d'écran.
+//
+// À utiliser quand la question est « la cible est-elle atteignable au doigt ? »
+// plutôt que « quelle interface servir ? » : une tablette en paysage reçoit
+// l'interface bureau (useIsMobile = false) alors qu'on y navigue au doigt, et
+// une case à cocher de 16 px y est tout aussi manquable que sur un téléphone.
+export function useIsCoarsePointer() {
+  const [coarse, setCoarse] = useState(
+    () => typeof window !== 'undefined' && window.matchMedia('(pointer: coarse)').matches
+  );
+
+  useEffect(() => {
+    const mq = window.matchMedia('(pointer: coarse)');
+    const update = () => setCoarse(mq.matches);
+    update();
+    mq.addEventListener('change', update);
+    return () => mq.removeEventListener('change', update);
+  }, []);
+
+  return coarse;
+}
+
 export default function useIsMobile(breakpoint = 768) {
   const [isMobile, setIsMobile] = useState(() => computeIsMobile(breakpoint));
 

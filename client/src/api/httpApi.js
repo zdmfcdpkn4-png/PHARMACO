@@ -17,11 +17,21 @@ async function request(path, { method = 'GET', body } = {}) {
   if (body) headers['Content-Type'] = 'application/json';
   const token = authToken();
   if (token) headers.Authorization = `Bearer ${token}`;
-  const res = await fetch(`${BASE}${path}`, {
-    method,
-    headers,
-    body: body ? JSON.stringify(body) : undefined,
-  });
+  let res;
+  try {
+    res = await fetch(`${BASE}${path}`, {
+      method,
+      headers,
+      body: body ? JSON.stringify(body) : undefined,
+    });
+  } catch {
+    // `fetch` échoue en anglais (« Failed to fetch ») sur une coupure réseau
+    // ou un serveur endormi. Ce message finit tel quel sous les yeux de
+    // l'utilisateur : on le remplace par une phrase utile, en français.
+    throw new Error(
+      'Serveur injoignable. Vérifiez votre connexion, puis réessayez dans un instant.'
+    );
+  }
   if (!res.ok) {
     let detail = '';
     try {
@@ -92,8 +102,10 @@ export const httpApi = {
   deleteCategory: (id) => request(`/boards/categories/${id}`, { method: 'DELETE' }),
   setCategoryValue: (data) => request('/boards/categories/value', { method: 'POST', body: data }),
 
-  setTaskAssignees: (taskId, user_ids) =>
-    request(`/tasks/${taskId}/assignees`, { method: 'PUT', body: { user_ids } }),
+  // actor_id : auteur pour le journal d'activité. Le serveur lui préfère
+  // l'identité du jeton — il n'est transmis que pour la parité avec le mock.
+  setTaskAssignees: (taskId, user_ids, actor_id) =>
+    request(`/tasks/${taskId}/assignees`, { method: 'PUT', body: { user_ids, actor_id } }),
   setSubtaskAssignees: (subId, user_ids) =>
     request(`/subtasks/${subId}/assignees`, { method: 'PUT', body: { user_ids } }),
 

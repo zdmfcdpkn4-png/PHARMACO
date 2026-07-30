@@ -21,6 +21,7 @@ import AdminCell from './AdminCell.jsx';
 import CustomCell from './CustomCell.jsx';
 import TagCell from './TagCell.jsx';
 import StepProgress from './StepProgress.jsx';
+import TaskAuditTrail from './TaskAuditTrail.jsx';
 import { Tag } from 'lucide-react';
 import { formatShortDate } from '../lib/constants.js';
 
@@ -75,6 +76,8 @@ export default function TaskDetailPanel({
   canDelete = false,
   onArchive,
   onDelete,
+  // Traçabilité : réservée aux administrateurs (le serveur tranche aussi).
+  isAdmin = false,
 }) {
   const [name, setName] = useState(task.name);
   useEffect(() => setName(task.name), [task.id, task.name]);
@@ -331,7 +334,7 @@ export default function TaskDetailPanel({
               className="mt-4 flex w-full items-center gap-2 rounded-lg border border-gray-200 px-3 py-2.5 text-sm text-gray-700 hover:border-primary hover:text-primary"
             >
               <MessageSquare size={16} className="text-gray-400" />
-              Discussion et historique
+              Discussion
               {commentCount > 0 && (
                 <span className="ml-auto rounded-full bg-primary px-2 py-0.5 text-[11px] font-bold text-white">
                   {commentCount}
@@ -339,6 +342,9 @@ export default function TaskDetailPanel({
               )}
             </button>
           )}
+
+          {/* Traçabilité : qui a changé quoi, et quand. Administrateurs seuls. */}
+          {isAdmin && <TaskAuditTrail taskId={task.id} />}
 
           <div className="h-6" />
         </div>

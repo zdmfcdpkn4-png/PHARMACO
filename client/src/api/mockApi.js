@@ -282,6 +282,15 @@ const circuitInvalide = (steps) => {
 };
 
 const findGroup = (gid) => board.groups.find((g) => g.id === gid);
+// Noms lisibles pour le journal d'activité (même règle que le serveur : on
+// journalise des NOMS, jamais des identifiants).
+const nomGroupe = (gid) => (gid ? findGroup(gid)?.name || `#${gid}` : 'aucun');
+const nomEtape = (sid) =>
+  sid ? (board.steps || []).find((s) => s.id === sid)?.name || `#${sid}` : 'aucun';
+const nomEtiquette = (tid) =>
+  tid ? (board.tags || []).find((t) => t.id === tid)?.name || `#${tid}` : 'aucun';
+const nomsAssignes = (task) =>
+  task.assignees?.length ? task.assignees.map((a) => a.name).join(', ') : 'personne';
 const findTask = (tid) => {
   for (const g of board.groups) {
     const t = g.tasks.find((x) => x.id === tid);
@@ -546,12 +555,15 @@ export const mockApi = {
     return { ok: true };
   },
 
-  async setTaskAssignees(taskId, userIds) {
+  async setTaskAssignees(taskId, userIds, actorId) {
     await delay(60);
     const { task } = findTask(taskId);
     if (!task) throw new Error('Tâche introuvable');
+    const avant = nomsAssignes(task);
     task.assignees = userIds.map((id) => adminShape(id)).filter(Boolean);
     task.admin = task.assignees[0] || null;
+    const apres = nomsAssignes(task);
+    if (avant !== apres) logActivity(taskId, 'assignees', avant, apres, actorId);
     return clone({ assignees: task.assignees, admin: task.admin });
   },
 
@@ -1024,7 +1036,19 @@ export const mockApi = {
     await delay();
     const { task } = findTask(id);
     if (!task) throw new Error('Tâche introuvable');
-    const prev = { status: task.status, priority: task.priority, name: task.name, duedate: task.duedate, start_date: task.start_date, admin: task.admin, archived: !!task.archived };
+    const prev = {
+      status: task.status,
+      priority: task.priority,
+      name: task.name,
+      duedate: task.duedate,
+      start_date: task.start_date,
+      admin: task.admin,
+      archived: !!task.archived,
+      group_id: task.group_id,
+      step_id: task.step_id ?? null,
+      etape_tag_id: task.etape_tag_id ?? null,
+      intervention_tag_id: task.intervention_tag_id ?? null,
+    };
 
     if (patch.name !== undefined) task.name = patch.name;
     if (patch.status !== undefined) task.status = patch.status;
@@ -1065,8 +1089,33 @@ export const mockApi = {
       logActivity(id, 'name', prev.name, task.name, actor);
     if (patch.duedate !== undefined && (prev.duedate || null) !== (task.duedate || null))
       logActivity(id, 'duedate', prev.duedate || '—', task.duedate || '—', actor);
+    if (patch.start_date !== undefined && (prev.start_date || null) !== (task.start_date || null))
+      logActivity(id, 'start_date', prev.start_date || '—', task.start_date || '—', actor);
     if (patch.admin_id !== undefined && (prev.admin?.id || null) !== (task.admin?.id || null))
       logActivity(id, 'admin', prev.admin?.name || 'Personne', task.admin?.name || 'Personne', actor);
+    if (patch.group_id !== undefined && prev.group_id !== task.group_id)
+      logActivity(id, 'group', nomGroupe(prev.group_id), nomGroupe(task.group_id), actor);
+    if (patch.step_id !== undefined && prev.step_id !== (task.step_id ?? null))
+      logActivity(id, 'step', nomEtape(prev.step_id), nomEtape(task.step_id), actor);
+    if (patch.etape_tag_id !== undefined && prev.etape_tag_id !== (task.etape_tag_id ?? null))
+      logActivity(
+        id,
+        'etape_tag',
+        nomEtiquette(prev.etape_tag_id),
+        nomEtiquette(task.etape_tag_id),
+        actor
+      );
+    if (
+      patch.intervention_tag_id !== undefined &&
+      prev.intervention_tag_id !== (task.intervention_tag_id ?? null)
+    )
+      logActivity(
+        id,
+        'intervention_tag',
+        nomEtiquette(prev.intervention_tag_id),
+        nomEtiquette(task.intervention_tag_id),
+        actor
+      );
     if (typeof patch.archived === 'boolean' && prev.archived !== !!task.archived)
       logActivity(
         id,

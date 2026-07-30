@@ -770,7 +770,7 @@ function Board({ currentUser, onLogout, onUpdateCurrentUser }) {
     const shaped = userIds.map((id) => users.find((u) => u.id === id)).filter(Boolean);
     optimistic(
       (b) => patchTaskLocal(b, taskId, { assignees: shaped, admin: shaped[0] || null }),
-      () => api.setTaskAssignees(taskId, userIds)
+      () => api.setTaskAssignees(taskId, userIds, actor.actor_id)
     );
   };
 
@@ -919,6 +919,12 @@ function Board({ currentUser, onLogout, onUpdateCurrentUser }) {
         if (idx >= 0) g.tasks[idx] = created;
         return next;
       });
+      // La fiche a pu être ouverte AVANT la réponse du serveur (fréquent au
+      // doigt, et sur une API qui se réveille) : elle pointerait alors un id
+      // temporaire, et toutes ses actions échoueraient en silence. On la
+      // recale sur la tâche réelle.
+      setDetailTask((t) => (t && t.id === tempId ? created : t));
+      setDrawerTask((t) => (t && t.id === tempId ? created : t));
     } catch (e) {
       setBoard((b) => {
         const next = structuredClone(b);
@@ -926,6 +932,9 @@ function Board({ currentUser, onLogout, onUpdateCurrentUser }) {
         g.tasks = g.tasks.filter((t) => t.id !== tempId);
         return next;
       });
+      // La tâche n'existe plus : ne pas laisser une fiche ouverte dessus.
+      setDetailTask((t) => (t && t.id === tempId ? null : t));
+      setDrawerTask((t) => (t && t.id === tempId ? null : t));
       signalerErreur(e);
     }
   };
@@ -2032,6 +2041,7 @@ function Board({ currentUser, onLogout, onUpdateCurrentUser }) {
               onUpdateSubtask={handleUpdateSubtask}
               onDeleteSubtask={handleDeleteSubtask}
               canDelete={canDeleteTask(live)}
+              isAdmin={isAdmin}
               onArchive={(archived) => {
                 handleArchiveTask(live.id, archived);
                 setDetailTask(null);
@@ -2537,6 +2547,7 @@ function Board({ currentUser, onLogout, onUpdateCurrentUser }) {
               onUpdateSubtask={handleUpdateSubtask}
               onDeleteSubtask={handleDeleteSubtask}
               canDelete={canDeleteTask(live)}
+              isAdmin={isAdmin}
               onArchive={(archived) => {
                 handleArchiveTask(live.id, archived);
                 setDetailTask(null);

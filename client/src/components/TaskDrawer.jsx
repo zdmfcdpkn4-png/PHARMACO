@@ -13,43 +13,9 @@ import {
 import Avatar from './Avatar.jsx';
 import { api } from '../api/index.js';
 import { STATUS_META, PRIORITY_META, formatShortDate } from '../lib/constants.js';
-
-// Formatte un horodatage relatif court ("il y a 2 h", "hier", date sinon).
-function timeAgo(iso) {
-  if (!iso) return '';
-  const d = new Date(iso);
-  const diff = (Date.now() - d.getTime()) / 1000;
-  if (diff < 60) return "à l'instant";
-  if (diff < 3600) return `il y a ${Math.floor(diff / 60)} min`;
-  if (diff < 86400) return `il y a ${Math.floor(diff / 3600)} h`;
-  if (diff < 172800) return 'hier';
-  return d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
-}
-
-// Libellé lisible d'une entrée du journal d'activité.
-function activityLabel(a) {
-  const who = a.user?.name || 'Quelqu’un';
-  switch (a.action_type) {
-    case 'created':
-      return `${who} a créé la tâche « ${a.new_value} »`;
-    case 'status':
-      return `${who} a changé le statut de « ${a.old_value} » à « ${a.new_value} »`;
-    case 'priority':
-      return `${who} a changé la priorité de « ${a.old_value} » à « ${a.new_value} »`;
-    case 'name':
-      return `${who} a renommé la tâche en « ${a.new_value} »`;
-    case 'duedate':
-      return `${who} a modifié l'échéance (${a.old_value} → ${a.new_value})`;
-    case 'admin':
-      return `${who} a réassigné : ${a.old_value} → ${a.new_value}`;
-    case 'archived':
-      return a.new_value === 'archivée'
-        ? `${who} a archivé la tâche`
-        : `${who} a sorti la tâche des archives`;
-    default:
-      return `${who} a mis à jour ${a.action_type}`;
-  }
-}
+// Libellés du journal : source unique, partagée avec la traçabilité de la
+// fiche de tâche (TaskAuditTrail) — les deux décrivent les mêmes entrées.
+import { libelleActivite, tempsRelatif as timeAgo } from '../lib/activity.js';
 
 // Met en évidence les @mentions reconnues (noms d'utilisateurs) dans un texte.
 function renderWithMentions(text, users, mine) {
@@ -100,6 +66,11 @@ export default function TaskDrawer({
   const scrollRef = useRef(null);
   const textareaRef = useRef(null);
 
+  // Traçabilité (onglet Historique) : administrateurs uniquement, comme la
+  // section « Traçabilité des modifications » de la fiche de tâche. Les deux
+  // lisent le même journal, elles suivent donc la même règle.
+  const estAdmin = currentUser?.role === 'admin';
+
   // Suggestions de mention filtrées
   const mentionMatches =
     mentionQuery !== null
@@ -131,7 +102,13 @@ export default function TaskDrawer({
   useEffect(() => {
     let active = true;
     setLoading(true);
-    Promise.all([api.getComments(task.id, currentUser.id), api.getActivity(task.id)])
+    // Le journal d'activité est une donnée de contrôle réservée aux
+    // administrateurs (`requireAdmin` sur la route) : ne pas le demander pour
+    // les autres, sinon l'ouverture d'une discussion se solderait par un 403.
+    Promise.all([
+      api.getComments(task.id, currentUser.id),
+      estAdmin ? api.getActivity(task.id) : Promise.resolve([]),
+    ])
       .then(([c, a]) => {
         if (!active) return;
         setComments(c);
@@ -141,7 +118,7 @@ export default function TaskDrawer({
     return () => {
       active = false;
     };
-  }, [task.id]);
+  }, [task.id, estAdmin]);
 
   // Échap pour fermer
   useEffect(() => {
@@ -238,7 +215,9 @@ export default function TaskDrawer({
         <div className="flex border-b border-gray-200">
           {[
             { key: 'discussion', label: 'Discussion', icon: MessageSquare, count: comments.length },
-            { key: 'historique', label: 'Historique', icon: History, count: activity.length },
+            ...(estAdmin
+              ? [{ key: 'historique', label: 'Historique', icon: History, count: activity.length }]
+              : []),
           ].map((t) => {
             const Icon = t.icon;
             const active = tab === t.key;
@@ -406,7 +385,7 @@ export default function TaskDrawer({
               {activity.map((a) => (
                 <li key={a.id} className="mb-5 ml-4">
                   <span className="absolute -left-[5px] mt-1.5 h-2.5 w-2.5 rounded-full bg-primary" />
-                  <div className="text-sm text-gray-700">{activityLabel(a)}</div>
+                  <div className="text-sm text-gray-700">{libelleActivite(a)}</div>
                   <div className="mt-0.5 text-xs text-gray-400">{timeAgo(a.created_at)}</div>
                 </li>
               ))}

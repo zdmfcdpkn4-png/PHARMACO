@@ -33,7 +33,9 @@ router.get('/comments/highlights', highlightComments); // messages prioritaires 
 router.get('/:taskId/comments', listComments);
 router.post('/:taskId/comments', requireEditor, createComment);
 router.post('/:taskId/comments/read', markRead); // état de lecture personnel
-router.get('/:taskId/activity', listActivity);
+// Traçabilité (qui / quoi / quand) : réservée aux administrateurs. C'est une
+// donnée de contrôle, pas une donnée de travail — voir docs/ROLES.md.
+router.get('/:taskId/activity', requireAdmin, listActivity);
 
 // Sous-items
 router.get('/:taskId/subtasks', listSubtasks);

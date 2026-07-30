@@ -334,8 +334,11 @@ FK physiques** sur `tasks` et `sub_tasks`).
 - **Aucune table de préférences utilisateur** ni de vues enregistrées.
 - **Aucune table de permission par projet** : `listBoards` ne filtre pas par accès
   (`boards.controller.js:4-19`) — tout utilisateur authentifié voit tous les projets.
-- `activity_log` est alimentée **mais partiellement** et **jamais exposée** en
-  dehors du tiroir d'une tâche.
+- ~~`activity_log` est alimentée **mais partiellement** et **jamais exposée** en
+  dehors du tiroir d'une tâche.~~ **Corrigé** : le journal couvre désormais
+  aussi le groupe, l'étape du circuit, les étiquettes, la date de début et
+  les assignés, son auteur est pris sur le jeton, et il est exposé dans la
+  fiche de tâche (section « Traçabilité », admin uniquement).
 
 ---
 
@@ -673,6 +676,9 @@ en phase 1.
 | ~~B20~~ | ~~**Une tâche créée par erreur ne peut pas être retirée** : la corbeille de `TaskRow` est en `opacity-0 group-hover:opacity-100` — invisible sans survol, donc inatteignable au doigt — et la carte mobile n'en a aucune.~~ **Corrigé** : actions Archiver / Supprimer dans la fenêtre de tâche, ouverte depuis toutes les vues. | `TaskDetailPanel.jsx`, `App.jsx` | fort |
 | ~~B21~~ | ~~**Le clic sur une ligne n'ouvre pas la même chose selon la vue** : Kanban et Calendrier ouvraient le fil de commentaires, le planning dynamique la fiche, le Gantt et la vue d'équipe rien du tout.~~ **Corrigé** : toutes les vues ouvrent `TaskDetailPanel`. | `App.jsx`, `GanttChartView.jsx`, `TeamWorkloadView.jsx`, `AgentView.jsx` | moyen |
 | ~~B22~~ | ~~**Écran cassé au changement d'onglet sur mobile** : `KanbanView` et `CalendarView` sont paresseux mais étaient rendus hors de toute frontière `<Suspense>` → « A component suspended while responding to synchronous input ».~~ **Corrigé** : une frontière par onglet du tableau mobile. | `App.jsx` (branche mobile) | fort |
+| ~~B23~~ | ~~**L'assignation est inutilisable au doigt** : le sélecteur d'`AdminCell` est un popover de 224 px à cases de 16 px, positionné en absolu dans un conteneur défilant et sans autre retour que le survol ; sa fermeture n'écoute que `mousedown`, simplement émulé sur tactile.~~ **Corrigé** : feuille inférieure sur pointeur grossier (rangées 48 px, cases 24 px), `pointerdown` sur bureau. | `AdminCell.jsx`, `useIsMobile.js` | fort |
+| ~~B24~~ | ~~**Un échec d'API déclenché depuis la fiche de tâche est invisible** : `BandeauErreur` est rendu dans le flux, donc recouvert par la fiche (`z-50`) et les feuilles (`z-60`). La mise à jour optimiste revient en arrière sans un mot — l'utilisateur conclut que le bouton ne marche pas.~~ **Corrigé** : bandeau flottant `z-[80]`, et échec réseau de `fetch` traduit en français. | `BandeauErreur.jsx`, `httpApi.js` | fort |
+| ~~B25~~ | ~~**Une fiche ouverte juste après la création d'une tâche est morte** : `handleAddTask` crée la tâche avec un id temporaire ; `detailTask` le conserve après la réponse du serveur, et toutes les actions de la fiche visent alors un id inexistant.~~ **Corrigé** : `detailTask` / `drawerTask` recalés sur la tâche réelle (et refermés si la création échoue). | `App.jsx` (`handleAddTask`) | moyen |
 
 ---
 
@@ -696,7 +702,7 @@ service de pharmacotechnie, pas de la complétude théorique.
 | A9 | **Ne plus avaler les erreurs** (9 mutations) | Une suppression qui échoue paraît réussir |
 | A10 | **Limitation de débit sur `/auth/login`** | Aucune protection contre la force brute |
 | A11 | **Ajouter `tasks.description`** | Absence la plus visible de la fiche de tâche |
-| A12 | **Exposer `activity_log`** | La table est déjà alimentée et indexée : il ne manque que la lecture |
+| ~~A12~~ | ~~**Exposer `activity_log`**~~ | ✅ **Livré** — section « Traçabilité des modifications » dans la fiche de tâche, réservée aux admins |
 | A13 | **Compter les co-assignés** (B9) | Trois vues donnent aujourd'hui des chiffres faux |
 | A14 | **Colonnes personnalisées et actions groupées sur mobile** | Parité rompue : le mobile ne voit pas les colonnes créées sur ordinateur |
 | A15 | **Persistance des filtres et de la vue** | Refaire ses filtres à chaque connexion est le premier irritant quotidien |

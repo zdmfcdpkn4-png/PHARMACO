@@ -57,13 +57,16 @@ client/                    # React 18 + Vite 5 + Tailwind 3 + lucide-react
   src/lib/useColumnWidths.js  # largeurs de colonnes persistées par projet (localStorage)
   src/lib/useViewPreferences.js # préférences d'affichage du tableau (dont groupByStep)
   src/lib/steps.js         # circuit d'intervention : ordre, parenté, avancement
+  src/lib/activity.js      # journal d'activité : libellés et horodatages (source unique)
+  src/lib/useIsMobile.js   # useIsMobile (quelle interface) + useIsCoarsePointer (cible au doigt)
   src/components/          # ~40 composants (vues + cellules + modales)
   src/App.jsx              # GROS fichier : état global, handlers, rendus desktop ET mobile
 
 server/                    # Express (ESM) + pg — API sous /api, santé : /api/health
   db/schema.sql            # schéma IDEMPOTENT (CREATE IF NOT EXISTS + ALTER ADD COLUMN IF NOT EXISTS)
   db/seed.sql              # données de démo
-  src/routes/ src/controllers/ src/middleware/ (auth, error) src/utils/ (authConfig, password)
+  src/routes/ src/controllers/ src/middleware/ (auth, error, rateLimit)
+  src/utils/               # authConfig, password, journal (auteur des entrées d'activité)
 ```
 
 ### Circuit d'intervention (étapes, sous-étapes, sous-sous-étapes)
@@ -144,6 +147,28 @@ quand la base est vide (`App.jsx`) : la suppression du dernier projet semblait
 donc échouer. Le bon chemin est l'écran « Aucun projet » (`noProjects`), qui
 propose d'en recréer un.
 
+### Cible tactile : `useIsCoarsePointer`, pas `useIsMobile`
+
+Deux questions différentes, deux crochets. `useIsMobile()` répond « quelle
+interface servir ? » (elle pilote la branche d'App.jsx). `useIsCoarsePointer()`
+(même fichier) répond « la cible est-elle atteignable **au doigt** ? » — c'est
+le seul média `(pointer: coarse)`, sans seuil de largeur. Une **tablette en
+paysage** reçoit l'interface bureau tout en étant pilotée au doigt : elle a
+besoin de grandes cibles, pas d'une mise en page mobile.
+
+**Exemple vécu** : le sélecteur d'assignation (`AdminCell`) s'ouvrait en
+popover flottant de 224 px, avec des cases à cocher de 16 px, **positionné en
+absolu dans un conteneur défilant** (la fiche de tâche) et sans autre retour
+que le survol — inutilisable au doigt. Sur pointeur grossier il s'ouvre
+désormais en `BottomSheet` : rangées de 48 px, cases de 24 px, retour `active:`.
+Le popover bureau est conservé tel quel. Sa fermeture au clic extérieur écoute
+`pointerdown` (souris, stylet **et** tactile d'une seule écoute) et non plus
+`mousedown`, qui n'est qu'émulé sur tactile.
+
+Règle générale : toute commande interactive doit offrir **44 px** au moins sur
+pointeur grossier — au besoin en élargissant la zone de tap sans bouger la mise
+en page (`-m-2 p-2`).
+
 ### Mises à jour optimistes
 
 Les mutations du tableau passent par le helper `optimistic(mutator, apiCall,
@@ -161,6 +186,22 @@ ne jamais faire son retour arrière à la main, et ne jamais avaler l'erreur.
 - Les messages d'erreur passent par `signalerErreur(e, secours)` : **un seul
   minuteur**, sinon deux erreurs successives s'effacent mutuellement. Ils sont
   rendus par un `BandeauErreur` unique par branche, porteur de `role="alert"`.
+- `BandeauErreur` est **flottant** (`fixed`, `z-[80]`). Dans le flux, il était
+  recouvert par la fiche de tâche (`z-50`) et par les feuilles inférieures
+  (`z-60`) : un échec déclenché depuis la fiche ne laissait **aucune trace à
+  l'écran**, la mise à jour optimiste revenait en arrière et l'utilisateur
+  concluait que « le bouton ne marche pas ». Tout nouveau calque doit rester
+  sous ce niveau.
+- `httpApi` traduit l'échec réseau de `fetch` (« Failed to fetch ») en une
+  phrase française exploitable : ce message-là finit sous les yeux de
+  l'utilisateur.
+
+**Création optimiste** : `handleAddTask` insère la tâche avec un id temporaire
+(`tmp-…`) puis le remplace par celui du serveur. Une fiche ouverte **avant** la
+réponse pointerait sinon l'id temporaire, et toutes ses actions échoueraient —
+scénario courant au doigt, sur une API qui se réveille. `detailTask` et
+`drawerTask` sont donc recalés sur la tâche réelle (et refermés si la création
+échoue).
 
 ### Chargement différé (React.lazy)
 
@@ -193,11 +234,42 @@ Trois rôles globaux : `admin`, `member`, `viewer`. Matrice complète :
 - `viewer` = lecture seule (`canEdit` false côté UI ; `requireEditor` refuse
   ses mutations côté serveur).
 - Structure (groupes, colonnes, équipes du projet) : propriétaire du projet ou admin.
+- **La traçabilité d'une tâche est réservée aux admins** : `activity_log` est
+  une donnée de contrôle, pas de travail (voir la section suivante).
 - **La sécurité réelle est côté serveur** (middlewares `requireAuth` sur
   toutes les routes, `requireEditor` sur les mutations, `requireAdmin` sur
   les suppressions/archivage — `server/src/middleware/auth.js`) ; les
   masquages UI ne sont qu'un confort. Toute nouvelle route doit être
   protégée serveur, pas seulement cachée.
+
+### Traçabilité des tâches (`activity_log`)
+
+Qui a changé quoi, et quand. Une entrée par changement significatif ; c'est la
+matière de la section repliable **« Traçabilité des modifications »** de la
+fiche de tâche (`TaskAuditTrail.jsx`) et de l'onglet « Historique » du tiroir
+de discussion (`TaskDrawer.jsx`).
+
+- **Réservée aux administrateurs**, des deux côtés :
+  `GET /tasks/:id/activity` est sous `requireAdmin`, et les deux affichages
+  sont masqués aux autres. Le tiroir ne **demande** même pas le journal pour un
+  non-admin, sinon ouvrir une discussion se solderait par un 403.
+- **Repliée par défaut**, et le journal n'est demandé qu'à la première
+  ouverture : la fiche s'ouvre depuis toutes les vues, elle n'a pas à porter un
+  appel réseau de plus pour un contenu rarement consulté.
+- **L'auteur vient du jeton**, pas du corps de la requête : `auteurDe(req,
+  actor_id)` (`server/src/utils/journal.js`) préfère `req.user.id` à
+  l'`actor_id` envoyé par le client — sans quoi n'importe qui pourrait signer
+  une modification du nom d'un autre. Le corps ne sert que de secours pour
+  l'outillage sans jeton.
+- **On journalise des NOMS, jamais des identifiants** (`nomDe` côté serveur,
+  `nomGroupe` / `nomEtape` / `nomEtiquette` côté mock) : la trace doit rester
+  lisible après renommage ou suppression de la référence.
+- Types couverts : `created`, `name`, `status`, `priority`, `duedate`,
+  `start_date`, `admin`, `assignees`, `group`, `step`, `etape_tag`,
+  `intervention_tag`, `archived`. **Ajouter un champ modifiable = ajouter son
+  entrée**, dans `tasks.controller.js` *et* dans `mockApi.js`, et son libellé
+  dans `client/src/lib/activity.js` — source unique des phrases, partagée par
+  les deux affichages.
 
 ### Accès direct à la base : la RLS n'est pas optionnelle
 

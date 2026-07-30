@@ -1,5 +1,6 @@
 import { query, withTransaction } from '../db/pool.js';
 import { asyncHandler } from '../middleware/error.js';
+import { auteurDe } from '../utils/journal.js';
 
 // Récupère une tâche mise en forme (avec admin joint) par son id.
 const fetchTaskShaped = async (taskId, client = { query }) => {
@@ -35,6 +36,21 @@ const fetchTaskShaped = async (taskId, client = { query }) => {
       ? { id: row.admin_user_id, name: row.admin_name, avatar_url: row.admin_avatar_url }
       : null,
   };
+};
+
+// Nom lisible d'une référence (groupe, étape du circuit, étiquette) pour le
+// journal d'activité. On y stocke des NOMS, jamais des identifiants : la trace
+// doit rester compréhensible même après renommage ou suppression de la
+// référence, et elle est lue par un humain, pas rejouée par le code.
+const SQL_NOM = {
+  groupe: 'SELECT name FROM groups WHERE id = $1',
+  etape: 'SELECT name FROM intervention_steps WHERE id = $1',
+  etiquette: 'SELECT name FROM project_tags WHERE id = $1',
+};
+const nomDe = async (client, quoi, id) => {
+  if (!id) return 'aucun';
+  const { rows } = await client.query(SQL_NOM[quoi], [id]);
+  return rows[0]?.name || `#${id}`;
 };
 
 // Crée une alerte quand une tâche passe "Bloqué".
@@ -158,7 +174,7 @@ export const createTask = asyncHandler(async (req, res) => {
     await client.query(
       `INSERT INTO activity_log (task_id, user_id, action_type, old_value, new_value)
        VALUES ($1, $2, 'created', NULL, $3)`,
-      [taskId, actor_id || null, name]
+      [taskId, auteurDe(req, actor_id), name]
     );
 
     return fetchTaskShaped(taskId, client);
@@ -267,7 +283,8 @@ export const updateTask = asyncHandler(async (req, res) => {
 
     const after = await fetchTaskShaped(taskId, client);
 
-    // Journalisation des changements significatifs
+    // Journalisation des changements significatifs — c'est la matière de la
+    // traçabilité (qui / quoi / quand) affichée dans la fiche de tâche.
     const logs = [];
     if (status !== undefined && before.status !== after.status)
       logs.push(['status', before.status, after.status]);
@@ -277,8 +294,40 @@ export const updateTask = asyncHandler(async (req, res) => {
       logs.push(['name', before.name, after.name]);
     if (duedate !== undefined && (before.duedate || null) !== (after.duedate || null))
       logs.push(['duedate', before.duedate || '—', after.duedate || '—']);
+    if (start_date !== undefined && (before.start_date || null) !== (after.start_date || null))
+      logs.push(['start_date', before.start_date || '—', after.start_date || '—']);
     if (admin_id !== undefined && (before.admin?.id || null) !== (after.admin?.id || null))
       logs.push(['admin', before.admin?.name || 'Personne', after.admin?.name || 'Personne']);
+    if (group_id !== undefined && before.group_id !== after.group_id)
+      logs.push([
+        'group',
+        await nomDe(client, 'groupe', before.group_id),
+        await nomDe(client, 'groupe', after.group_id),
+      ]);
+    if (step_id !== undefined && (before.step_id || null) !== (after.step_id || null))
+      logs.push([
+        'step',
+        await nomDe(client, 'etape', before.step_id),
+        await nomDe(client, 'etape', after.step_id),
+      ]);
+    if (
+      etape_tag_id !== undefined &&
+      (before.etape_tag_id || null) !== (after.etape_tag_id || null)
+    )
+      logs.push([
+        'etape_tag',
+        await nomDe(client, 'etiquette', before.etape_tag_id),
+        await nomDe(client, 'etiquette', after.etape_tag_id),
+      ]);
+    if (
+      intervention_tag_id !== undefined &&
+      (before.intervention_tag_id || null) !== (after.intervention_tag_id || null)
+    )
+      logs.push([
+        'intervention_tag',
+        await nomDe(client, 'etiquette', before.intervention_tag_id),
+        await nomDe(client, 'etiquette', after.intervention_tag_id),
+      ]);
     if (archived !== undefined && before.archived !== after.archived)
       logs.push([
         'archived',
@@ -290,7 +339,7 @@ export const updateTask = asyncHandler(async (req, res) => {
       await client.query(
         `INSERT INTO activity_log (task_id, user_id, action_type, old_value, new_value)
          VALUES ($1, $2, $3, $4, $5)`,
-        [taskId, actor_id || null, action, String(oldV), String(newV)]
+        [taskId, auteurDe(req, actor_id), action, String(oldV), String(newV)]
       );
     }
 
