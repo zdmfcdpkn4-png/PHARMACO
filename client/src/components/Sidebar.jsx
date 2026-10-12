@@ -21,6 +21,7 @@ import {
   Trash2,
   Archive,
   RotateCcw,
+  Clapperboard,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import Logo from './Logo.jsx';
@@ -91,6 +92,8 @@ export default function Sidebar({
   onAddShortcut,
   onDeleteShortcut,
   onOpenShortcut,
+  // Rejoue l'introduction animée (lib/intro.js).
+  onRevoirIntro,
   forceOpen = false, // mobile : panneau toujours déployé
 }) {
   const [panelOpen, setPanelOpen] = useState(
@@ -302,6 +305,13 @@ export default function Sidebar({
             onClick={() => onSelectRail?.('Agents')}
           />
           <RailIcon icon={Heart} label="Favoris" onClick={() => onSelectRail?.('Favoris')} />
+          {/* L'intro ne se joue d'elle-même qu'à la première ouverture sur
+              l'appareil : c'est le moyen de la revoir. Seule l'instance
+              ordinateur reçoit onRevoirIntro ; sur téléphone, le rail manque
+              de hauteur et l'entrée vit dans la feuille « Profil » (App.jsx). */}
+          {onRevoirIntro && (
+            <RailIcon icon={Clapperboard} label="Revoir l'intro" onClick={() => onRevoirIntro()} />
+          )}
 
           {/* Réduction du panneau */}
           {!forceOpen && (

@@ -49,6 +49,7 @@ et impose un changement de mot de passe à la première connexion
 ```
 client/                    # React 18 + Vite 5 + Tailwind 3 + lucide-react
   design.tokens.js         # SOURCE UNIQUE du thème (couleurs, police) — consommé par tailwind.config.js
+  public/intro/            # les deux vidéos de l'intro animée — GÉNÉRÉES par docs/intro/
   src/api/
     index.js               # bascule mock/http via VITE_USE_MOCK (mock par défaut)
     mockApi.js             # implémentation en mémoire (mode démo)
@@ -59,6 +60,7 @@ client/                    # React 18 + Vite 5 + Tailwind 3 + lucide-react
   src/lib/steps.js         # circuit d'intervention : ordre, parenté, avancement
   src/lib/activity.js      # journal d'activité : libellés et horodatages (source unique)
   src/lib/useIsMobile.js   # useIsMobile (quelle interface) + useIsCoarsePointer (cible au doigt)
+  src/lib/intro.js         # intro animée : quand la jouer, quel montage (voir plus bas)
   src/components/          # ~40 composants (vues + cellules + modales)
   src/App.jsx              # GROS fichier : état global, handlers, rendus desktop ET mobile
 
@@ -219,6 +221,39 @@ le repli est un écran fantôme (`Skeleton.jsx`, gabarit choisi selon l'appareil
 l'écran au changement d'onglet. C'était le cas de `KanbanView` et
 `CalendarView` dans la branche mobile : chaque onglet du tableau mobile porte
 désormais sa propre frontière.
+
+### Introduction animée
+
+Une vidéo de 42 s (motion design isométrique, mascotte Fiole) accueille le
+visiteur. Deux montages servis statiquement depuis `client/public/intro/` :
+`intro-paysage.mp4` (16:9) et `intro-portrait.mp4` (9:16), choisis selon les
+proportions de l'écran à l'ouverture (`sourceIntro`). Source et régénération :
+`docs/intro/` (HyperFrames, visuels et sons FLORA) — **on ne retouche jamais
+les MP4 à la main**, et la source modifiée se commite avec eux.
+
+- **Quand** (`src/lib/intro.js`) : à la première ouverture sur chaque appareil
+  (clé `localStorage` `pharmaco_intro_vue`, posée qu'elle ait été vue jusqu'au
+  bout ou passée), puis à la demande par « Revoir l'intro ». Jamais
+  d'elle-même si l'appareil demande moins d'animations
+  (`prefers-reduced-motion`) ; stockage indisponible = considérée comme vue.
+- **« Revoir l'intro » n'est PAS au même endroit selon l'interface** : rail de
+  `Sidebar` sur ordinateur (prop `onRevoirIntro`), feuille « Profil » sur
+  téléphone. Exception voulue à la règle des deux instances : dans le menu
+  mobile, chaque entrée de plus du rail prend la place de la liste des projets
+  (sur un iPhone SE, elle tombait à une demi-vignette). Ne pas passer
+  `onRevoirIntro` à l'instance mobile de `Sidebar`.
+- **Où** : montée dans `App`, pas dans `Board` — elle couvre aussi l'écran de
+  connexion, là où arrive un nouveau visiteur. Calque `z-[70]` : au-dessus de
+  l'application, **sous** `BandeauErreur` (`z-[80]`).
+- **Jamais bloquante** (`IntroOuverture.jsx`) : son coupé au départ (seule
+  lecture automatique que les navigateurs acceptent) et bouton « Son » ;
+  « Passer » et Échap toujours disponibles ; commandes de 44 px. Lecture
+  automatique refusée (`NotAllowedError`, mode économie d'énergie) → bouton
+  « Lancer l'intro ». Vidéo introuvable ou illisible, ou rien de lancé au bout
+  de 10 s → l'intro s'efface d'elle-même.
+- **Piège de test** : le Chromium de Playwright n'a pas le H.264. Pour vérifier
+  la lecture, lui servir un WebM via `page.route` ; ne pas convertir les
+  fichiers du site, que tous les navigateurs grand public lisent.
 
 ## Rôles et sécurité
 
@@ -383,6 +418,7 @@ car des déploiements peuvent suivre l'une ou l'autre. Après un push, pousser
 | `docs/ROLES.md` | Matrice des droits admin / membre / observateur |
 | `docs/DESIGN.md` | Retravailler l'apparence sans casser le fonctionnel |
 | `docs/DEPLOY-SUPABASE.md` | Déploiement Render + Supabase (pas-à-pas, dépannage) |
+| `docs/intro/README.md` | Intro animée : script, source HyperFrames, régénération des vidéos |
 | `CHARTE_GRAPHIQUE.md` | Charte CHD (palette, logo, typo) |
 
 Quand une évolution rend un de ces fichiers (ou celui-ci) inexact,

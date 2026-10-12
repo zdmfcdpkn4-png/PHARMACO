@@ -1,0 +1,2168 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width={{W}}, height={{H}}" />
+    <title>PHARMACO — introduction</title>
+    <script src="assets/js/gsap.min.js"></script>
+    <style>
+      /* Police de la charte : Figtree, embarquée (aucun appel réseau au rendu). */
+      @font-face {
+        font-family: "Figtree";
+        font-weight: 500;
+        src: url("assets/fonts/figtree-latin-500-normal.woff2") format("woff2");
+      }
+      @font-face {
+        font-family: "Figtree";
+        font-weight: 700;
+        src: url("assets/fonts/figtree-latin-700-normal.woff2") format("woff2");
+      }
+      @font-face {
+        font-family: "Figtree";
+        font-weight: 800;
+        src: url("assets/fonts/figtree-latin-800-normal.woff2") format("woff2");
+      }
+      @font-face {
+        font-family: "Figtree";
+        font-weight: 900;
+        src: url("assets/fonts/figtree-latin-900-normal.woff2") format("woff2");
+      }
+
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        margin: 0;
+        overflow: hidden;
+        background: #e3eaf1;
+      }
+
+      /* Charte CHD — jetons repris de client/design.tokens.js. */
+      #root {
+        --bleu: #005586;
+        --bleu-fonce: #00415f;
+        --rose: #e82a63;
+        --teal: #46b4b3;
+        --jaune: #f4c137;
+        --jaune-texte: #4a3a00;
+        --gris-statut: #9aadbd;
+        --fond: #eef4f8;
+        --encre: #0e2f47;
+
+        /* Tailles du format ordinateur ; le portrait les remplace plus bas. */
+        --t1: 84px;
+        --t2: 54px;
+        --t-rail: 30px;
+        --t-bulle: 38px;
+        --t-ligne: 32px;
+        --t-puce: 26px;
+        --t-carte: 28px;
+        --t-ecran: 30px;
+
+        position: relative;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        font-family: "Figtree", sans-serif;
+        color: var(--encre);
+      }
+      #root[data-format="portrait"] {
+        --t1: 96px;
+        --t2: 60px;
+        --t-rail: 46px;
+        --t-bulle: 48px;
+        --t-ligne: 42px;
+        --t-puce: 34px;
+        --t-carte: 38px;
+        --t-ecran: 40px;
+      }
+
+      .clip {
+        position: absolute;
+        inset: 0;
+      }
+      .calque {
+        position: absolute;
+        inset: 0;
+      }
+      .abs {
+        position: absolute;
+      }
+      img {
+        display: block;
+        user-select: none;
+      }
+
+      /* ---------- Fond permanent ---------- */
+      #fond-degrade {
+        position: absolute;
+        inset: 0;
+        background: radial-gradient(ellipse 75% 70% at 50% 45%, #eef3f8 0%, #e1e9f0 55%, #d2dde7 100%);
+      }
+      #fond-grille {
+        position: absolute;
+        left: -10%;
+        top: -10%;
+        width: 120%;
+        height: 120%;
+        opacity: 0;
+      }
+      .tache {
+        position: absolute;
+        border-radius: 50%;
+        filter: blur(36px);
+        opacity: 0.22;
+      }
+
+      /* ---------- Monde isométrique (actes 1 à 4) ---------- */
+      #monde-leve {
+        position: absolute;
+        inset: 0;
+      }
+      #monde {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 2752px;
+        height: 1536px;
+        transform-origin: 0 0;
+        will-change: transform;
+      }
+      #decor {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 2752px;
+        height: 1536px;
+        -webkit-mask-image: radial-gradient(ellipse 50% 54% at 50% 54%, #000 78%, transparent 100%);
+        mask-image: radial-gradient(ellipse 50% 54% at 50% 54%, #000 78%, transparent 100%);
+      }
+      .ancre {
+        position: absolute;
+        width: 0;
+        height: 0;
+      }
+      .pose {
+        position: absolute;
+        bottom: 0;
+      }
+      .miroir {
+        transform: scaleX(-1);
+      }
+      #trajet {
+        position: absolute;
+        left: 0;
+        top: 0;
+        overflow: visible;
+      }
+
+      /* Post-it, enveloppe, feuille : dessinés en CSS, au style « jouet ». */
+      .postit {
+        position: absolute;
+        bottom: 0;
+        border-radius: 22px;
+        box-shadow:
+          0 18px 0 rgba(14, 47, 71, 0.16),
+          inset 0 -14px 0 rgba(0, 0, 0, 0.07);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        font-weight: 800;
+        line-height: 1.05;
+        padding: 18px;
+        color: #2b2b2b;
+      }
+      .enveloppe {
+        position: absolute;
+        bottom: 0;
+        background: #ffffff;
+        border-radius: 22px;
+        box-shadow:
+          0 16px 0 rgba(14, 47, 71, 0.16),
+          inset 0 -12px 0 rgba(0, 0, 0, 0.06);
+        overflow: hidden;
+      }
+      .feuille {
+        position: absolute;
+        bottom: 0;
+        background: #ffffff;
+        border-radius: 18px;
+        box-shadow:
+          0 14px 0 rgba(14, 47, 71, 0.16),
+          inset 0 -10px 0 rgba(0, 0, 0, 0.05);
+      }
+      .feuille i {
+        position: absolute;
+        left: 16%;
+        height: 9%;
+        border-radius: 99px;
+        background: #d5e2ec;
+      }
+
+      /* ---------- Textes à l'écran ---------- */
+      .titre {
+        position: absolute;
+        font-weight: 900;
+        font-size: var(--t1);
+        line-height: 1.04;
+        letter-spacing: -0.03em;
+        color: var(--bleu);
+      }
+      .titre.rose {
+        color: var(--rose);
+      }
+      .titre.petit {
+        font-size: var(--t2);
+        font-weight: 800;
+        color: var(--encre);
+        letter-spacing: -0.02em;
+      }
+      .mot {
+        display: inline-block;
+        will-change: transform;
+      }
+
+      .bulle {
+        position: absolute;
+        padding: 0.42em 0.8em;
+        background: #ffffff;
+        border-radius: 1.2em;
+        font-size: var(--t-bulle);
+        font-weight: 800;
+        color: var(--bleu);
+        white-space: nowrap;
+        box-shadow: 0 10px 0 rgba(14, 47, 71, 0.14);
+        transform-origin: 50% 100%;
+      }
+      .bulle::after {
+        content: "";
+        position: absolute;
+        left: 50%;
+        bottom: -0.5em;
+        margin-left: -0.45em;
+        border-left: 0.45em solid transparent;
+        border-right: 0.45em solid transparent;
+        border-top: 0.55em solid #ffffff;
+      }
+      .bulle.verte {
+        background: #2e9e5b;
+        color: #ffffff;
+      }
+      .bulle.verte::after {
+        border-top-color: #2e9e5b;
+      }
+
+      /* Rail du circuit (acte 2). */
+      #rail {
+        position: absolute;
+        display: flex;
+        gap: 18px;
+        align-items: center;
+      }
+      .etape {
+        display: flex;
+        align-items: center;
+        gap: 0.45em;
+        padding: 0.32em 0.7em 0.32em 0.38em;
+        border-radius: 99px;
+        background: #ffffff;
+        font-size: var(--t-rail);
+        font-weight: 800;
+        color: var(--bleu);
+        box-shadow: 0 8px 0 rgba(14, 47, 71, 0.12);
+      }
+      .etape b {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 1.45em;
+        height: 1.45em;
+        border-radius: 50%;
+        background: #dbe6ee;
+        color: var(--bleu);
+        font-weight: 900;
+        font-size: 0.9em;
+      }
+      .fleche {
+        width: 26px;
+        height: 4px;
+        border-radius: 4px;
+        background: #b9c9d6;
+      }
+
+      .etiquette {
+        position: absolute;
+        padding: 0.35em 0.75em;
+        border-radius: 99px;
+        background: var(--rose);
+        color: #ffffff;
+        font-size: var(--t-puce);
+        font-weight: 800;
+        white-space: nowrap;
+        box-shadow: 0 8px 0 rgba(120, 10, 45, 0.22);
+      }
+
+      /* Tableau « Suivi des projets » (acte 4). */
+      .panneau {
+        position: absolute;
+        background: #ffffff;
+        border-radius: 34px;
+        box-shadow:
+          0 24px 0 rgba(14, 47, 71, 0.12),
+          0 40px 80px rgba(14, 47, 71, 0.16);
+        overflow: hidden;
+      }
+      .entete {
+        position: absolute;
+        left: 0;
+        top: 0;
+        right: 0;
+        background: var(--bleu);
+        color: #ffffff;
+        font-weight: 900;
+        display: flex;
+        align-items: center;
+      }
+      .rangee {
+        position: absolute;
+        left: 0;
+        display: flex;
+        align-items: center;
+        font-size: var(--t-ligne);
+        font-weight: 700;
+        color: var(--encre);
+      }
+      .puce {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 99px;
+        font-size: var(--t-puce);
+        font-weight: 800;
+        padding: 0.2em 0.7em;
+        white-space: nowrap;
+      }
+      .filet {
+        position: absolute;
+        height: 3px;
+        background: #e3ebf2;
+      }
+
+      /* Stations du tour (actes 5 et 6). */
+      #ville {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 0;
+        height: 0;
+        transform-origin: 0 0;
+        will-change: transform;
+      }
+      .station {
+        position: absolute;
+        width: 0;
+        height: 0;
+      }
+      .socle {
+        position: absolute;
+        overflow: visible;
+      }
+      .ecran {
+        position: absolute;
+        background: #ffffff;
+        border: 16px solid #34407a;
+        border-radius: 34px;
+        box-shadow:
+          0 22px 0 rgba(14, 47, 71, 0.16),
+          0 36px 70px rgba(14, 47, 71, 0.18);
+        overflow: hidden;
+        font-size: var(--t-ecran);
+      }
+      .ecran-titre {
+        position: absolute;
+        left: 0;
+        right: 0;
+        top: 0;
+        background: var(--bleu);
+        color: #ffffff;
+        font-weight: 900;
+        display: flex;
+        align-items: center;
+        padding-left: 0.7em;
+        letter-spacing: -0.01em;
+      }
+      .colonne {
+        position: absolute;
+        border-radius: 22px;
+        background: #f1f6f9;
+      }
+      .colonne-titre {
+        position: absolute;
+        left: 0;
+        right: 0;
+        top: 0;
+        border-radius: 22px 22px 0 0;
+        font-weight: 900;
+        text-align: center;
+        padding: 0.25em 0;
+        font-size: 0.9em;
+      }
+      .carte {
+        position: absolute;
+        background: #ffffff;
+        border-radius: 18px;
+        box-shadow: 0 7px 0 rgba(14, 47, 71, 0.12);
+        font-size: var(--t-carte);
+        font-weight: 800;
+        color: var(--encre);
+        line-height: 1.05;
+        padding: 0.45em 0.55em;
+      }
+      .barre {
+        position: absolute;
+        border-radius: 99px;
+        transform-origin: 0 50%;
+      }
+      .noeud {
+        position: absolute;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #ffffff;
+        font-weight: 900;
+      }
+      .message {
+        position: absolute;
+        border-radius: 20px;
+        background: #f1f6f9;
+        font-weight: 700;
+        display: flex;
+        align-items: center;
+        gap: 0.5em;
+        padding: 0 0.6em;
+        color: var(--encre);
+      }
+      .kpi {
+        position: absolute;
+        border-radius: 24px;
+        background: #f1f6f9;
+        padding: 0.4em 0.6em;
+      }
+      .kpi strong {
+        display: block;
+        font-weight: 900;
+        line-height: 1;
+        color: var(--bleu);
+      }
+      .kpi span {
+        display: block;
+        font-weight: 700;
+        color: #4e6578;
+      }
+
+      /* Signature (acte 7). */
+      #voile {
+        position: absolute;
+        inset: 0;
+        background: var(--fond);
+        opacity: 0;
+      }
+      .confetti {
+        position: absolute;
+        left: 0;
+        top: 0;
+        border-radius: 3px;
+        opacity: 0;
+        will-change: transform, opacity;
+      }
+    </style>
+  </head>
+  <body>
+    <div
+      id="root"
+      data-composition-id="main"
+      data-start="0"
+      data-width="{{W}}"
+      data-height="{{H}}"
+      data-duration="42"
+      data-format="{{FORMAT}}"
+    >
+      <!-- Fond permanent : dégradé bleuté, grille isométrique, taches de couleur. -->
+      <div id="fond" class="clip" data-start="0" data-duration="42" data-track-index="0">
+        <div id="fond-degrade"></div>
+        <svg id="fond-grille" aria-hidden="true">
+          <defs>
+            <pattern id="motif-iso" width="138.56" height="80" patternUnits="userSpaceOnUse">
+              <path d="M0 0 L138.56 80 M0 80 L138.56 0" stroke="#005586" stroke-width="2" stroke-opacity="0.09" fill="none" />
+            </pattern>
+          </defs>
+          <rect width="100%" height="100%" fill="url(#motif-iso)" />
+        </svg>
+        <div id="taches"></div>
+      </div>
+
+      <!-- Actes 1 à 4 : le monde isométrique de l'unité (décor, Fiole, pile). -->
+      <section id="acte-unite" class="clip" data-start="0" data-duration="20.6" data-track-index="1">
+        <div id="monde-leve"><div id="monde"></div></div>
+      </section>
+
+      <!-- Acte 1 : le logo de la pharmacotechnie, puis son badge. -->
+      <section id="acte-logo" class="clip" data-start="0" data-duration="20.6" data-track-index="2">
+        <div id="logo-unite" class="abs"></div>
+      </section>
+
+      <!-- Actes 2 à 4 : titres, rail du circuit, bulles, logo PHARMACO, tableau. -->
+      <section id="acte-textes" class="clip" data-start="4" data-duration="16.6" data-track-index="3">
+        <div id="calque-textes" class="calque"></div>
+      </section>
+
+      <!-- Actes 5 et 6 : le tour des vues, puis le tableau de bord. -->
+      <section id="acte-tour" class="clip" data-start="20.3" data-duration="16.35" data-track-index="4">
+        <div id="calque-ville" class="calque"><div id="ville"></div></div>
+        <div id="calque-tour" class="calque"></div>
+      </section>
+
+      <!-- Acte 7 : signature et passage de relais au site. -->
+      <section id="acte-signature" class="clip" data-start="36.45" data-duration="5.55" data-track-index="5">
+        <div id="calque-signature" class="calque"></div>
+        <div id="voile"></div>
+        <div id="calque-final" class="calque"></div>
+      </section>
+
+      <!-- Musique (ElevenLabs via FLORA) : la première note tombe à 1,8 s du fichier. -->
+      <audio id="musique" src="assets/audio/musique.mp3" data-start="0" data-duration="42" data-media-start="1.8" data-volume="0.8" data-fade-out="0.8" data-track-index="10"></audio>
+
+      <!-- Bruitages (FLORA) : pop, whoosh, ding, cloche. -->
+      <audio id="sfx-01" src="assets/audio/pop.mp3" data-start="0.35" data-duration="0.62" data-volume="0.55" data-track-index="11"></audio>
+      <audio id="sfx-02" src="assets/audio/whoosh.mp3" data-start="2.25" data-duration="1.04" data-volume="0.4" data-track-index="12"></audio>
+      <audio id="sfx-03" src="assets/audio/pop.mp3" data-start="3.6" data-duration="0.62" data-volume="0.45" data-track-index="11"></audio>
+      <audio id="sfx-04" src="assets/audio/whoosh.mp3" data-start="4.05" data-duration="1.04" data-volume="0.3" data-track-index="12"></audio>
+      <audio id="sfx-05" src="assets/audio/pop.mp3" data-start="5.15" data-duration="0.62" data-volume="0.4" data-track-index="11"></audio>
+      <audio id="sfx-06" src="assets/audio/ding.mp3" data-start="5.5" data-duration="1.04" data-volume="0.45" data-track-index="13"></audio>
+      <audio id="sfx-07" src="assets/audio/whoosh.mp3" data-start="6.55" data-duration="1.04" data-volume="0.3" data-track-index="12"></audio>
+      <audio id="sfx-08" src="assets/audio/pop.mp3" data-start="7.3" data-duration="0.62" data-volume="0.4" data-track-index="11"></audio>
+      <audio id="sfx-09" src="assets/audio/ding.mp3" data-start="8.4" data-duration="1.04" data-volume="0.45" data-track-index="13"></audio>
+      <audio id="sfx-10" src="assets/audio/whoosh.mp3" data-start="8.9" data-duration="1.04" data-volume="0.3" data-track-index="12"></audio>
+      <audio id="sfx-11" src="assets/audio/pop.mp3" data-start="9.75" data-duration="0.62" data-volume="0.45" data-track-index="11"></audio>
+      <audio id="sfx-12" src="assets/audio/whoosh.mp3" data-start="10.5" data-duration="1.04" data-volume="0.3" data-track-index="12"></audio>
+      <audio id="sfx-13" src="assets/audio/pop.mp3" data-start="10.9" data-duration="0.62" data-volume="0.35" data-track-index="11"></audio>
+      <audio id="sfx-14" src="assets/audio/cloche.mp3" data-start="11.9" data-duration="1.23" data-volume="0.4" data-track-index="14"></audio>
+      <audio id="sfx-15" src="assets/audio/pop.mp3" data-start="12.4" data-duration="0.62" data-volume="0.35" data-track-index="11"></audio>
+      <audio id="sfx-16" src="assets/audio/pop.mp3" data-start="12.9" data-duration="0.62" data-volume="0.35" data-track-index="15"></audio>
+      <audio id="sfx-17" src="assets/audio/pop.mp3" data-start="13.4" data-duration="0.62" data-volume="0.35" data-track-index="11"></audio>
+      <audio id="sfx-18" src="assets/audio/pop.mp3" data-start="13.9" data-duration="0.62" data-volume="0.35" data-track-index="15"></audio>
+      <audio id="sfx-19" src="assets/audio/pop.mp3" data-start="15.45" data-duration="0.62" data-volume="0.6" data-track-index="11"></audio>
+      <audio id="sfx-20" src="assets/audio/whoosh.mp3" data-start="15.65" data-duration="1.04" data-volume="0.55" data-track-index="12"></audio>
+      <audio id="sfx-21" src="assets/audio/whoosh.mp3" data-start="16.95" data-duration="1.04" data-volume="0.35" data-track-index="16"></audio>
+      <audio id="sfx-22" src="assets/audio/ding.mp3" data-start="18.0" data-duration="1.04" data-volume="0.45" data-track-index="13"></audio>
+      <audio id="sfx-23" src="assets/audio/pop.mp3" data-start="19.4" data-duration="0.62" data-volume="0.45" data-track-index="11"></audio>
+      <audio id="sfx-24" src="assets/audio/whoosh.mp3" data-start="20.3" data-duration="1.04" data-volume="0.55" data-track-index="12"></audio>
+      <audio id="sfx-25" src="assets/audio/pop.mp3" data-start="21.0" data-duration="0.62" data-volume="0.35" data-track-index="11"></audio>
+      <audio id="sfx-26" src="assets/audio/pop.mp3" data-start="21.7" data-duration="0.62" data-volume="0.4" data-track-index="15"></audio>
+      <audio id="sfx-27" src="assets/audio/ding.mp3" data-start="21.5" data-duration="1.04" data-volume="0.45" data-track-index="13"></audio>
+      <audio id="sfx-28" src="assets/audio/whoosh.mp3" data-start="22.95" data-duration="1.04" data-volume="0.3" data-track-index="12"></audio>
+      <audio id="sfx-29" src="assets/audio/pop.mp3" data-start="24.75" data-duration="0.62" data-volume="0.45" data-track-index="11"></audio>
+      <audio id="sfx-30" src="assets/audio/whoosh.mp3" data-start="25.45" data-duration="1.04" data-volume="0.3" data-track-index="12"></audio>
+      <audio id="sfx-31" src="assets/audio/pop.mp3" data-start="26.3" data-duration="0.62" data-volume="0.3" data-track-index="11"></audio>
+      <audio id="sfx-32" src="assets/audio/pop.mp3" data-start="26.8" data-duration="0.62" data-volume="0.3" data-track-index="15"></audio>
+      <audio id="sfx-33" src="assets/audio/pop.mp3" data-start="27.3" data-duration="0.62" data-volume="0.3" data-track-index="11"></audio>
+      <audio id="sfx-34" src="assets/audio/ding.mp3" data-start="27.85" data-duration="1.04" data-volume="0.45" data-track-index="13"></audio>
+      <audio id="sfx-35" src="assets/audio/whoosh.mp3" data-start="27.95" data-duration="1.04" data-volume="0.3" data-track-index="12"></audio>
+      <audio id="sfx-36" src="assets/audio/cloche.mp3" data-start="29.05" data-duration="1.23" data-volume="0.45" data-track-index="14"></audio>
+      <audio id="sfx-37" src="assets/audio/pop.mp3" data-start="29.65" data-duration="0.62" data-volume="0.4" data-track-index="11"></audio>
+      <audio id="sfx-38" src="assets/audio/whoosh.mp3" data-start="31.15" data-duration="1.04" data-volume="0.5" data-track-index="12"></audio>
+      <audio id="sfx-39" src="assets/audio/ding.mp3" data-start="33.6" data-duration="1.04" data-volume="0.45" data-track-index="13"></audio>
+      <audio id="sfx-40" src="assets/audio/whoosh.mp3" data-start="36.45" data-duration="1.04" data-volume="0.5" data-track-index="12"></audio>
+      <audio id="sfx-41" src="assets/audio/pop.mp3" data-start="37.2" data-duration="0.62" data-volume="0.55" data-track-index="11"></audio>
+      <audio id="sfx-42" src="assets/audio/pop.mp3" data-start="38.95" data-duration="0.62" data-volume="0.5" data-track-index="15"></audio>
+      <audio id="sfx-43" src="assets/audio/whoosh.mp3" data-start="40.95" data-duration="1.04" data-volume="0.4" data-track-index="12"></audio>
+      <audio id="sfx-44" src="assets/audio/pop.mp3" data-start="22.3" data-duration="0.62" data-volume="0.35" data-track-index="16"></audio>
+    </div>
+
+    <script>
+      /* =====================================================================
+         PHARMACO — introduction (42 s). Une seule source pour deux formats :
+         data-format vaut « paysage » (1920×1080) ou « portrait » (1080×1920).
+         Tout le mouvement tient dans UNE timeline en pause ; les éléments à
+         trajectoire complexe (caméras, Fiole, poche) sont pilotés par des
+         fonctions pures du temps, donc sûrs quel que soit l'ordre de lecture.
+         ===================================================================== */
+      const root = document.getElementById("root");
+      const W = Number(root.dataset.width);
+      const H = Number(root.dataset.height);
+      const PORTRAIT = root.dataset.format === "portrait";
+      const K = (paysage, portrait) => (PORTRAIT ? portrait : paysage);
+      const tl = gsap.timeline({ paused: true });
+
+      // Hasard déterministe (aucun Math.random) : même rendu à chaque fois.
+      const hasard = (n) => {
+        const x = Math.sin(n * 127.1 + 311.7) * 43758.5453;
+        return x - Math.floor(x);
+      };
+
+      // Dimensions natives des images (détourées depuis les planches FLORA).
+      const DIM = {
+        "cadre.png": [290, 650],
+        "classeurs.png": [350, 410],
+        "cloche.png": [270, 325],
+        "coche.png": [280, 320],
+        "coeur.png": [350, 250],
+        "drapeau.png": [280, 355],
+        "fiole-assise.png": [470, 520],
+        "fiole-inquiete.png": [390, 530],
+        "fiole-montre.png": [560, 550],
+        "fiole-pousse.png": [490, 540],
+        "fiole-salue.png": [580, 660],
+        "fiole-saute.png": [520, 600],
+        "logisticien.png": [310, 660],
+        "logo-pharmaco.png": [512, 512],
+        "mug.png": [390, 340],
+        "pharmacienne-cafe.png": [480, 710],
+        "pharmacienne-salue.png": [480, 720],
+        "poche.png": [200, 330],
+        "preparateur-pouce.png": [340, 640],
+        "preparateur-salue.png": [390, 600],
+        "telephone.png": [490, 360],
+        "pharmaco-embleme.webp": [640, 640],
+        "pharmaco-nom.webp": [671, 106],
+        "pharmaco-unite.webp": [508, 108],
+      };
+
+      // ---------- Petits outils de construction ----------
+      function el(tag, parent, cls, style, html) {
+        const e = document.createElement(tag);
+        if (cls) e.className = cls;
+        if (style) Object.assign(e.style, style);
+        if (html !== undefined) e.innerHTML = html;
+        if (parent) parent.appendChild(e);
+        return e;
+      }
+      function px(n) {
+        return `${Math.round(n * 100) / 100}px`;
+      }
+      // Image de hauteur h, centrée sur l'ancre, posée sur elle (pied = ancre).
+      function pose(parent, fichier, h, cls) {
+        const [w0, h0] = DIM[fichier];
+        const w = (h * w0) / h0;
+        const img = el("img", parent, `pose ${cls || ""}`, { width: px(w), height: px(h), left: px(-w / 2) });
+        img.src = `assets/img/${fichier}`;
+        img.alt = "";
+        return img;
+      }
+      // Ancre positionnée (point au sol) ; c'est elle que la timeline anime.
+      function ancre(parent, x, y, id) {
+        const a = el("div", parent, "ancre", { left: px(x), top: px(y) });
+        if (id) a.id = id;
+        return a;
+      }
+      // Texte découpé en mots, pour les entrées en cascade. Un « \n » impose
+      // le retour à la ligne (une phrase ne doit pas laisser un mot orphelin).
+      function mots(texte) {
+        return texte
+          .split("\n")
+          .map((ligne) =>
+            ligne
+              .split(" ")
+              .map((m) => `<span class="mot">${m}</span>`)
+              .join(" "),
+          )
+          .join("<br>");
+      }
+      // Avatar floral de PHARMACO (PharmacoAvatar.jsx) : couronne + initiales.
+      const PALETTES = [
+        { p: ["#005586", "#3b7ba5"], c: "#005586", r: "#e1edf3" },
+        { p: ["#e82a63", "#f06a90"], c: "#e82a63", r: "#fbe1e9" },
+        { p: ["#46b4b3", "#7ccbca"], c: "#2f8f8e", r: "#e2f3f3" },
+      ];
+      function avatar(parent, initiales, variante, taille, style) {
+        const pal = PALETTES[variante % PALETTES.length];
+        let petales = "";
+        for (let i = 0; i < 12; i++) {
+          petales += `<ellipse cx="0" cy="-30" rx="8" ry="18" fill="${pal.p[i % 2]}" transform="rotate(${i * 30})" />`;
+        }
+        const svg = `<svg viewBox="0 0 100 100" width="${taille}" height="${taille}"><circle cx="50" cy="50" r="50" fill="${pal.r}"/><g transform="translate(50 50)">${petales}</g><circle cx="50" cy="50" r="24" fill="${pal.c}"/><text x="50" y="51" text-anchor="middle" dominant-baseline="central" font-family="Figtree" font-weight="900" font-size="22" fill="#fff">${initiales}</text></svg>`;
+        return el("div", parent, "abs", Object.assign({ width: px(taille), height: px(taille) }, style || {}), svg);
+      }
+      // Pastilles de statut et de priorité : couleurs de STATUS_META / PRIORITY_META.
+      const STATUT = {
+        "À faire": ["#9aadbd", "#ffffff"],
+        "En cours": ["#f4c137", "#4a3a00"],
+        Fait: ["#46b4b3", "#ffffff"],
+        Bloqué: ["#e82a63", "#ffffff"],
+      };
+      const PRIORITE = { P1: ["#e82a63", "#ffffff"], P2: ["#f4c137", "#4a3a00"], P3: ["#005586", "#ffffff"] };
+      function puce(parent, libelle, couleurs, style) {
+        return el(
+          "span",
+          parent,
+          "puce",
+          Object.assign({ background: couleurs[0], color: couleurs[1] }, style || {}),
+          libelle,
+        );
+      }
+
+      // ---------- Animations récurrentes ----------
+      // Apparition « ressort » : douce pour l'interface, joueuse pour le cartoon.
+      function pop(cible, t, o = {}) {
+        tl.fromTo(
+          cible,
+          { scale: o.depuis ?? 0, opacity: 0, y: o.y ?? 0, rotation: o.rot ?? 0 },
+          {
+            scale: 1,
+            opacity: 1,
+            y: 0,
+            rotation: 0,
+            duration: o.d ?? 0.5,
+            ease: o.ease ?? "back.out(1.6)",
+            immediateRender: o.ir ?? true,
+          },
+          t,
+        );
+      }
+      function sortie(cible, t, o = {}) {
+        tl.to(cible, { opacity: 0, scale: o.scale ?? 0.85, y: o.y ?? 0, duration: o.d ?? 0.3, ease: "power2.in" }, t);
+      }
+      // Titre en cascade de mots, puis sortie.
+      function titre(parent, texte, style, t, fin, cls, decalage = 0.07) {
+        const bloc = el("div", parent, `titre ${cls || ""}`, style, mots(texte));
+        const ms = bloc.querySelectorAll(".mot");
+        ms.forEach((m, i) => {
+          tl.fromTo(
+            m,
+            { y: 70, opacity: 0, rotation: 3 },
+            { y: 0, opacity: 1, rotation: 0, duration: 0.55, ease: "expo.out" },
+            t + i * decalage,
+          );
+        });
+        if (fin !== null) {
+          tl.to(ms, { y: -40, opacity: 0, duration: 0.28, ease: "power2.in", stagger: 0.025 }, fin);
+        }
+        return bloc;
+      }
+      // Bulle de dialogue posée en coordonnées écran.
+      function bulle(parent, texte, x, y, t, fin, verte) {
+        const b = el("div", parent, `bulle${verte ? " verte" : ""}`, { left: px(x), top: px(y) }, texte);
+        pop(b, t, { depuis: 0.2, y: 30, d: 0.45, ease: "back.out(2)" });
+        if (fin !== null) sortie(b, fin, { scale: 0.6, d: 0.25 });
+        return b;
+      }
+
+      // ---------- Caméras : fonctions pures du temps ----------
+      // Une clé = { t, wx, wy, sx, sy, s, ease } : le point du monde (wx, wy)
+      // est montré au point d'écran (sx, sy), à l'échelle s.
+      function camera(cles) {
+        return (t) => {
+          if (t <= cles[0].t) return cles[0];
+          for (let i = 1; i < cles.length; i++) {
+            const a = cles[i - 1];
+            const b = cles[i];
+            if (t <= b.t) {
+              const p = gsap.parseEase(b.ease || "power2.inOut")((t - a.t) / (b.t - a.t));
+              const m = (k) => a[k] + (b[k] - a[k]) * p;
+              return { wx: m("wx"), wy: m("wy"), sx: m("sx"), sy: m("sy"), s: m("s") };
+            }
+          }
+          return cles[cles.length - 1];
+        };
+      }
+      function cadre(cam) {
+        return `translate(${px(cam.sx - cam.s * cam.wx)}, ${px(cam.sy - cam.s * cam.wy)}) scale(${cam.s})`;
+      }
+      // Projection monde → écran pour un plan de caméra fixe.
+      function versEcran(cam, x, y) {
+        return [cam.sx + cam.s * (x - cam.wx), cam.sy + cam.s * (y - cam.wy)];
+      }
+
+      /* =====================================================================
+         FOND
+         ===================================================================== */
+      const taches = document.getElementById("taches");
+      const TACHES = [
+        { c: "#46b4b3", x: 0.12, y: 0.2, r: 420 },
+        { c: "#e82a63", x: 0.86, y: 0.16, r: 360 },
+        { c: "#f4c137", x: 0.82, y: 0.82, r: 460 },
+        { c: "#005586", x: 0.1, y: 0.86, r: 380 },
+        { c: "#46b4b3", x: 0.5, y: 0.04, r: 300 },
+      ];
+      TACHES.forEach((d, i) => {
+        const t = el("div", taches, "tache", {
+          left: px(W * d.x - d.r / 2),
+          top: px(H * d.y - d.r / 2),
+          width: px(d.r),
+          height: px(d.r),
+          background: d.c,
+        });
+        // Respiration lente, en nombre fini de cycles (boucle sinusoïdale).
+        tl.fromTo(
+          t,
+          { x: 0, y: 0, scale: 1 },
+          {
+            x: (hasard(i) - 0.5) * 120,
+            y: (hasard(i + 9) - 0.5) * 120,
+            scale: 1.15,
+            duration: 7,
+            ease: "sine.inOut",
+            yoyo: true,
+            repeat: 5,
+          },
+          0,
+        );
+      });
+      tl.to("#fond-grille", { opacity: 1, duration: 1.2, ease: "power2.out" }, 0.1);
+      tl.fromTo("#fond-grille", { x: 0, y: 0 }, { x: -138.56, y: -80, duration: 42, ease: "none" }, 0);
+
+      /* =====================================================================
+         ACTE 1 — L'unité sort de terre (0 → 4 s)
+         ===================================================================== */
+      const logoUnite = document.getElementById("logo-unite");
+      const tailleEmbleme = K(400, 560);
+      Object.assign(logoUnite.style, {
+        left: px(W / 2),
+        top: px(K(H / 2 - 40, H / 2 - 120)),
+        width: "0px",
+        height: "0px",
+      });
+      const embleme = el("img", logoUnite, "abs", {
+        width: px(tailleEmbleme),
+        height: px(tailleEmbleme),
+        left: px(-tailleEmbleme / 2),
+        top: px(-tailleEmbleme / 2 - 40),
+      });
+      embleme.src = "assets/img/pharmaco-embleme.webp";
+      embleme.alt = "";
+      const largeurNom = tailleEmbleme * 1.3;
+      const nom = el("img", logoUnite, "abs", {
+        width: px(largeurNom),
+        height: px((largeurNom * 106) / 671),
+        left: px(-largeurNom / 2),
+        top: px(tailleEmbleme / 2 - 10),
+      });
+      nom.src = "assets/img/pharmaco-nom.webp";
+      nom.alt = "";
+      const largeurUnite = largeurNom * 0.78;
+      const unite = el("img", logoUnite, "abs", {
+        width: px(largeurUnite),
+        height: px((largeurUnite * 108) / 508),
+        left: px(-largeurUnite / 2),
+        top: px(tailleEmbleme / 2 - 10 + (largeurNom * 106) / 671 + 6),
+      });
+      unite.src = "assets/img/pharmaco-unite.webp";
+      unite.alt = "";
+
+      // Ondes du tampon.
+      for (let i = 0; i < 2; i++) {
+        const onde = el("div", logoUnite, "abs", {
+          left: px(-tailleEmbleme / 2),
+          top: px(-tailleEmbleme / 2 - 40),
+          width: px(tailleEmbleme),
+          height: px(tailleEmbleme),
+          borderRadius: "50%",
+          border: `${K(10, 12)}px solid ${i ? "#e82a63" : "#46b4b3"}`,
+        });
+        tl.fromTo(
+          onde,
+          { scale: 0.7, opacity: 0.9 },
+          { scale: 1.9, opacity: 0, duration: 1.1, ease: "expo.out" },
+          0.4 + i * 0.14,
+        );
+      }
+      // Le tampon : l'emblème frappe le sol, s'écrase un instant, rebondit.
+      tl.fromTo(embleme, { scale: 1.9, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.32, ease: "power4.in" }, 0.05);
+      tl.fromTo(
+        embleme,
+        { scaleY: 0.86, scaleX: 1.08 },
+        { scaleY: 1, scaleX: 1, duration: 0.55, ease: "elastic.out(1, 0.45)", immediateRender: false },
+        0.37,
+      );
+      tl.fromTo(
+        nom,
+        { clipPath: "inset(0 100% 0 0)", opacity: 1 },
+        { clipPath: "inset(0 0% 0 0)", duration: 0.75, ease: "power2.inOut" },
+        0.85,
+      );
+      tl.fromTo(unite, { y: 24, opacity: 0 }, { y: 0, opacity: 1, duration: 0.5, ease: "power3.out" }, 1.3);
+
+      // Le logo devient un badge discret, coin haut, pendant que l'unité sort de terre.
+      const badge = K({ x: W - 150, y: 104, s: 0.27 }, { x: 130, y: 92, s: 0.2 });
+      tl.fromTo(
+        logoUnite,
+        { x: 0, y: 0, scale: 1 },
+        {
+          x: badge.x - W / 2,
+          y: badge.y - K(H / 2 - 40, H / 2 - 120),
+          scale: badge.s,
+          duration: 0.75,
+          ease: "power3.inOut",
+        },
+        2.2,
+      );
+      tl.to(logoUnite, { opacity: 0, duration: 0.35, ease: "power2.in" }, 14.75);
+
+      /* =====================================================================
+         LE MONDE ISOMÉTRIQUE (actes 1 à 4) — coordonnées du décor 2752×1536
+         ===================================================================== */
+      const monde = document.getElementById("monde");
+      const decor = el("img", monde, "", {}, undefined);
+      decor.id = "decor";
+      decor.src = "assets/img/decor.jpg";
+      decor.alt = "";
+
+      // Le chemin du circuit, surligné en rose au fil des étapes.
+      const svgNS = "http://www.w3.org/2000/svg";
+      const trajet = document.createElementNS(svgNS, "svg");
+      trajet.setAttribute("id", "trajet");
+      trajet.setAttribute("width", "2752");
+      trajet.setAttribute("height", "1536");
+      monde.appendChild(trajet);
+      const chemin = document.createElementNS(svgNS, "path");
+      chemin.setAttribute("d", "M 850 962 L 1080 996 L 1400 1158 Q 1440 1178 1484 1158 L 2000 940 L 2240 826");
+      chemin.setAttribute("fill", "none");
+      chemin.setAttribute("stroke", "#e82a63");
+      chemin.setAttribute("stroke-width", "16");
+      chemin.setAttribute("stroke-linecap", "round");
+      chemin.setAttribute("stroke-linejoin", "round");
+      chemin.setAttribute("opacity", "0.92");
+      trajet.appendChild(chemin);
+      const LONG = chemin.getTotalLength();
+      chemin.style.strokeDasharray = `${LONG}`;
+      chemin.style.strokeDashoffset = `${LONG}`;
+      const avance = (t, de, a, d) =>
+        tl.fromTo(
+          chemin,
+          { strokeDashoffset: LONG * (1 - de) },
+          { strokeDashoffset: LONG * (1 - a), duration: d, ease: "power1.inOut", immediateRender: false },
+          t,
+        );
+      avance(5.0, 0, 0.18, 0.6);
+      avance(6.6, 0.18, 0.5, 0.8);
+      avance(8.2, 0.5, 0.72, 0.5);
+      avance(9.0, 0.72, 1, 0.8);
+      tl.to(chemin, { opacity: 0, duration: 0.4 }, 10.6);
+
+      // Lueurs et étincelles posées sur le décor.
+      function lueur(x, y, r, couleur) {
+        return el("div", monde, "abs", {
+          left: px(x - r),
+          top: px(y - r),
+          width: px(2 * r),
+          height: px(2 * r),
+          borderRadius: "50%",
+          background: `radial-gradient(circle, ${couleur} 0%, rgba(255,255,255,0) 70%)`,
+          opacity: 0,
+        });
+      }
+      const lueurEcran = lueur(922, 470, 170, "rgba(120, 230, 140, 0.95)");
+      const lueurFeu = lueur(474, 592, 120, "rgba(110, 230, 120, 0.95)");
+      tl.fromTo(lueurEcran, { scale: 0.4, opacity: 0 }, { scale: 1.3, opacity: 1, duration: 0.35, ease: "power2.out" }, 5.45);
+      tl.to(lueurEcran, { scale: 1.6, opacity: 0, duration: 0.6, ease: "power2.in" }, 5.85);
+      tl.fromTo(
+        lueurFeu,
+        { scale: 0.5, opacity: 0 },
+        { scale: 1.2, opacity: 0.95, duration: 0.3, ease: "power2.out", yoyo: true, repeat: 3 },
+        5.55,
+      );
+
+      // La grande coche qui jaillit de l'écran.
+      const cocheAncre = ancre(monde, 922, 470);
+      pose(cocheAncre, "coche.png", 190);
+      tl.fromTo(cocheAncre, { scale: 0, y: 40, opacity: 0 }, { scale: 1, y: -60, opacity: 1, duration: 0.5, ease: "back.out(2)" }, 5.45);
+      tl.to(cocheAncre, { y: -110, opacity: 0, duration: 0.45, ease: "power2.in" }, 6.2);
+
+      // La prescription : une feuille qui vole jusqu'au bureau.
+      const feuilleAncre = ancre(monde, 650, 800);
+      const feuille = el("div", feuilleAncre, "feuille", { width: "112px", height: "142px", left: "-56px" });
+      for (let i = 0; i < 4; i++) el("i", feuille, "", { top: px(22 + i * 26), width: i === 3 ? "40%" : "68%" });
+      tl.fromTo(
+        feuilleAncre,
+        { x: -700, y: -900, rotation: -45, opacity: 0 },
+        { x: 0, y: 0, rotation: 8, opacity: 1, duration: 0.6, ease: "power2.out" },
+        4.55,
+      );
+      tl.fromTo(feuilleAncre, { scaleY: 0.8 }, { scaleY: 1, duration: 0.3, ease: "back.out(3)", immediateRender: false }, 5.15);
+      tl.to(feuilleAncre, { opacity: 0, scale: 0.6, duration: 0.3, ease: "power2.in" }, 10.4);
+
+      // Étincelles de la préparation (gants de l'isolateur).
+      const ETINCELLES = [
+        [1440, 560, 54],
+        [1560, 610, 40],
+        [1500, 470, 34],
+        [1620, 520, 46],
+      ];
+      ETINCELLES.forEach(([x, y, r], i) => {
+        const e = el(
+          "div",
+          monde,
+          "abs",
+          { left: px(x - r), top: px(y - r), width: px(2 * r), height: px(2 * r) },
+          `<svg viewBox="-10 -10 20 20" width="${2 * r}" height="${2 * r}"><path d="M0 -10 Q1.6 -1.6 10 0 Q1.6 1.6 0 10 Q-1.6 1.6 -10 0 Q-1.6 -1.6 0 -10 Z" fill="${i % 2 ? "#ffffff" : "#f4c137"}"/></svg>`,
+        );
+        tl.fromTo(
+          e,
+          { scale: 0, rotation: -90, opacity: 0 },
+          { scale: 1, rotation: 0, opacity: 1, duration: 0.35, ease: "back.out(2.5)" },
+          7.0 + i * 0.1,
+        );
+        tl.to(e, { scale: 0, rotation: 90, opacity: 0, duration: 0.3, ease: "power2.in" }, 7.75 + i * 0.06);
+      });
+
+      // La poche de chimio : apparaît dans l'isolateur, est contrôlée, puis libérée.
+      const poche = ancre(monde, 1712, 676, "poche");
+      pose(poche, "poche.png", 150);
+      pop(poche, 7.3, { d: 0.5, ease: "back.out(2.2)" });
+      // Anneau de contrôle autour de la poche.
+      const anneau = el(
+        "div",
+        monde,
+        "abs",
+        { left: px(1712 - 115), top: px(600 - 115), width: "230px", height: "230px" },
+        `<svg viewBox="0 0 230 230" width="230" height="230"><circle cx="115" cy="115" r="100" fill="none" stroke="#46b4b3" stroke-width="14" stroke-dasharray="40 18" /><circle cx="186" cy="44" r="34" fill="#2e9e5b"/><path d="M170 44 l11 11 l20 -22" fill="none" stroke="#fff" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
+      );
+      tl.fromTo(
+        anneau,
+        { scale: 1.6, rotation: -60, opacity: 0 },
+        { scale: 1, rotation: 0, opacity: 1, duration: 0.45, ease: "power3.out" },
+        8.1,
+      );
+      tl.to(anneau, { scale: 1.25, opacity: 0, duration: 0.35, ease: "power2.in" }, 8.95);
+      // Trajet de la poche : isolateur → passe-plat → glacière (courbe de Bézier).
+      const trajetPoche = { p: 0 };
+      const P0 = [0, 0];
+      const P1 = [260, -260];
+      const P2 = [410, 40];
+      tl.fromTo(
+        trajetPoche,
+        { p: 0 },
+        {
+          p: 1,
+          duration: 0.8,
+          ease: "power1.inOut",
+          immediateRender: false,
+          onUpdate: () => {
+            const u = trajetPoche.p;
+            const x = (1 - u) * (1 - u) * P0[0] + 2 * (1 - u) * u * P1[0] + u * u * P2[0];
+            const y = (1 - u) * (1 - u) * P0[1] + 2 * (1 - u) * u * P1[1] + u * u * P2[1];
+            gsap.set(poche, { x, y, rotation: 25 * Math.sin(u * Math.PI) });
+          },
+        },
+        8.95,
+      );
+      tl.to(poche, { scale: 0.4, opacity: 0, duration: 0.25, ease: "power2.in" }, 9.8);
+
+      // Fiole, la mascotte : position, saut et pose sont des fonctions du temps.
+      const POSES_FIOLE = {
+        salue: "fiole-salue.png",
+        montre: "fiole-montre.png",
+        "montre-g": "fiole-montre.png",
+        inquiete: "fiole-inquiete.png",
+        saute: "fiole-saute.png",
+      };
+      function creerFiole(parent, x, y, h) {
+        const a = ancre(parent, x, y);
+        const imgs = {};
+        for (const [cle, fichier] of Object.entries(POSES_FIOLE)) {
+          imgs[cle] = pose(a, fichier, h, cle === "montre-g" ? "miroir" : "");
+          imgs[cle].style.opacity = "0";
+        }
+        return { a, imgs };
+      }
+      // Programme de Fiole dans le monde (coordonnées du décor).
+      const SOL = K(
+        { centre: [1430, 1236], bureau: [980, 930], zac: [1200, 940], sortie: [1960, 960], pile: [2560, 1236], ordre: [1500, 1236] },
+        { centre: [1430, 1236], bureau: [980, 930], zac: [1200, 940], sortie: [1960, 960], pile: [1000, 2240], ordre: [1500, 1236] },
+      );
+      const fiole = creerFiole(monde, 0, 0, 300);
+      const SAUTS = [
+        { t: 3.05, d: 0.55, de: [2900, 1236], a: SOL.centre, h: 260 },
+        { t: 4.45, d: 0.5, de: SOL.centre, a: SOL.bureau, h: 200 },
+        { t: 6.6, d: 0.5, de: SOL.bureau, a: SOL.zac, h: 200 },
+        { t: 8.95, d: 0.55, de: SOL.zac, a: SOL.sortie, h: 200 },
+        { t: 10.55, d: 0.6, de: SOL.sortie, a: SOL.pile, h: 240 },
+        { t: 17.0, d: 0.6, de: SOL.pile, a: SOL.ordre, h: 260 },
+        { t: 19.4, d: 0.55, de: SOL.ordre, a: SOL.ordre, h: 220 },
+      ];
+      const POSES_TEMPS = [
+        [0, "salue"],
+        [4.45, "montre-g"],
+        [6.6, "montre"],
+        [10.55, "salue"],
+        [11.2, "inquiete"],
+        [17.0, "salue"],
+        [19.4, "saute"],
+        [20.0, "salue"],
+      ];
+      function etatFiole(t) {
+        let x = SAUTS[0].de[0];
+        let y = SAUTS[0].de[1];
+        let sy = 1;
+        let rot = 0;
+        for (const s of SAUTS) {
+          if (t >= s.t + s.d) {
+            x = s.a[0];
+            y = s.a[1];
+            // Écrasement à l'atterrissage, sur 0,22 s.
+            const apres = t - (s.t + s.d);
+            if (apres < 0.22) sy = 1 - 0.14 * Math.sin((apres / 0.22) * Math.PI);
+          } else if (t >= s.t) {
+            const u = (t - s.t) / s.d;
+            x = s.de[0] + (s.a[0] - s.de[0]) * u;
+            y = s.de[1] + (s.a[1] - s.de[1]) * u - s.h * 4 * u * (1 - u);
+            rot = 10 * Math.sin(u * Math.PI) * Math.sign(s.a[0] - s.de[0] || 1);
+            sy = 1.06;
+            break;
+          }
+        }
+        // Coucou de la main : petit balancement au repos.
+        if ((t > 3.7 && t < 4.4) || (t > 17.7 && t < 19.3)) rot += 5 * Math.sin((t - 3.7) * 9);
+        // Inquiétude : tremblement.
+        if (t > 11.2 && t < 15.6) x += 4 * Math.sin(t * 47);
+        let p = POSES_TEMPS[0][1];
+        for (const [tp, nomPose] of POSES_TEMPS) if (t >= tp) p = nomPose;
+        const visible = t >= SAUTS[0].t;
+        return { x, y, sy, rot, p, visible };
+      }
+      function appliquerFiole(f, e, opaciteGlobale = 1) {
+        gsap.set(f.a, { x: e.x, y: e.y, rotation: e.rot, scaleY: e.sy, scaleX: 2 - e.sy });
+        for (const [cle, img] of Object.entries(f.imgs)) img.style.opacity = e.visible && cle === e.p ? String(opaciteGlobale) : "0";
+      }
+
+      /* ---------- La pile de l'acte 3 ---------- */
+      const BASE_PILE = K([2950, 1350], [1375, 2330]);
+      const pile = ancre(monde, BASE_PILE[0], BASE_PILE[1], "pile");
+      // Petit socle isométrique sous la pile.
+      const socleLargeur = 760;
+      const socle = el(
+        "div",
+        pile,
+        "abs",
+        { left: px(-socleLargeur / 2), top: px(-110), width: px(socleLargeur), height: "300px" },
+        `<svg viewBox="0 0 760 300" width="760" height="300"><polygon points="380,10 750,150 380,290 10,150" fill="#3b4a85"/><polygon points="380,0 750,140 380,260 10,140" fill="#eef3f8"/><polygon points="10,140 380,260 380,290 10,150" fill="#4e5d99"/><polygon points="750,140 380,260 380,290 750,150" fill="#34407a"/></svg>`,
+      );
+      pop(socle, 10.6, { d: 0.45, ease: "back.out(1.8)" });
+      const POSTITS = [
+        { texte: "Audit qualité", fond: "#f9d65c", x: -235, y: -140, r: -9 },
+        { texte: "Revue lots", fond: "#f48fb1", x: 220, y: -360, r: 8 },
+        { texte: "Inventaire mensuel", fond: "#8ed1cf", x: -215, y: -600, r: -6 },
+        { texte: "Contrôle péremption", fond: "#ffd27a", x: 40, y: -760, r: 7 },
+      ];
+      const OBJETS_PILE = [];
+      function objetPile(construire, x, y, r, t) {
+        const a = ancre(pile, x, y);
+        const aspire = el("div", a, "ancre", { left: "0px", top: "0px" });
+        construire(aspire);
+        tl.fromTo(a, { y: -900, rotation: r * 3, opacity: 0 }, { y: 0, rotation: r, opacity: 1, duration: 0.5, ease: "back.out(1.4)" }, t);
+        OBJETS_PILE.push({ a, aspire, x, y });
+        return a;
+      }
+      objetPile((p) => pose(p, "classeurs.png", 360), 0, 0, 0, 10.85);
+      objetPile((p) => pose(p, "telephone.png", 270), 40, -330, 5, 11.85);
+      objetPile(
+        (p) => {
+          const env = el("div", p, "enveloppe", { width: "290px", height: "190px", left: "-145px" });
+          el(
+            "div",
+            env,
+            "abs",
+            { left: "0", top: "0", width: "270px", height: "176px" },
+            `<svg viewBox="0 0 270 176" width="270" height="176"><path d="M8 12 L135 104 L262 12" fill="none" stroke="#d9e4ec" stroke-width="10" stroke-linejoin="round"/></svg>`,
+          );
+          const coeur = el("img", env, "abs", { width: "92px", height: "66px", left: "89px", top: "70px" });
+          coeur.src = "assets/img/coeur.png";
+          coeur.alt = "";
+        },
+        -30,
+        -570,
+        -5,
+        12.9,
+      );
+      const TEMPS_POSTITS = [11.4, 12.4, 13.4, 13.9];
+      POSTITS.forEach((p, i) => {
+        objetPile(
+          (parent) => {
+            el(
+              "div",
+              parent,
+              "postit",
+              { width: "250px", height: "250px", left: "-125px", background: p.fond, fontSize: "44px" },
+              p.texte,
+            );
+          },
+          p.x,
+          p.y,
+          p.r,
+          TEMPS_POSTITS[i],
+        );
+      });
+      // La pile tangue (finie, fonction du temps).
+      tl.fromTo(pile, { rotation: 0 }, { rotation: 2.2, duration: 0.6, ease: "sine.inOut", yoyo: true, repeat: 5 }, 12.0);
+
+      /* =====================================================================
+         CAMÉRA DU MONDE (0 → 20,6 s)
+         ===================================================================== */
+      const C = K(
+        {
+          LEVE: { wx: 1375, wy: 805, sx: 960, sy: 600, s: 0.64 },
+          BUREAU: { wx: 720, wy: 610, sx: 1060, sy: 615, s: 0.85 },
+          ZAC: { wx: 1480, wy: 600, sx: 1000, sy: 615, s: 0.85 },
+          SORTIE: { wx: 2120, wy: 620, sx: 960, sy: 615, s: 0.85 },
+          PILE: { wx: 1900, wy: 860, sx: 960, sy: 640, s: 0.6 },
+          ORDRE: { wx: 1375, wy: 805, sx: 500, sy: 640, s: 0.4 },
+        },
+        {
+          LEVE: { wx: 1375, wy: 805, sx: 540, sy: 1150, s: 0.47 },
+          BUREAU: { wx: 720, wy: 610, sx: 540, sy: 1130, s: 0.72 },
+          ZAC: { wx: 1480, wy: 600, sx: 540, sy: 1130, s: 0.72 },
+          SORTIE: { wx: 2140, wy: 620, sx: 540, sy: 1130, s: 0.72 },
+          PILE: { wx: 1375, wy: 1350, sx: 540, sy: 1180, s: 0.42 },
+          ORDRE: { wx: 1375, wy: 805, sx: 540, sy: 820, s: 0.4 },
+        },
+      );
+      const cle = (t, plan, ease) => Object.assign({ t, ease }, C[plan]);
+      const cameraMonde = camera([
+        cle(0, "LEVE"),
+        cle(4.0, "LEVE"),
+        cle(4.8, "BUREAU", "power3.inOut"),
+        cle(6.55, "BUREAU"),
+        cle(7.25, "ZAC", "power3.inOut"),
+        cle(8.9, "ZAC"),
+        cle(9.6, "SORTIE", "power3.inOut"),
+        cle(10.5, "SORTIE"),
+        cle(11.4, "PILE", "power3.inOut"),
+        cle(16.7, "PILE"),
+        cle(17.5, "ORDRE", "power3.inOut"),
+        cle(20.6, "ORDRE"),
+      ]);
+      // Lent glissement continu (la caméra ne s'arrête jamais tout à fait).
+      function derive(t) {
+        return { dx: 14 * Math.sin(t * 0.45), dy: 8 * Math.sin(t * 0.33 + 1) };
+      }
+      const pilote = { t: 0 };
+      function appliquerMonde(t) {
+        const cam = cameraMonde(t);
+        const d = derive(t);
+        monde.style.transform = cadre({ wx: cam.wx, wy: cam.wy, sx: cam.sx + d.dx, sy: cam.sy + d.dy, s: cam.s });
+        appliquerFiole(fiole, etatFiole(t));
+      }
+      appliquerMonde(0);
+      tl.fromTo(
+        pilote,
+        { t: 0 },
+        { t: 20.6, duration: 20.6, ease: "none", onUpdate: () => appliquerMonde(pilote.t) },
+        0,
+      );
+      // L'unité « sort de terre » : montée depuis le bas, révélée par le sol.
+      tl.fromTo(
+        "#monde-leve",
+        { y: K(320, 420), opacity: 0, clipPath: "inset(100% 0 0 0)" },
+        { y: 0, opacity: 1, clipPath: "inset(0% 0 0 0)", duration: 0.95, ease: "power3.out" },
+        2.25,
+      );
+      // Petits nuages de poussière au contact du sol.
+      const POUSSIERES = [
+        [700, 1330],
+        [1380, 1420],
+        [2150, 1260],
+      ];
+      POUSSIERES.forEach(([x, y], i) => {
+        const nuage = el("div", monde, "abs", {
+          left: px(x - 90),
+          top: px(y - 60),
+          width: "180px",
+          height: "120px",
+          borderRadius: "50%",
+          background: "radial-gradient(circle, rgba(255,255,255,0.95) 0%, rgba(255,255,255,0) 70%)",
+        });
+        tl.fromTo(nuage, { scale: 0.3, opacity: 0 }, { scale: 1.6, opacity: 1, duration: 0.35, ease: "power2.out" }, 2.85 + i * 0.07);
+        tl.to(nuage, { opacity: 0, scale: 2.1, duration: 0.45, ease: "power1.in" }, 3.2 + i * 0.07);
+      });
+
+      /* =====================================================================
+         ACTES 2 À 4 — textes et interface à l'écran (coordonnées écran)
+         ===================================================================== */
+      const textes = document.getElementById("calque-textes");
+      const TITRE = K(
+        { left: "90px", top: "64px", width: "1100px" },
+        { left: "70px", top: "210px", width: "940px" },
+      );
+      const TITRE_2 = K(
+        { left: "90px", top: "166px", width: "1100px" },
+        { left: "70px", top: "420px", width: "940px" },
+      );
+
+      // Acte 2 : le circuit d'une chimio.
+      titre(textes, K("Ici, on prépare les chimios.", "Ici, on prépare\nles chimios."), TITRE, 4.25, 6.45);
+      titre(textes, K("Rien n’est laissé au hasard.", "Rien n’est laissé\nau hasard."), TITRE, 6.75, 10.25, "rose");
+
+      // Bulle « OK chimio ! » au-dessus du feu vert (plan BUREAU fixe).
+      const [bx, by] = versEcran(C.BUREAU, 474, 330);
+      bulle(textes, "OK chimio&#8239;!", bx - K(110, 140), by - K(60, 80), 5.6, 6.5, true);
+
+      // Rail des cinq étapes.
+      const ETAPES = ["Prescription", "Validation", "Préparation", "Contrôle", "Libération"];
+      const TEMPS_ETAPES = [5.2, 5.5, 7.6, 8.4, 9.75];
+      const COULEURS_ETAPES = ["#005586", "#46b4b3", "#e82a63", "#f4c137", "#2e9e5b"];
+      const rail = el("div", textes, "", {}, "");
+      rail.id = "rail";
+      if (!PORTRAIT) {
+        Object.assign(rail.style, { left: "0px", right: "0px", bottom: "36px", justifyContent: "center" });
+      } else {
+        Object.assign(rail.style, {
+          left: "0px",
+          right: "0px",
+          bottom: "150px",
+          justifyContent: "center",
+          flexWrap: "wrap",
+          rowGap: "22px",
+          padding: "0 40px",
+        });
+      }
+      ETAPES.forEach((nomEtape, i) => {
+        if (i > 0 && !PORTRAIT) el("div", rail, "fleche");
+        const e = el("div", rail, "etape", {}, `<b>${i + 1}</b>${nomEtape}`);
+        const b = e.querySelector("b");
+        pop(e, 4.5 + i * 0.07, { depuis: 0.6, y: 30, d: 0.45, ease: "power3.out" });
+        tl.to(b, { backgroundColor: COULEURS_ETAPES[i], color: i === 3 ? "#4a3a00" : "#ffffff", duration: 0.2 }, TEMPS_ETAPES[i]);
+        tl.to(e, { color: COULEURS_ETAPES[i] === "#f4c137" ? "#7a5c00" : COULEURS_ETAPES[i], duration: 0.2 }, TEMPS_ETAPES[i]);
+        tl.fromTo(
+          e,
+          { scale: 1 },
+          { scale: 1.14, duration: 0.18, ease: "power2.out", yoyo: true, repeat: 1, immediateRender: false },
+          TEMPS_ETAPES[i],
+        );
+      });
+      tl.to(rail, { y: 140, opacity: 0, duration: 0.35, ease: "power2.in" }, 10.3);
+
+      // « → Hôpital de jour » à la sortie (plan SORTIE fixe).
+      const [hx, hy] = versEcran(C.SORTIE, 2250, 360);
+      const hdj = el("div", textes, "etiquette", { left: px(hx - K(120, 160)), top: px(hy - K(40, 60)) }, "→ Hôpital de jour");
+      pop(hdj, 9.85, { depuis: 0.3, y: 20, d: 0.4, ease: "back.out(2)" });
+      sortie(hdj, 10.4, { d: 0.25 });
+
+      // Acte 3 : ça s'empile.
+      titre(textes, "Et à côté…\nles projets s’empilent.", Object.assign({}, TITRE, K({ width: "1000px" }, {})), 10.75, 14.9);
+      const BULLES = K(
+        [
+          { texte: "C’est pour quand&#8239;?", x: 70, y: 300, t: 12.15 },
+          { texte: "Qui s’en charge&#8239;?", x: 520, y: 286, t: 12.7 },
+          { texte: "On en est où&#8239;?", x: 1000, y: 600, t: 13.25 },
+        ],
+        [
+          { texte: "C’est pour quand&#8239;?", x: 40, y: 560, t: 12.15 },
+          { texte: "Qui s’en charge&#8239;?", x: 470, y: 452, t: 12.7 },
+          { texte: "On en est où&#8239;?", x: 560, y: 1690, t: 13.25 },
+        ],
+      );
+      BULLES.forEach((b) => bulle(textes, b.texte, b.x, b.y, b.t, 14.95));
+
+      // Acte 4 : PHARMACO entre en scène.
+      titre(textes, "On respire.", TITRE, 15.35, 16.95);
+      titre(textes, K("PHARMACO met de l’ordre.", "PHARMACO\nmet de l’ordre."), TITRE, 17.3, 20.15);
+      titre(
+        textes,
+        "Tous les projets de l’unité,\nau même endroit.",
+        Object.assign({}, TITRE_2, K({ width: "860px" }, {})),
+        19.2,
+        20.15,
+        "petit",
+        0.04,
+      );
+
+      // Le logo PHARMACO tombe sur la pile, tourne comme une hélice, aspire tout.
+      const tailleLogo = K(280, 300);
+      const [sommetX, sommetBas] = versEcran(C.PILE, BASE_PILE[0] + 40, BASE_PILE[1] - 1010);
+      const sommetY = sommetBas - tailleLogo * 0.42;
+      const logoP = el("div", textes, "abs", { left: px(sommetX), top: px(sommetY), width: "0px", height: "0px", zIndex: "5" });
+      const halo = el("div", logoP, "abs", {
+        left: px(-tailleLogo),
+        top: px(-tailleLogo),
+        width: px(tailleLogo * 2),
+        height: px(tailleLogo * 2),
+        borderRadius: "50%",
+        background: "radial-gradient(circle, rgba(244,193,55,0.55) 0%, rgba(244,193,55,0) 65%)",
+      });
+      const tourbillon = el(
+        "div",
+        logoP,
+        "abs",
+        { left: px(-tailleLogo * 0.95), top: px(-tailleLogo * 0.95), width: px(tailleLogo * 1.9), height: px(tailleLogo * 1.9) },
+        `<svg viewBox="-100 -100 200 200" width="${tailleLogo * 1.9}" height="${tailleLogo * 1.9}"><g fill="none" stroke-linecap="round" stroke-width="5"><path d="M -88 0 A 88 88 0 0 1 0 -88" stroke="#46b4b3"/><path d="M 88 0 A 88 88 0 0 1 0 88" stroke="#e82a63"/><path d="M 0 -72 A 72 72 0 0 1 72 0" stroke="#f4c137"/><path d="M 0 72 A 72 72 0 0 1 -72 0" stroke="#005586"/></g></svg>`,
+      );
+      const logoImg = el("img", logoP, "abs", {
+        width: px(tailleLogo),
+        height: px(tailleLogo),
+        left: px(-tailleLogo / 2),
+        top: px(-tailleLogo / 2),
+      });
+      logoImg.src = "assets/img/logo-pharmaco.png";
+      logoImg.alt = "";
+      tl.fromTo(logoP, { y: -K(700, 1300), opacity: 0 }, { y: 0, opacity: 1, duration: 0.38, ease: "power3.in" }, 15.07);
+      tl.fromTo(
+        logoImg,
+        { scaleY: 0.78, scaleX: 1.2 },
+        { scaleY: 1, scaleX: 1, duration: 0.6, ease: "elastic.out(1, 0.4)", immediateRender: false },
+        15.45,
+      );
+      tl.fromTo(halo, { scale: 0.3, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.5, ease: "power2.out" }, 15.45);
+      tl.fromTo(logoImg, { rotation: 0 }, { rotation: 1080, duration: 1.5, ease: "power2.inOut", immediateRender: false }, 15.55);
+      tl.fromTo(tourbillon, { rotation: 0, opacity: 0, scale: 0.6 }, { rotation: -720, opacity: 1, scale: 1.25, duration: 1.3, ease: "power1.inOut" }, 15.6);
+      tl.to(tourbillon, { opacity: 0, scale: 1.6, duration: 0.3, ease: "power2.in" }, 16.85);
+
+      // Aspiration : chaque objet de la pile file vers le centre du logo.
+      const centreMonde = [
+        C.PILE.wx + (sommetX - C.PILE.sx) / C.PILE.s,
+        C.PILE.wy + (sommetY - C.PILE.sy) / C.PILE.s,
+      ];
+      OBJETS_PILE.slice()
+        .reverse()
+        .forEach((o, i) => {
+          const cibleX = centreMonde[0] - (BASE_PILE[0] + o.x);
+          const cibleY = centreMonde[1] - (BASE_PILE[1] + o.y);
+          const t0 = 15.75 + i * 0.09;
+          tl.fromTo(
+            o.aspire,
+            { x: 0, y: 0, rotation: 0, scale: 1, opacity: 1 },
+            {
+              x: cibleX,
+              y: cibleY,
+              rotation: (i % 2 ? 1 : -1) * 360,
+              scale: 0.12,
+              opacity: 0,
+              duration: 0.75,
+              ease: "power3.in",
+              immediateRender: false,
+            },
+            t0,
+          );
+        });
+      tl.to(socle, { scale: 0, opacity: 0, duration: 0.35, ease: "back.in(1.6)" }, 16.5);
+
+      // Le tableau « Suivi des projets » se déploie depuis le logo.
+      const TAB = K(
+        { x: 1010, y: 300, w: 840, h: 590, ent: 104, rang: 112, nomW: 380 },
+        { x: 50, y: 1080, w: 980, h: 730, ent: 122, rang: 146, nomW: 420 },
+      );
+      const tableau = el("div", textes, "panneau", { left: px(TAB.x), top: px(TAB.y), width: px(TAB.w), height: px(TAB.h) });
+      const entete = el("div", tableau, "entete", {
+        height: px(TAB.ent),
+        paddingLeft: px(TAB.ent + 6),
+        fontSize: K("44px", "52px"),
+      });
+      entete.textContent = "Suivi des projets";
+      const COLONNES = K(
+        { statut: 430, prio: 640, agent: 760 },
+        { statut: 470, prio: 730, agent: 880 },
+      );
+      const LIGNES = [
+        { nom: "Audit qualité", statut: "En cours", prio: "P2", init: "AM", v: 0 },
+        { nom: "Revue lots", statut: "À faire", prio: "P3", init: "BD", v: 1 },
+        { nom: "Inventaire mensuel", statut: "En cours", prio: "P3", init: "CP", v: 2 },
+        { nom: "Contrôle péremption", statut: "Fait", prio: "P3", init: "AM", v: 0 },
+      ];
+      pop(tableau, 16.95, { depuis: 0.82, d: 0.55, ease: "power3.out" });
+      LIGNES.forEach((l, i) => {
+        const y = TAB.ent + 14 + i * TAB.rang;
+        const r = el("div", tableau, "rangee", { top: px(y), height: px(TAB.rang), width: px(TAB.w) });
+        el("div", r, "abs", { left: "36px", width: px(TAB.nomW), lineHeight: "1.05" }, l.nom);
+        const ps = puce(r, l.statut, STATUT[l.statut], { position: "absolute", left: px(COLONNES.statut) });
+        const pp = puce(r, l.prio, PRIORITE[l.prio], { position: "absolute", left: px(COLONNES.prio) });
+        const av = avatar(r, l.init, l.v, K(64, 76), { left: px(COLONNES.agent), top: px((TAB.rang - K(64, 76)) / 2) });
+        if (i < LIGNES.length - 1) el("div", tableau, "filet", { left: "30px", right: "30px", top: px(y + TAB.rang), width: px(TAB.w - 60) });
+        // Chaque ligne jaillit du logo et rejoint sa place (expansion depuis le centre).
+        const dx = sommetX - (TAB.x + TAB.w / 2);
+        const dy = sommetY - (TAB.y + y + TAB.rang / 2);
+        tl.fromTo(
+          r,
+          { x: dx, y: dy, scale: 0.3, opacity: 0 },
+          { x: 0, y: 0, scale: 1, opacity: 1, duration: 0.65, ease: "expo.out" },
+          17.0 + i * 0.09,
+        );
+        pop(ps, 17.55 + i * 0.07, { depuis: 0.4, d: 0.35, ease: "back.out(2)" });
+        pop(pp, 17.65 + i * 0.07, { depuis: 0.4, d: 0.35, ease: "back.out(2)" });
+        pop(av, 17.8 + i * 0.07, { depuis: 0.2, d: 0.4, ease: "back.out(2.2)" });
+      });
+      // Le logo rejoint l'en-tête du tableau.
+      const icone = K(78, 92);
+      tl.to(
+        logoP,
+        {
+          x: TAB.x + TAB.ent / 2 + 6 - sommetX,
+          y: TAB.y + TAB.ent / 2 - sommetY,
+          scale: icone / tailleLogo,
+          duration: 0.7,
+          ease: "power3.inOut",
+        },
+        16.95,
+      );
+      tl.to(halo, { opacity: 0, duration: 0.4 }, 16.95);
+      // Sortie de l'acte : tout file vers la gauche (raccord fouetté vers le tour).
+      tl.to(tableau, { x: -W * 0.6, opacity: 0, duration: 0.4, ease: "power3.in" }, 20.15);
+      tl.to(logoP, { x: TAB.x + TAB.ent / 2 + 6 - sommetX - W * 0.6, opacity: 0, duration: 0.4, ease: "power3.in" }, 20.15);
+      tl.to("#monde-leve", { x: -W * 0.6, opacity: 0, duration: 0.4, ease: "power3.in" }, 20.15);
+
+      /* =====================================================================
+         ACTES 5 ET 6 — le tour des vues, puis le tableau de bord
+         ===================================================================== */
+      const ville = document.getElementById("ville");
+      const tour = document.getElementById("calque-tour");
+      const T0 = 20.3; // début de l'acte
+
+      // Gabarit d'une station : socle isométrique + écran debout + accessoires.
+      const ST = K(
+        { ecranW: 860, ecranH: 520, socleW: 1200, socleH: 560, ecranY: -150, socleY: 120 },
+        { ecranW: 960, ecranH: 690, socleW: 1060, socleH: 500, ecranY: -120, socleY: 150 },
+      );
+      const POS_STATIONS = K(
+        [
+          [0, 0],
+          [2500, 950],
+          [5000, 0],
+          [7500, 950],
+        ],
+        [
+          [0, 0],
+          [0, 2300],
+          [0, 4600],
+          [0, 6900],
+        ],
+      );
+      function socleSVG(w, h) {
+        const e = 0.11 * h;
+        return `<svg viewBox="0 0 ${w} ${h + e}" width="${w}" height="${h + e}"><polygon points="${w / 2},${e} ${w},${h / 2 + e} ${w / 2},${h + e} 0,${h / 2 + e}" fill="#2c376b"/><polygon points="${w / 2},0 ${w},${h / 2} ${w / 2},${h} 0,${h / 2}" fill="#eef3f8"/><polygon points="0,${h / 2} ${w / 2},${h} ${w / 2},${h + e} 0,${h / 2 + e}" fill="#4e5d99"/><polygon points="${w},${h / 2} ${w / 2},${h} ${w / 2},${h + e} ${w},${h / 2 + e}" fill="#3b4a85"/></svg>`;
+      }
+      function station(i, titreEcran) {
+        const [x, y] = POS_STATIONS[i];
+        const s = el("div", ville, "station", { left: px(x), top: px(y) });
+        const socle = el(
+          "div",
+          s,
+          "socle",
+          { left: px(-ST.socleW / 2), top: px(ST.socleY - ST.socleH / 2), width: px(ST.socleW), height: px(ST.socleH * 1.11) },
+          socleSVG(ST.socleW, ST.socleH),
+        );
+        const ecran = el("div", s, "ecran", {
+          left: px(-ST.ecranW / 2),
+          top: px(ST.ecranY - ST.ecranH / 2),
+          width: px(ST.ecranW),
+          height: px(ST.ecranH),
+        });
+        const hTitre = K(78, 92);
+        el("div", ecran, "ecran-titre", { height: px(hTitre) }, titreEcran);
+        const corps = el("div", ecran, "abs", { left: "0px", top: px(hTitre), right: "0px", bottom: "0px" });
+        gsap.set(ecran, { transformPerspective: 1600, rotationY: K(-10, -6), rotationX: 3 });
+        return { s, socle, ecran, corps, hTitre, x, y };
+      }
+
+      // Caméra de la ville : chaque station tour à tour, au point d'écran FOCUS.
+      const FOCUS = K([1100, 600], [540, 1250]);
+      const plan = (i, s = 1) => ({ wx: POS_STATIONS[i][0], wy: POS_STATIONS[i][1], sx: FOCUS[0], sy: FOCUS[1], s });
+      const cleV = (t, p, ease) => Object.assign({ t, ease }, p);
+      const cameraVille = camera([
+        cleV(0, Object.assign(plan(0), { sx: FOCUS[0] + K(900, 0), sy: FOCUS[1] + K(0, 700) })),
+        cleV(0.45, plan(0), "expo.out"),
+        cleV(2.65, plan(0)),
+        cleV(3.25, plan(1), "power3.inOut"),
+        cleV(5.15, plan(1)),
+        cleV(5.75, plan(2), "power3.inOut"),
+        cleV(7.65, plan(2)),
+        cleV(8.25, plan(3), "power3.inOut"),
+        cleV(10.85, plan(3)),
+        cleV(11.5, Object.assign(plan(3, 0.6), { sx: FOCUS[0] + K(-200, 0) }), "power3.in"),
+        cleV(16.35, Object.assign(plan(3, 0.6), { sx: FOCUS[0] + K(-200, 0) })),
+      ]);
+      const piloteV = { t: 0 };
+      function appliquerVille(t) {
+        const cam = cameraVille(t);
+        ville.style.transform = cadre(cam);
+      }
+      appliquerVille(0);
+      tl.fromTo(
+        piloteV,
+        { t: 0 },
+        { t: 16.35, duration: 16.35, ease: "none", onUpdate: () => appliquerVille(piloteV.t) },
+        T0,
+      );
+      // Flou de vitesse sur l'arrivée fouettée.
+      tl.fromTo("#calque-ville", { filter: "blur(18px)" }, { filter: "blur(0px)", duration: 0.45, ease: "power2.out" }, T0);
+
+      const KICKER = K({ left: "90px", top: "64px", width: "900px" }, { left: "70px", top: "210px", width: "940px" });
+
+      /* ---------- Station A : Kanban — « Qui fait quoi. » ---------- */
+      const A = station(0, "Kanban");
+      titre(tour, "Qui fait quoi.", KICKER, T0 + 0.35, T0 + 2.6);
+      const KB = K(
+        { colW: 250, colH: 380, gap: 22, x0: 24, y0: 22, carteH: 104, entH: 46 },
+        { colW: 286, colH: 540, gap: 20, x0: 22, y0: 22, carteH: 148, entH: 56 },
+      );
+      const COLS = [
+        { nom: "À faire", c: STATUT["À faire"] },
+        { nom: "En cours", c: STATUT["En cours"] },
+        { nom: "Fait", c: STATUT["Fait"] },
+      ];
+      const colX = (k) => KB.x0 + k * (KB.colW + KB.gap);
+      COLS.forEach((c, k) => {
+        const col = el("div", A.corps, "colonne", {
+          left: px(colX(k)),
+          top: px(KB.y0),
+          width: px(KB.colW),
+          height: px(KB.colH),
+        });
+        el("div", col, "colonne-titre", { background: c.c[0], color: c.c[1], height: px(KB.entH) }, c.nom);
+      });
+      const slot = (k, n) => [colX(k) + 12, KB.y0 + KB.entH + 14 + n * (KB.carteH + 14)];
+      function carte(texte, k, n, prio) {
+        const [x, y] = slot(k, n);
+        const c = el("div", A.corps, "carte", { left: px(x), top: px(y), width: px(KB.colW - 24), height: px(KB.carteH) }, texte);
+        puce(c, prio, PRIORITE[prio], { position: "absolute", right: "10px", bottom: "10px", fontSize: K("20px", "26px") });
+        return c;
+      }
+      const cRevue = carte("Revue lots", 0, 0, "P3");
+      carte("Inventaire mensuel", 0, 1, "P3");
+      const cAudit = carte("Audit qualité", 1, 0, "P2");
+      carte("Contrôle péremption", 2, 0, "P3");
+      // Saut d'une carte d'une colonne à l'autre (arc), fonction du temps.
+      function sautCarte(c, de, a, t, d) {
+        const [x0, y0] = slot(de[0], de[1]);
+        const [x1, y1] = slot(a[0], a[1]);
+        const p = { u: 0 };
+        tl.fromTo(
+          p,
+          { u: 0 },
+          {
+            u: 1,
+            duration: d,
+            ease: "power2.inOut",
+            immediateRender: false,
+            onUpdate: () => {
+              const u = p.u;
+              gsap.set(c, { x: (x1 - x0) * u, y: (y1 - y0) * u - 120 * 4 * u * (1 - u), rotation: 8 * Math.sin(u * Math.PI) });
+            },
+          },
+          t,
+        );
+      }
+      sautCarte(cAudit, [1, 0], [2, 1], T0 + 0.7, 0.55);
+      sautCarte(cRevue, [0, 0], [1, 0], T0 + 1.4, 0.55);
+      const coche = el(
+        "div",
+        cAudit,
+        "abs",
+        { right: "-14px", top: "-18px", width: "44px", height: "44px", borderRadius: "50%", background: "#2e9e5b" },
+        `<svg viewBox="0 0 44 44" width="44" height="44"><path d="M12 23 l7 7 l13 -15" fill="none" stroke="#fff" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
+      );
+      pop(coche, T0 + 1.2, { d: 0.35, ease: "back.out(2.4)" });
+      const avBD = avatar(cRevue, "BD", 1, K(48, 60), { left: "8px", bottom: "8px" });
+      pop(avBD, T0 + 2.0, { depuis: 0, y: -200, d: 0.45, ease: "back.out(1.8)" });
+      // Accessoires : Fiole pousse, le préparateur fait un pouce levé.
+      const fioleA = ancre(A.s, K(-470, -345), K(250, 310));
+      pose(fioleA, "fiole-pousse.png", K(250, 220));
+      pop(fioleA, T0 + 0.45, { d: 0.45, ease: "back.out(1.8)" });
+      tl.fromTo(fioleA, { x: 0 }, { x: 30, duration: 0.5, ease: "power2.out", yoyo: true, repeat: 1, immediateRender: false }, T0 + 0.7);
+      const prepA = ancre(A.s, K(470, 360), K(260, 320));
+      pose(prepA, "preparateur-pouce.png", K(300, 250));
+      pop(prepA, T0 + 0.55, { d: 0.45, ease: "back.out(1.8)" });
+
+      /* ---------- Station B : Calendrier et Gantt — « Pour quand. » ---------- */
+      const B = station(1, "Calendrier · Gantt");
+      titre(tour, "Pour quand.", KICKER, T0 + 3.3, T0 + 5.1);
+      const GT = K(
+        { x0: 250, y0: 26, colW: 112, ligH: 96, barH: 44, nomW: 220 },
+        { x0: 290, y0: 26, colW: 124, ligH: 150, barH: 58, nomW: 260 },
+      );
+      const JOURS = ["Lun", "Mar", "Mer", "Jeu", "Ven"];
+      JOURS.forEach((j, k) => {
+        el(
+          "div",
+          B.corps,
+          "abs",
+          { left: px(GT.x0 + k * GT.colW), top: px(GT.y0), width: px(GT.colW), textAlign: "center", fontWeight: "800", color: "#6b8296" },
+          j,
+        );
+        el("div", B.corps, "abs", {
+          left: px(GT.x0 + k * GT.colW),
+          top: px(GT.y0 + K(48, 60)),
+          width: "3px",
+          bottom: "24px",
+          background: "#e3ebf2",
+        });
+      });
+      const GANTT = [
+        { nom: "Audit qualité", de: 0, d: 2.4, c: "#005586" },
+        { nom: "Revue lots", de: 1.4, d: 2.2, c: "#46b4b3" },
+        { nom: "Inventaire", de: 2.0, d: 2.3, c: "#e82a63" },
+      ];
+      let finDerniere = [0, 0];
+      GANTT.forEach((g, k) => {
+        const y = GT.y0 + K(70, 90) + k * GT.ligH;
+        el("div", B.corps, "abs", { left: "26px", top: px(y + GT.barH / 2 - K(20, 22)), width: px(GT.nomW), fontWeight: "800", fontSize: K("30px", "36px") }, g.nom);
+        const b = el("div", B.corps, "barre", {
+          left: px(GT.x0 + g.de * GT.colW),
+          top: px(y),
+          width: px(g.d * GT.colW),
+          height: px(GT.barH),
+          background: g.c,
+        });
+        tl.fromTo(b, { scaleX: 0 }, { scaleX: 1, duration: 0.75, ease: "power3.out" }, T0 + 3.4 + k * 0.14);
+        finDerniere = [GT.x0 + (g.de + g.d) * GT.colW, y];
+      });
+      const auj = el("div", B.corps, "abs", {
+        left: px(GT.x0 + 1.6 * GT.colW),
+        top: px(GT.y0 + K(44, 56)),
+        width: "6px",
+        bottom: "18px",
+        borderRadius: "6px",
+        background: "#e82a63",
+      });
+      tl.fromTo(auj, { scaleY: 0, transformOrigin: "50% 0%" }, { scaleY: 1, duration: 0.5, ease: "power2.out" }, T0 + 4.1);
+      const drapeau = el("div", B.corps, "ancre", { left: px(finDerniere[0] - 6), top: px(finDerniere[1] + GT.barH / 2) });
+      const imgDrapeau = pose(drapeau, "drapeau.png", K(110, 130));
+      imgDrapeau.style.left = "-8px";
+      tl.fromTo(drapeau, { scale: 0, rotation: -30 }, { scale: 1, rotation: 0, duration: 0.45, ease: "back.out(2.4)" }, T0 + 4.45);
+      const fioleB = ancre(B.s, K(-470, -345), K(250, 310));
+      pose(fioleB, "fiole-assise.png", K(220, 200));
+      pop(fioleB, T0 + 3.3, { d: 0.45, ease: "back.out(1.8)" });
+      const logB = ancre(B.s, K(470, 360), K(260, 320));
+      pose(logB, "logisticien.png", K(300, 250));
+      pop(logB, T0 + 3.4, { d: 0.45, ease: "back.out(1.8)" });
+
+      /* ---------- Station C : Circuit d'intervention — « Où on en est. » ---------- */
+      const Cst = station(2, "Circuit d’intervention");
+      titre(tour, "Où on en est.", KICKER, T0 + 5.8, T0 + 7.6);
+      const NOEUDS = [
+        { nom: "Cadrage", c: "#005586" },
+        { nom: "Production", c: "#46b4b3" },
+        { nom: "Contrôle", c: "#f4c137" },
+        { nom: "Libération", c: "#e82a63" },
+      ];
+      const NC = K({ x0: 110, pas: 210, y: 150, r: 46 }, { x0: 110, pas: 230, y: 220, r: 58 });
+      el("div", Cst.corps, "abs", {
+        left: px(NC.x0),
+        top: px(NC.y - 4),
+        width: px(NC.pas * 3),
+        height: "8px",
+        borderRadius: "8px",
+        background: "#dbe6ee",
+      });
+      const progres = el("div", Cst.corps, "barre", {
+        left: px(NC.x0),
+        top: px(NC.y - 4),
+        width: px(NC.pas * 3),
+        height: "8px",
+        background: "#2e9e5b",
+      });
+      tl.fromTo(progres, { scaleX: 0 }, { scaleX: 1, duration: 1.5, ease: "none" }, T0 + 6.0);
+      NOEUDS.forEach((n, k) => {
+        const cx = NC.x0 + k * NC.pas;
+        const noeud = el("div", Cst.corps, "noeud", {
+          left: px(cx - NC.r),
+          top: px(NC.y - NC.r),
+          width: px(2 * NC.r),
+          height: px(2 * NC.r),
+          background: "#c9d7e3",
+          fontSize: px(NC.r * 0.9),
+        });
+        noeud.textContent = String(k + 1);
+        el(
+          "div",
+          Cst.corps,
+          "abs",
+          { left: px(cx - 120), top: px(NC.y + NC.r + 18), width: "240px", textAlign: "center", fontWeight: "800" },
+          n.nom,
+        );
+        const t = T0 + 6.0 + k * 0.5;
+        tl.to(noeud, { backgroundColor: n.c, duration: 0.15 }, t);
+        tl.fromTo(noeud, { scale: 1 }, { scale: 1.25, duration: 0.16, ease: "power2.out", yoyo: true, repeat: 1, immediateRender: false }, t);
+      });
+      // Le jeton (une poche) saute de nœud en nœud.
+      const jeton = el("div", Cst.corps, "abs", { left: px(NC.x0), top: px(NC.y - NC.r + 4), width: "0px", height: "0px" });
+      const imgJeton = pose(jeton, "poche.png", K(76, 92));
+      pop(jeton, T0 + 5.85, { d: 0.3, ease: "back.out(2)" });
+      const pj = { u: 0 };
+      tl.fromTo(
+        pj,
+        { u: 0 },
+        {
+          u: 3,
+          duration: 1.5,
+          ease: "none",
+          immediateRender: false,
+          onUpdate: () => {
+            const k = Math.min(2.999, pj.u);
+            const f = k - Math.floor(k);
+            const x = (Math.floor(k) + f) * NC.pas;
+            gsap.set(jeton, { x, y: -46 * 4 * f * (1 - f) });
+          },
+        },
+        T0 + 6.0,
+      );
+      const fioleC = ancre(Cst.s, K(-470, -345), K(250, 310));
+      pose(fioleC, "fiole-montre.png", K(240, 215));
+      pop(fioleC, T0 + 5.8, { d: 0.45, ease: "back.out(1.8)" });
+      const prepC = ancre(Cst.s, K(470, 360), K(260, 320));
+      pose(prepC, "preparateur-salue.png", K(300, 250));
+      pop(prepC, T0 + 5.9, { d: 0.45, ease: "back.out(1.8)" });
+
+      /* ---------- Station D : Messages — « L'urgent passe devant. » ---------- */
+      const D = station(3, "Messages");
+      titre(tour, K("L’urgent passe devant.", "L’urgent\npasse devant."), KICKER, T0 + 8.3, T0 + 10.8);
+      const MS = K({ x0: 24, w: 770, h: 92, pas: 108, y0: 24 }, { x0: 24, w: 880, h: 132, pas: 150, y0: 24 });
+      const MESSAGES = [
+        { texte: "Réunion qualité jeudi, 14 h", av: "CP", v: 2 },
+        { texte: "Commande d’antibiotiques envoyée", av: "BD", v: 1 },
+        { texte: "Inventaire du mois&nbsp;: c’est parti", av: "AM", v: 0 },
+      ];
+      const lignesMsg = MESSAGES.map((m, k) => {
+        const l = el("div", D.corps, "message", {
+          left: px(MS.x0),
+          top: px(MS.y0 + k * MS.pas),
+          width: px(MS.w),
+          height: px(MS.h),
+        });
+        avatar(l, m.av, m.v, K(56, 72), { position: "relative" });
+        el("span", l, "", {}, m.texte);
+        return l;
+      });
+      // Le message prioritaire arrive en tête et pousse les autres.
+      const urgent = el("div", D.corps, "message", {
+        left: px(MS.x0),
+        top: px(MS.y0),
+        width: px(MS.w),
+        height: px(MS.h),
+        background: "#fde4ec",
+        border: "4px solid #e82a63",
+      });
+      const badgeUrgent = puce(urgent, "Prioritaire", PRIORITE.P1, { fontSize: K("22px", "28px") });
+      el("span", urgent, "", { fontWeight: "800" }, K("Blocage&nbsp;: décision avant ce soir", "Blocage&nbsp;: décision ce soir"));
+      tl.fromTo(urgent, { x: -MS.w - 60, opacity: 0 }, { x: 0, opacity: 1, duration: 0.5, ease: "expo.out" }, T0 + 8.5);
+      lignesMsg.forEach((l, k) => {
+        tl.fromTo(l, { y: 0 }, { y: MS.pas, duration: 0.45, ease: "power3.inOut", immediateRender: false }, T0 + 8.45 + k * 0.04);
+      });
+      // Le plus ancien quitte la liste : à quatre, elle déborderait du cadre.
+      tl.fromTo(
+        lignesMsg[lignesMsg.length - 1],
+        { opacity: 1 },
+        { opacity: 0, duration: 0.3, ease: "power2.in", immediateRender: false },
+        T0 + 8.5,
+      );
+      pop(badgeUrgent, T0 + 8.85, { depuis: 0.4, d: 0.35, ease: "back.out(2.4)" });
+      // La cloche sonne sur le socle, avec sa pastille.
+      const clocheD = ancre(D.s, K(-450, -400), K(230, 410));
+      const imgCloche = pose(clocheD, "cloche.png", K(170, 160));
+      pop(clocheD, T0 + 8.4, { d: 0.4, ease: "back.out(2)" });
+      tl.fromTo(clocheD, { rotation: 0 }, { rotation: 16, duration: 0.09, ease: "sine.inOut", yoyo: true, repeat: 9, immediateRender: false }, T0 + 8.75);
+      const pastille = el(
+        "div",
+        clocheD,
+        "abs",
+        { left: K("30px", "30px"), top: K("-190px", "-180px"), width: "62px", height: "62px", borderRadius: "50%", background: "#e82a63", color: "#fff", fontWeight: "900", fontSize: "38px", display: "flex", alignItems: "center", justifyContent: "center" },
+        "1",
+      );
+      pop(pastille, T0 + 8.8, { d: 0.35, ease: "back.out(2.6)" });
+      const cadreD = ancre(D.s, K(470, 360), K(260, 320));
+      pose(cadreD, "cadre.png", K(310, 255));
+      pop(cadreD, T0 + 8.45, { d: 0.45, ease: "back.out(1.8)" });
+      // La mention « @Alice » file vers la cadre.
+      const mention = el("div", tour, "bulle", {}, "@Alice");
+      const [mx, my] = [FOCUS[0] + K(330, 160), FOCUS[1] + K(-40, -250)];
+      Object.assign(mention.style, { left: px(mx), top: px(my) });
+      tl.fromTo(mention, { x: K(-420, -320), y: K(-120, 60), scale: 0.3, opacity: 0 }, { x: 0, y: 0, scale: 1, opacity: 1, duration: 0.55, ease: "power3.out" }, T0 + 9.35);
+      sortie(mention, T0 + 10.75, { d: 0.25 });
+
+      // Apparition des stations à l'approche de la caméra.
+      [A, B, Cst, D].forEach((st, k) => {
+        const t = T0 + [0.1, 2.95, 5.45, 7.95][k];
+        pop(st.socle, t, { depuis: 0.6, y: 80, d: 0.55, ease: "power3.out" });
+        tl.fromTo(st.ecran, { y: 120, opacity: 0 }, { y: 0, opacity: 1, duration: 0.6, ease: "expo.out" }, t + 0.1);
+      });
+
+      /* ---------- Acte 6 : le tableau de bord ---------- */
+      const T6 = 31.15;
+      tl.to("#calque-ville", { opacity: 0, scale: 0.7, duration: 0.5, ease: "power2.in" }, T6);
+      titre(tour, "Et un tableau de bord pour piloter.", Object.assign({}, KICKER, K({ width: "880px" }, {})), T6 + 0.55, 35.95);
+      const TB = K({ x: 640, y: 250, w: 1190, h: 700 }, { x: 50, y: 620, w: 980, h: 770 });
+      const tb = el("div", tour, "ecran", { left: px(TB.x), top: px(TB.y), width: px(TB.w), height: px(TB.h) });
+      const hT = K(84, 96);
+      el("div", tb, "ecran-titre", { height: px(hT) }, "Tableau de bord");
+      tl.fromTo(tb, { scale: 0.4, opacity: 0, y: 80 }, { scale: 1, opacity: 1, y: 0, duration: 0.7, ease: "expo.out" }, T6 + 0.35);
+      // Trois indicateurs qui comptent.
+      const KP = K({ x0: 34, y: hT + 28, w: 250, h: 150, pas: 270 }, { x0: 30, y: hT + 28, w: 290, h: 170, pas: 304 });
+      const KPIS = [
+        { lib: "Projets actifs", v: 6 },
+        { lib: "Tâches en cours", v: 18 },
+        { lib: "Tâches faites", v: 42 },
+      ];
+      KPIS.forEach((k, i) => {
+        const b = el("div", tb, "kpi", { left: px(KP.x0 + i * KP.pas), top: px(KP.y), width: px(KP.w), height: px(KP.h) });
+        const n = el("strong", b, "", { fontSize: K("64px", "76px") }, "0");
+        el("span", b, "", { fontSize: K("24px", "30px") }, k.lib);
+        pop(b, T6 + 0.85 + i * 0.08, { depuis: 0.6, d: 0.45, ease: "power3.out" });
+        const c = { v: 0 };
+        tl.fromTo(
+          c,
+          { v: 0 },
+          {
+            v: k.v,
+            duration: 1.0,
+            ease: "power2.out",
+            onUpdate: () => {
+              n.textContent = String(Math.round(c.v));
+            },
+          },
+          T6 + 1.1 + i * 0.1,
+        );
+      });
+      // Anneau des statuts (tracé progressif, segment par segment).
+      const DN = K({ x: 70, y: hT + 220, r: 135 }, { x: 70, y: hT + 250, r: 150 });
+      const PARTS = [
+        { s: "À faire", v: 0.24 },
+        { s: "En cours", v: 0.31 },
+        { s: "Fait", v: 0.38 },
+        { s: "Bloqué", v: 0.07 },
+      ];
+      // Le trait déborde du rayon de la moitié de son épaisseur : la boîte du
+      // svg doit le contenir, sinon l'anneau sort rogné en carré.
+      const epaisseurDonut = K(56, 62);
+      const tailleDonut = 2 * DN.r + epaisseurDonut + 8;
+      const donut = document.createElementNS(svgNS, "svg");
+      donut.setAttribute("width", String(tailleDonut));
+      donut.setAttribute("height", String(tailleDonut));
+      donut.setAttribute("viewBox", `0 0 ${tailleDonut} ${tailleDonut}`);
+      Object.assign(donut.style, { position: "absolute", left: px(DN.x), top: px(DN.y) });
+      tb.appendChild(donut);
+      const circ = 2 * Math.PI * DN.r;
+      let cumul = 0;
+      PARTS.forEach((p, i) => {
+        const arc = document.createElementNS(svgNS, "circle");
+        arc.setAttribute("cx", String(tailleDonut / 2));
+        arc.setAttribute("cy", String(tailleDonut / 2));
+        arc.setAttribute("r", String(DN.r));
+        arc.setAttribute("fill", "none");
+        arc.setAttribute("stroke", STATUT[p.s][0]);
+        arc.setAttribute("stroke-width", String(epaisseurDonut));
+        arc.setAttribute("transform", `rotate(${-90 + cumul * 360} ${tailleDonut / 2} ${tailleDonut / 2})`);
+        donut.appendChild(arc);
+        const L = circ * p.v;
+        arc.style.strokeDasharray = `${L} ${circ}`;
+        tl.fromTo(arc, { strokeDashoffset: L }, { strokeDashoffset: 0, duration: 0.5, ease: "power2.out" }, T6 + 1.25 + i * 0.3);
+        cumul += p.v;
+      });
+      // Légende.
+      PARTS.forEach((p, i) => {
+        const lg = el("div", tb, "abs", {
+          left: px(DN.x + tailleDonut + K(24, 20)),
+          top: px(DN.y + 30 + i * K(58, 66)),
+          display: "flex",
+          alignItems: "center",
+          gap: "12px",
+          fontWeight: "800",
+          fontSize: K("26px", "32px"),
+        });
+        el("i", lg, "", { display: "inline-block", width: "26px", height: "26px", borderRadius: "8px", background: STATUT[p.s][0] });
+        el("span", lg, "", {}, p.s);
+        pop(lg, T6 + 1.3 + i * 0.3, { depuis: 0.5, d: 0.3, ease: "power3.out" });
+      });
+      // Barres : tâches faites par semaine.
+      const BR = K({ x: 736, y: hT + 230, h: 300, w: 58, pas: 82 }, { x: 560, y: hT + 520, h: 160, w: 54, pas: 76 });
+      if (!PORTRAIT) {
+        const HAUTEURS = [0.42, 0.56, 0.5, 0.72, 0.9];
+        HAUTEURS.forEach((hh, i) => {
+          const b = el("div", tb, "abs", {
+            left: px(BR.x + i * BR.pas),
+            top: px(BR.y + BR.h * (1 - hh)),
+            width: px(BR.w),
+            height: px(BR.h * hh),
+            borderRadius: "14px 14px 6px 6px",
+            background: i === HAUTEURS.length - 1 ? "#46b4b3" : "#bcd0df",
+            transformOrigin: "50% 100%",
+          });
+          tl.fromTo(b, { scaleY: 0 }, { scaleY: 1, duration: 0.6, ease: "power3.out" }, T6 + 1.85 + i * 0.08);
+        });
+        el(
+          "div",
+          tb,
+          "abs",
+          { left: px(BR.x), top: px(BR.y + BR.h + 16), width: px(BR.pas * 5), fontWeight: "800", color: "#6b8296", fontSize: "24px" },
+          "Tâches faites / semaine",
+        );
+      }
+      // La pharmacienne, café en main, s'adosse.
+      const pharma = ancre(tour, K(330, 250), K(1010, 1880));
+      pose(pharma, "pharmacienne-cafe.png", K(470, 430));
+      tl.fromTo(pharma, { x: -K(520, 480), rotation: -8, opacity: 0 }, { x: 0, rotation: 0, opacity: 1, duration: 0.7, ease: "power3.out" }, T6 + 1.45);
+      tl.fromTo(pharma, { rotation: 0 }, { rotation: -3, duration: 0.8, ease: "sine.inOut", yoyo: true, repeat: 3, immediateRender: false }, T6 + 2.3);
+      tl.to([tb, pharma], { opacity: 0, scale: 0.92, duration: 0.3, ease: "power2.in" }, 36.05);
+
+      /* =====================================================================
+         ACTE 7 — Signature (36,45 → 42 s)
+         ===================================================================== */
+      const sig = document.getElementById("calque-signature");
+      const fin = document.getElementById("calque-final");
+      const T7 = 36.45;
+
+      // L'unité entière, en plan large, et l'équipe qui salue.
+      const SIG = K(
+        { decor: { x: 960, y: 840, s: 0.4 }, logo: [960, 240], taille: 230, nom: 104, slogan: 44 },
+        { decor: { x: 540, y: 1370, s: 0.44 }, logo: [540, 470], taille: 330, nom: 124, slogan: 52 },
+      );
+      const decorSig = el("img", sig, "abs", {
+        width: px(2752 * SIG.decor.s),
+        height: px(1536 * SIG.decor.s),
+        left: px(SIG.decor.x - (1375 * SIG.decor.s)),
+        top: px(SIG.decor.y - (805 * SIG.decor.s)),
+        WebkitMaskImage: "radial-gradient(ellipse 50% 54% at 50% 54%, #000 78%, transparent 100%)",
+        maskImage: "radial-gradient(ellipse 50% 54% at 50% 54%, #000 78%, transparent 100%)",
+      });
+      decorSig.src = "assets/img/decor.jpg";
+      decorSig.alt = "";
+      tl.fromTo(decorSig, { scale: 1.35, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.9, ease: "power3.out" }, T7);
+      const EQUIPE = K(
+        [
+          ["pharmacienne-salue.png", 380, 1010, 280],
+          ["preparateur-salue.png", 590, 1030, 260],
+          ["fiole-saute.png", 960, 1055, 220],
+          ["cadre.png", 1330, 1030, 270],
+          ["logisticien.png", 1540, 1010, 270],
+        ],
+        [
+          ["pharmacienne-salue.png", 170, 1650, 280],
+          ["preparateur-salue.png", 365, 1680, 255],
+          ["fiole-saute.png", 540, 1700, 215],
+          ["cadre.png", 725, 1680, 265],
+          ["logisticien.png", 915, 1650, 265],
+        ],
+      );
+      EQUIPE.forEach(([f, x, y, h], i) => {
+        const a = ancre(sig, x, y);
+        pose(a, f, h);
+        pop(a, T7 + 0.3 + i * 0.07, { depuis: 0, y: 80, d: 0.5, ease: "back.out(1.6)" });
+        tl.fromTo(a, { rotation: 0 }, { rotation: i % 2 ? 4 : -4, duration: 0.35, ease: "sine.inOut", yoyo: true, repeat: 5, immediateRender: false }, T7 + 1.0 + i * 0.05);
+        if (f === "fiole-saute.png") {
+          tl.fromTo(a, { y: 0 }, { y: -90, duration: 0.3, ease: "power2.out", yoyo: true, repeat: 3, immediateRender: false }, T7 + 1.1);
+        }
+      });
+      // Flou de profondeur pendant que la marque s'installe.
+      tl.fromTo(sig, { filter: "blur(0px)" }, { filter: "blur(2px)", duration: 0.6, ease: "power2.out" }, T7 + 1.0);
+
+      // Le logo PHARMACO éclot, le nom tombe lettre à lettre, puis la phrase.
+      const marque = el("div", fin, "abs", { left: px(SIG.logo[0]), top: px(SIG.logo[1]), width: "0px", height: "0px" });
+      const haloSig = el("div", marque, "abs", {
+        left: px(-SIG.taille),
+        top: px(-SIG.taille),
+        width: px(SIG.taille * 2),
+        height: px(SIG.taille * 2),
+        borderRadius: "50%",
+        background: "radial-gradient(circle, rgba(255,255,255,0.95) 0%, rgba(255,255,255,0) 66%)",
+      });
+      const logoSig = el("img", marque, "abs", {
+        width: px(SIG.taille),
+        height: px(SIG.taille),
+        left: px(-SIG.taille / 2),
+        top: px(-SIG.taille / 2),
+      });
+      logoSig.src = "assets/img/logo-pharmaco.png";
+      logoSig.alt = "";
+      tl.fromTo(haloSig, { scale: 0.2, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.6, ease: "power2.out" }, T7 + 0.7);
+      tl.fromTo(logoSig, { scale: 0, rotation: -120 }, { scale: 1, rotation: 0, duration: 0.8, ease: "back.out(1.5)" }, T7 + 0.75);
+      const nomMarque = el("div", fin, "abs", {
+        left: "0px",
+        right: "0px",
+        top: px(SIG.logo[1] + SIG.taille / 2 + K(14, 20)),
+        textAlign: "center",
+        fontWeight: "900",
+        fontSize: px(SIG.nom),
+        letterSpacing: "0.04em",
+        color: "#005586",
+        lineHeight: "1",
+      });
+      "PHARMACO".split("").forEach((l, i) => {
+        const s = el("span", nomMarque, "mot", {}, l);
+        tl.fromTo(s, { y: -120, opacity: 0, rotation: -12 }, { y: 0, opacity: 1, rotation: 0, duration: 0.45, ease: "back.out(2)" }, T7 + 1.15 + i * 0.045);
+      });
+      const slogan = el(
+        "div",
+        fin,
+        "abs",
+        {
+          left: px(K(260, 60)),
+          right: px(K(260, 60)),
+          top: px(SIG.logo[1] + SIG.taille / 2 + K(14, 20) + SIG.nom + K(18, 26)),
+          textAlign: "center",
+          fontWeight: "800",
+          fontSize: px(SIG.slogan),
+          color: "#0e2f47",
+          lineHeight: "1.15",
+        },
+        `<span class="mot">L’équipe</span> <span class="mot">et</span> <span class="mot">ses</span> <span class="mot">projets,</span>${PORTRAIT ? "<br>" : " "}<span class="mot" style="color:#e82a63">en</span> <span class="mot" style="color:#e82a63">un</span> <span class="mot" style="color:#e82a63">coup</span> <span class="mot" style="color:#e82a63">d’œil.</span>`,
+      );
+      slogan.querySelectorAll(".mot").forEach((m, i) => {
+        tl.fromTo(m, { y: 40, opacity: 0 }, { y: 0, opacity: 1, duration: 0.45, ease: "expo.out" }, T7 + 1.75 + i * 0.05);
+      });
+
+      // Confettis aux couleurs de la charte (gerbe de particules, déterministe).
+      const champ = el("div", fin, "abs", { left: px(SIG.logo[0]), top: px(SIG.logo[1]), width: "0px", height: "0px" });
+      const PALETTE = ["#005586", "#e82a63", "#46b4b3", "#f4c137"];
+      const confettis = [];
+      for (let i = 0; i < 30; i++) {
+        const taille = 10 + hasard(i * 3 + 1) * 10;
+        const c = el("div", champ, "confetti", { width: px(taille), height: px(taille * 0.65), background: PALETTE[i % 4] });
+        const angle = -Math.PI / 2 + (hasard(i * 5 + 2) * 2 - 1) * 1.15;
+        const vitesse = K(700, 820) + hasard(i * 7 + 3) * K(650, 700);
+        confettis.push({ c, vx: Math.cos(angle) * vitesse, vy: Math.sin(angle) * vitesse, spin: (hasard(i * 11 + 4) * 2 - 1) * 600 });
+      }
+      const vol = { T: 0 };
+      const DUREE_VOL = 1.6;
+      tl.fromTo(
+        vol,
+        { T: 0 },
+        {
+          T: 1,
+          duration: DUREE_VOL,
+          ease: "none",
+          onUpdate: () => {
+            const t = vol.T * DUREE_VOL;
+            const fondu = Math.min(1, (1 - vol.T) / 0.3);
+            confettis.forEach((p) => {
+              const x = p.vx * t;
+              const y = p.vy * t + 0.5 * 1500 * t * t;
+              p.c.style.transform = `translate(${x}px, ${y}px) rotate(${p.spin * t}deg)`;
+              p.c.style.opacity = String(vol.T === 0 ? 0 : fondu);
+            });
+          },
+        },
+        38.95,
+      );
+
+      // Signature de l'unité : le logo de la pharmacotechnie.
+      const signature = el("div", fin, "abs", K({ right: "48px", top: "40px" }, { left: "0px", right: "0px", bottom: "56px" }));
+      const SG = K({ emb: 110, nomW: 330 }, { emb: 120, nomW: 380 });
+      Object.assign(signature.style, { display: "flex", alignItems: "center", justifyContent: "center", gap: "18px" });
+      const sEmb = el("img", signature, "", { width: px(SG.emb), height: px(SG.emb) });
+      sEmb.src = "assets/img/pharmaco-embleme.webp";
+      sEmb.alt = "";
+      const sTxt = el("div", signature, "", { display: "flex", flexDirection: "column", gap: "6px" });
+      const sNom = el("img", sTxt, "", { width: px(SG.nomW), height: px((SG.nomW * 106) / 671) });
+      sNom.src = "assets/img/pharmaco-nom.webp";
+      sNom.alt = "";
+      const sUnite = el("img", sTxt, "", { width: px(SG.nomW * 0.78), height: px((SG.nomW * 0.78 * 108) / 508) });
+      sUnite.src = "assets/img/pharmaco-unite.webp";
+      sUnite.alt = "";
+      tl.fromTo(signature, { y: 30, opacity: 0 }, { y: 0, opacity: 1, duration: 0.6, ease: "power3.out" }, T7 + 2.85);
+
+      // Passage de relais : le logo rejoint le coin du site, le reste s'efface.
+      const COIN = K({ x: 46, y: 42, s: 50 }, { x: 74, y: 92, s: 84 });
+      tl.to("#voile", { opacity: 1, duration: 0.85, ease: "power2.inOut" }, 41.0);
+      tl.to([nomMarque, slogan, signature, haloSig], { opacity: 0, duration: 0.45, ease: "power2.in" }, 40.95);
+      tl.to(
+        marque,
+        { x: COIN.x - SIG.logo[0], y: COIN.y - SIG.logo[1], scale: COIN.s / SIG.taille, duration: 0.9, ease: "power3.inOut" },
+        41.0,
+      );
+
+      // La timeline n'est enregistrée qu'une fois entièrement construite.
+      window.__timelines["main"] = tl;
+    </script>
+  </body>
+</html>

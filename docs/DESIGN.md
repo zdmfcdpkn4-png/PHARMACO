@@ -27,6 +27,12 @@ couleur de texte (pour rester lisibles, ex. texte foncé sur jaune). Elle est
 définie dans `client/src/lib/constants.js` → `STATUS_META` / `PRIORITY_META`
 (`bg` + `text`). À ajuster en cohérence si vous changez les couleurs de statut.
 
+**Exception : l'intro animée.** Ses deux vidéos (`client/public/intro/`) ont la
+palette, la police et les logos **incrustés à l'image** : un nouveau thème ne
+les touche pas. Si la charte change, reporter les couleurs dans
+`docs/intro/src/intro.html` et régénérer (`bash docs/intro/rendre.sh`, voir
+[`docs/intro/README.md`](intro/README.md)).
+
 ## 2. Périmètre « sûr » (aucune conséquence fonctionnelle)
 
 Vous pouvez éditer librement :

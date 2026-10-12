@@ -10,3 +10,6 @@ dist/
 # Dumps de base
 *.dump
 *.sql.gz
+
+# Intro animée : projets HyperFrames générés par docs/intro/build.mjs
+docs/intro/.rendu/

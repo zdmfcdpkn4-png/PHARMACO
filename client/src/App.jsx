@@ -1,5 +1,5 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Bell, Plus, LogOut, Menu, X } from 'lucide-react';
+import { Bell, Clapperboard, Plus, LogOut, Menu, X } from 'lucide-react';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import Sidebar from './components/Sidebar.jsx';
 import RailPanel from './components/RailPanel.jsx';
@@ -19,6 +19,8 @@ import BottomSheet from './components/BottomSheet.jsx';
 import BandeauErreur from './components/BandeauErreur.jsx';
 import { SqueletteVue, AnnonceChargement } from './components/Skeleton.jsx';
 import Login from './components/Login.jsx';
+import IntroOuverture from './components/IntroOuverture.jsx';
+import { introAuLancement, marquerIntroVue } from './lib/intro.js';
 import useIsMobile from './lib/useIsMobile.js';
 import { useColumnWidths } from './lib/useColumnWidths.js';
 import { useViewPreferences } from './lib/useViewPreferences.js';
@@ -87,18 +89,34 @@ export default function App() {
     });
   };
 
-  if (!auth?.user) return <Login onAuth={handleAuth} />;
+  // Introduction animée : à la première ouverture sur cet appareil, puis à la
+  // demande. Montée ICI, au-dessus de la connexion comme de l'application,
+  // donc une seule fois pour les rendus ordinateur et téléphone.
+  const [intro, setIntro] = useState(introAuLancement);
+  const fermerIntro = useCallback(() => {
+    marquerIntroVue();
+    setIntro(false);
+  }, []);
+  const revoirIntro = useCallback(() => setIntro(true), []);
 
   return (
-    <Board
-      currentUser={auth.user}
-      onLogout={handleLogout}
-      onUpdateCurrentUser={handleUpdateCurrentUser}
-    />
+    <>
+      {auth?.user ? (
+        <Board
+          currentUser={auth.user}
+          onLogout={handleLogout}
+          onUpdateCurrentUser={handleUpdateCurrentUser}
+          onRevoirIntro={revoirIntro}
+        />
+      ) : (
+        <Login onAuth={handleAuth} />
+      )}
+      {intro && <IntroOuverture onFin={fermerIntro} />}
+    </>
   );
 }
 
-function Board({ currentUser, onLogout, onUpdateCurrentUser }) {
+function Board({ currentUser, onLogout, onUpdateCurrentUser, onRevoirIntro }) {
   const CURRENT_USER_ID = currentUser.id;
   const isMobile = useIsMobile();
   const [board, setBoard] = useState(null);
@@ -1708,6 +1726,10 @@ function Board({ currentUser, onLogout, onUpdateCurrentUser }) {
                   handleOpenShortcut(sc);
                   setMenuOpen(false);
                 }}
+                /* Pas d'onRevoirIntro ici, volontairement : sur un petit
+                   téléphone, chaque entrée de plus dans le rail prend la place
+                   de la liste des projets. « Revoir l'intro » vit dans la
+                   feuille « Profil » (plus bas). */
                 forceOpen
               />
             </div>
@@ -1983,9 +2005,19 @@ function Board({ currentUser, onLogout, onUpdateCurrentUser }) {
             <Avatar name={currentUser.name} src={currentUser.avatar_url} size={56} ring={false} />
             <div className="text-base font-semibold text-gray-800">{currentUser.name}</div>
             <div className="text-sm text-gray-500">{currentUser.email}</div>
+            {/* Pendant mobile de l'entrée du rail (ordinateur). */}
+            <button
+              onClick={() => {
+                setProfileOpen(false);
+                onRevoirIntro?.();
+              }}
+              className="mt-3 flex min-h-[44px] items-center gap-2 rounded-lg border border-gray-200 px-4 text-sm text-gray-700 active:bg-gray-50"
+            >
+              <Clapperboard size={16} /> Revoir l'intro
+            </button>
             <button
               onClick={onLogout}
-              className="mt-3 flex items-center gap-2 rounded-lg border border-gray-200 px-4 py-2 text-sm text-status-blocked"
+              className="flex min-h-[44px] items-center gap-2 rounded-lg border border-gray-200 px-4 text-sm text-status-blocked active:bg-gray-50"
             >
               <LogOut size={16} /> Se déconnecter
             </button>
@@ -2112,6 +2144,7 @@ function Board({ currentUser, onLogout, onUpdateCurrentUser }) {
           onAddShortcut={handleAddShortcut}
           onDeleteShortcut={handleDeleteShortcut}
           onOpenShortcut={handleOpenShortcut}
+          onRevoirIntro={onRevoirIntro}
         />
       </div>
 

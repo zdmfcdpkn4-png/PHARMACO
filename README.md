@@ -63,6 +63,10 @@ Production : **Render** (frontend + API, via `render.yaml`) + **Supabase**
 - Rôles admin / membre / observateur (suppression réservée aux admins) —
   matrice : [`docs/ROLES.md`](docs/ROLES.md).
 - Authentification par jetons signés (`AUTH_SECRET` obligatoire en production).
+- Intro animée à la première ouverture (vidéo de 42 s, 16:9 ou 9:16 selon
+  l'écran, passable, rejouable depuis le rail ou le « Profil » sur téléphone) —
+  source :
+  [`docs/intro/`](docs/intro/README.md).
 
 ## Documentation
 
@@ -70,3 +74,4 @@ Production : **Render** (frontend + API, via `render.yaml`) + **Supabase**
 - [`CHARTE_GRAPHIQUE.md`](CHARTE_GRAPHIQUE.md) — palette CHD, statuts, typographie
 - [`docs/DESIGN.md`](docs/DESIGN.md) — retravailler l'apparence sans casser le fonctionnel
 - [`docs/DEPLOY-SUPABASE.md`](docs/DEPLOY-SUPABASE.md) — déploiement Render (app) + Supabase (base)
+- [`docs/intro/README.md`](docs/intro/README.md) — intro animée : script, source, régénération
